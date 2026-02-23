@@ -6,7 +6,7 @@ const express = require("express");
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "127.0.0.1";
-const BOT_DATA_DIR = process.env.BOT_DATA_DIR || "/Users/looooooty/Documents/LooooootyBot/data";
+const BOT_DATA_DIR = process.env.BOT_DATA_DIR || path.join(process.cwd(), "data");
 const GUILD_ID = process.env.GUILD_ID || "";
 const STAFF_CODE = process.env.STAFF_CODE || "changeme";
 const DISCORD_INVITE_URL = process.env.DISCORD_INVITE_URL || "https://discord.gg/";
@@ -45,6 +45,8 @@ function readJson(file, fallback) {
 }
 
 function writeJson(file, data) {
+  const dir = path.dirname(file);
+  fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
