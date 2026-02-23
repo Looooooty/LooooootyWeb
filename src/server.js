@@ -236,13 +236,37 @@ function normalizeApplicationForm(form, idx) {
 }
 
 function defaultApplicationForms() {
+  const fallbackGuildId = String(GUILD_ID || "1374475620846928062").trim();
   return [
     {
       id: "base-member",
       name: "Base Member",
-      guildId: String(GUILD_ID || "").trim(),
-      roleId: String(BASE_MEMBER_ROLE_ID || "").trim(),
-      questions: [],
+      guildId: fallbackGuildId,
+      roleId: String(BASE_MEMBER_ROLE_ID || "1375496244163641414").trim(),
+      questions: [
+        "When have you joined 2b2t for the first time?",
+        "Have you leaked or griefed any base in the past?",
+        "Do you own priority queue",
+        "Were you part of any base that got griefed in the past?",
+        "Is it okay for you to travel long distances on 2b2t?",
+        "Why do you want to become a Base member",
+        "Have you accidentally stumbled upon a major base in the past",
+        "Add anything you want below"
+      ],
+      active: true,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: "vip",
+      name: "VIP",
+      guildId: fallbackGuildId,
+      roleId: "1374476630873084075",
+      questions: [
+        "Have you been a Base member for more than 2 months already",
+        "Did you ever get warned by Looooooty about something you did wrong at the base?",
+        "Have you followed the rules of the group and never broke them?",
+        "Add anything you will think that will increase your chances of becoming a VIP."
+      ],
       active: true,
       createdAt: new Date().toISOString()
     }
