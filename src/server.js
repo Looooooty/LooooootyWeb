@@ -21,6 +21,7 @@ const BOT_NOTIFY_URL =
 const BOT_INTERNAL_API_SECRET = process.env.BOT_INTERNAL_API_SECRET || "";
 const BASE_MEMBER_ROLE_ID = process.env.BASE_MEMBER_ROLE_ID || "";
 const SITE_ICON_URL = process.env.SITE_ICON_URL || "/logo.png";
+const ABOUT_US_TEXT = process.env.ABOUT_US_TEXT || "About us content coming soon.";
 
 const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
@@ -374,6 +375,7 @@ function sideMenuHtml() {
     <div class="brand">LooooootyBases</div>
     <nav class="menu">
       <a href="/bases">State of bases</a>
+      <a href="/about">About Us</a>
       <a href="/apply">Apply</a>
       <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
       <a href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">LooooootyShop</a>
@@ -554,6 +556,33 @@ function basesPageHtml(bases) {
       <section class="state-box" style="display:block;">
         <div class="state-head">State of bases</div>
         ${baseStateListHtml(bases)}
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function aboutPageHtml() {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>About Us</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml()}</aside>
+    <main class="main">
+      <section class="hero" style="margin-bottom:12px; text-align:left;">
+        <a class="btn" href="/">Back Home</a>
+      </section>
+      <section class="state-box" style="display:block; text-align:left;">
+        <div class="state-head">About Us</div>
+        <div style="white-space:pre-wrap; line-height:1.6;">${esc(ABOUT_US_TEXT)}</div>
       </section>
     </main>
   </div>
@@ -1117,6 +1146,10 @@ app.get("/", (_req, res) => {
 app.get("/bases", (_req, res) => {
   const bases = loadBaseStates();
   res.send(basesPageHtml(bases));
+});
+
+app.get("/about", (_req, res) => {
+  res.send(aboutPageHtml());
 });
 
 app.get("/apply", (req, res) => {
