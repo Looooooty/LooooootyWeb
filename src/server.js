@@ -11,6 +11,10 @@ const GUILD_ID = process.env.GUILD_ID || "";
 const STAFF_CODE = process.env.STAFF_CODE || "changeme";
 const DISCORD_INVITE_URL = process.env.DISCORD_INVITE_URL || "https://discord.gg/";
 const SHOP_INVITE_URL = process.env.SHOP_INVITE_URL || "https://discord.gg/";
+const BOT_DASHBOARD_REPO_URL = process.env.BOT_DASHBOARD_REPO_URL || "https://github.com/Looooooty/LooooootyBot";
+const BOT_DOWNLOAD_URL = process.env.BOT_DOWNLOAD_URL || `${BOT_DASHBOARD_REPO_URL}/archive/refs/heads/main.zip`;
+const BOT_SHOP_PUBLIC = String(process.env.BOT_SHOP_PUBLIC || "false").toLowerCase() === "true";
+const BOT_OWNER_KEY = process.env.BOT_OWNER_KEY || "";
 const HOME_BG_URL =
   process.env.HOME_BG_URL ||
   "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1600&q=80";
@@ -375,6 +379,7 @@ function sideMenuHtml() {
     <div class="brand">LooooootyBases</div>
     <nav class="menu">
       <a href="/bases">State of bases</a>
+      <a href="/bot">Bot</a>
       <a href="/about">About Us</a>
       <a href="/apply">Apply</a>
       <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
@@ -583,6 +588,45 @@ function aboutPageHtml() {
       <section class="state-box" style="display:block; text-align:left;">
         <div class="state-head">About Us</div>
         <div style="white-space:pre-wrap; line-height:1.6;">${esc(ABOUT_US_TEXT)}</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function botPageHtml({ ownerAccess = false, staffAccess = false } = {}) {
+  const shopUnlocked = BOT_SHOP_PUBLIC || ownerAccess || staffAccess;
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bot Dashboard</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml()}</aside>
+    <main class="main">
+      <section class="hero" style="margin-bottom:12px; text-align:left;">
+        <a class="btn" href="/">Back Home</a>
+      </section>
+      <section class="state-box" style="display:block; text-align:left;">
+        <div class="state-head">Bot Dashboard</div>
+        <div style="display:grid; gap:10px;">
+          <a class="btn" href="${BOT_DOWNLOAD_URL}" target="_blank" rel="noreferrer">Download Bot</a>
+          <a class="btn" href="${BOT_DASHBOARD_REPO_URL}" target="_blank" rel="noreferrer">Bot Repository</a>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="state-head">Shop Controls</div>
+          ${
+            shopUnlocked
+              ? '<div>Shop section is currently visible to you. Use the staff panel for management.</div><div style="margin-top:8px;"><a class="btn" href="/panel/shop">Open Shop Panel</a></div>'
+              : "<div>Shop section is private right now. Public users cannot access it until you set BOT_SHOP_PUBLIC=true.</div>"
+          }
+        </div>
       </section>
     </main>
   </div>
@@ -1150,6 +1194,12 @@ app.get("/bases", (_req, res) => {
 
 app.get("/about", (_req, res) => {
   res.send(aboutPageHtml());
+});
+
+app.get("/bot", (req, res) => {
+  const ownerAccess = Boolean(BOT_OWNER_KEY) && String(req.query.owner_key || "").trim() === BOT_OWNER_KEY;
+  const staffAccess = isStaffAuthed(req);
+  res.send(botPageHtml({ ownerAccess, staffAccess }));
 });
 
 app.get("/apply", (req, res) => {
