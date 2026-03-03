@@ -12,7 +12,10 @@ const STAFF_CODE = process.env.STAFF_CODE || "changeme";
 const DISCORD_INVITE_URL = process.env.DISCORD_INVITE_URL || "https://discord.gg/";
 const SHOP_INVITE_URL = process.env.SHOP_INVITE_URL || "https://discord.gg/";
 const BOT_DASHBOARD_REPO_URL = process.env.BOT_DASHBOARD_REPO_URL || "https://github.com/Looooooty/LooooootyBot";
-const BOT_DOWNLOAD_URL = process.env.BOT_DOWNLOAD_URL || `${BOT_DASHBOARD_REPO_URL}/archive/refs/heads/main.zip`;
+const BOT_CLIENT_ID = process.env.BOT_CLIENT_ID || "";
+const BOT_INVITE_URL = process.env.BOT_INVITE_URL || (BOT_CLIENT_ID
+  ? `https://discord.com/oauth2/authorize?client_id=${BOT_CLIENT_ID}&permissions=8&scope=bot%20applications.commands`
+  : "https://discord.com/developers/applications");
 const BOT_SHOP_PUBLIC = String(process.env.BOT_SHOP_PUBLIC || "false").toLowerCase() === "true";
 const BOT_OWNER_KEY = process.env.BOT_OWNER_KEY || "";
 const HOME_BG_URL =
@@ -616,7 +619,7 @@ function botPageHtml({ ownerAccess = false, staffAccess = false } = {}) {
       <section class="state-box" style="display:block; text-align:left;">
         <div class="state-head">Bot Dashboard</div>
         <div style="display:grid; gap:10px;">
-          <a class="btn" href="${BOT_DOWNLOAD_URL}" target="_blank" rel="noreferrer">Download Bot</a>
+          <a class="btn" href="${BOT_INVITE_URL}" target="_blank" rel="noreferrer">Invite Bot</a>
           <a class="btn" href="${BOT_DASHBOARD_REPO_URL}" target="_blank" rel="noreferrer">Bot Repository</a>
         </div>
         <div style="margin-top:14px;">
