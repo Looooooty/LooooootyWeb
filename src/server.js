@@ -619,8 +619,6 @@ function botPageHtml({ ownerAccess = false, staffAccess = false } = {}) {
       <section class="state-box" style="display:block; text-align:left;">
         <div class="state-head">Bot Dashboard</div>
         <div style="display:grid; gap:10px;">
-          <a class="btn" href="${BOT_INVITE_URL}" target="_blank" rel="noreferrer">Invite Bot</a>
-          <a class="btn" href="${BOT_DASHBOARD_REPO_URL}" target="_blank" rel="noreferrer">Bot Repository</a>
         </div>
         <div style="margin-top:14px;">
           <div class="state-head">Shop Controls</div>
