@@ -1081,7 +1081,6 @@ function websiteShopHtml(websiteShop) {
       const search = document.getElementById("shop-search");
       const cats = Array.from(document.querySelectorAll(".cat"));
       const cards = Array.from(document.querySelectorAll(".card"));
-      const addButtons = Array.from(document.querySelectorAll(".add[data-add-id]"));
       const cartItemsEl = document.getElementById("cart-items");
       const cartSubtotalEl = document.getElementById("cart-subtotal");
       const cartTaxEl = document.getElementById("cart-tax");
@@ -1109,6 +1108,16 @@ function websiteShopHtml(websiteShop) {
       let cart = {};
       let pendingAddProductId = "";
       let pendingAddProductTitle = "";
+
+      function openQtyModal(productId, productTitle) {
+        pendingAddProductId = String(productId || "");
+        pendingAddProductTitle = String(productTitle || "this item");
+        if (qtyModalProduct) qtyModalProduct.textContent = pendingAddProductTitle;
+        if (qtyInput) qtyInput.value = "1";
+        if (qtyError) qtyError.textContent = "";
+        if (qtyModal) qtyModal.classList.add("open");
+        if (qtyInput) qtyInput.focus();
+      }
 
       function loadCart() {
         try {
@@ -1178,15 +1187,6 @@ function websiteShopHtml(websiteShop) {
                 '">Remove from Cart</button></div>'
             )
             .join("");
-          cartItemsEl.querySelectorAll(".cart-remove").forEach((btn) => {
-            btn.addEventListener("click", () => {
-              const id = String(btn.dataset.removeId || "");
-              if (!id) return;
-              delete cart[id];
-              saveCart();
-              renderCart();
-            });
-          });
         }
         cartSubtotalEl.textContent = fmt(subtotal);
         cartTaxEl.textContent = fmt(tax);
@@ -1222,18 +1222,25 @@ function websiteShopHtml(websiteShop) {
         });
       });
       search.addEventListener("input", applyFilter);
-      addButtons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          if (btn.disabled) return;
-          pendingAddProductId = String(btn.dataset.addId || "");
-          const card = btn.closest(".card");
-          pendingAddProductTitle = card ? String(card.dataset.title || "this item") : "this item";
-          if (qtyModalProduct) qtyModalProduct.textContent = pendingAddProductTitle;
-          if (qtyInput) qtyInput.value = "1";
-          if (qtyError) qtyError.textContent = "";
-          if (qtyModal) qtyModal.classList.add("open");
-          if (qtyInput) qtyInput.focus();
-        });
+      document.addEventListener("click", (e) => {
+        const addBtn = e.target && e.target.closest ? e.target.closest(".add[data-add-id]") : null;
+        if (addBtn) {
+          if (addBtn.disabled) return;
+          const id = String(addBtn.dataset.addId || "");
+          const card = addBtn.closest(".card");
+          const title = card ? String(card.dataset.title || "this item") : "this item";
+          openQtyModal(id, title);
+          return;
+        }
+
+        const removeBtn = e.target && e.target.closest ? e.target.closest(".cart-remove[data-remove-id]") : null;
+        if (removeBtn) {
+          const id = String(removeBtn.dataset.removeId || "");
+          if (!id) return;
+          delete cart[id];
+          saveCart();
+          renderCart();
+        }
       });
       if (qtyConfirm) {
         qtyConfirm.addEventListener("click", () => {
@@ -1304,7 +1311,7 @@ function websiteShopHtml(websiteShop) {
         checkoutModal.addEventListener("click", (e) => {
           if (e.target === checkoutModal) checkoutModal.classList.remove("open");
         });
-      });
+      }
       loadCart();
       renderCart();
       applyFilter();
