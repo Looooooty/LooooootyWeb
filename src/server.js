@@ -1357,6 +1357,9 @@ function basesEditorPanelHtml(bases) {
       ${baseStateEditorHtml(bases)}
       <button class="save-btn" type="submit">Save Base States</button>
     </form>
+    <form method="post" action="/staff/bases/save-defaults" style="margin-top:10px;">
+      <button class="btn" type="submit">Save Current Bases to Default</button>
+    </form>
     <div class="note">Open = green, Open but less likely to be used = yellow, Closed = red.</div>
     <form method="post" action="/staff/bases/create" style="margin-top:12px; display:grid; grid-template-columns: 1fr auto; gap:10px;">
       <input type="text" name="base_name" placeholder="New base name" required maxlength="60" />
@@ -1830,6 +1833,12 @@ app.post("/staff/bases/:id/save-default", requireStaff, (req, res) => {
     return;
   }
   // Save a full snapshot so states (open/open_less/closed) remain exactly as current.
+  saveBaseStateDefaults(bases);
+  res.redirect("/panel/bases?msg=Base%20defaults%20snapshot%20saved");
+});
+
+app.post("/staff/bases/save-defaults", requireStaff, (_req, res) => {
+  const bases = loadBaseStates();
   saveBaseStateDefaults(bases);
   res.redirect("/panel/bases?msg=Base%20defaults%20snapshot%20saved");
 });
