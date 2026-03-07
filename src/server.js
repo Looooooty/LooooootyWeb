@@ -1097,6 +1097,21 @@ function staffPanelStyles() {
     .foot { margin-top: 16px; color: var(--muted); font-size: 12px; }
     .app-list { display: grid; gap: 10px; margin-top: 14px; }
     .app-row { border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px; background: rgba(0,0,0,0.12); }
+    .ws-product { position: relative; }
+    .ws-actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .16s ease;
+    }
+    .ws-product:hover .ws-actions,
+    .ws-product:focus-within .ws-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .ws-inline { display:grid; gap:8px; grid-template-columns: 1fr 1fr; }
     .app-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
     .app-meta { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.5; }
     .app-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
@@ -1223,11 +1238,37 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
       ${products.length
         ? products
             .map(
-              (p) => `<div class="app-row"><div class="app-head"><div><b>${esc(p.name)}</b></div><div>${p.inStock === false ? "Out of Stock" : "In Stock"}</div></div><div class="app-meta">ID: <b>${esc(p.id)}</b><br/>Price: <b>$${Number(p.price || 0).toFixed(
-                2
-              )}</b><br/>Category: <b>${esc(p.category || "-")}</b><br/>Image: <b>${esc(p.image || "-")}</b><br/>Description: ${esc(
-                p.description || "-"
-              )}</div></div>`
+              (p) => `<div class="app-row ws-product">
+                <div class="app-head"><div><b>${esc(p.name)}</b></div><div>${p.inStock === false ? "Out of Stock" : "In Stock"}</div></div>
+                <div class="app-meta">ID: <b>${esc(p.id)}</b><br/>Price: <b>$${Number(p.price || 0).toFixed(
+                  2
+                )}</b><br/>Category: <b>${esc(p.category || "-")}</b><br/>Image: <b>${esc(p.image || "-")}</b><br/>Description: ${esc(
+                  p.description || "-"
+                )}</div>
+                <div class="ws-actions">
+                  <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/edit" style="display:grid; gap:8px;">
+                    <input type="text" name="name" required maxlength="80" value="${esc(p.name || "")}" />
+                    <input type="text" name="description" maxlength="400" value="${esc(p.description || "")}" />
+                    <div class="ws-inline">
+                      <input type="text" name="price" required value="${Number(p.price || 0).toFixed(2)}" />
+                      <select name="category" required>
+                        ${categories.map((c) => `<option value="${esc(c)}"${String(c) === String(p.category) ? " selected" : ""}>${esc(c)}</option>`).join("")}
+                      </select>
+                    </div>
+                    <input type="text" name="image" required value="${esc(p.image || "")}" />
+                    <button class="save-btn" type="submit">Edit Product</button>
+                  </form>
+                  <div class="ws-inline">
+                    <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/stock" style="margin:0;">
+                      <input type="hidden" name="status" value="${p.inStock === false ? "in_stock" : "out_of_stock"}" />
+                      <button class="btn" type="submit">${p.inStock === false ? "Set In Stock" : "Set Out of Stock"}</button>
+                    </form>
+                    <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/delete" style="margin:0;" onsubmit="return confirm('Delete this product?');">
+                      <button class="danger-btn" type="submit">Delete</button>
+                    </form>
+                  </div>
+                </div>
+              </div>`
             )
             .join("")
         : '<div class="note">No website products yet.</div>'}
@@ -1747,6 +1788,78 @@ app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
   });
   saveWebsiteShopData(data);
   res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20added");
+});
+
+app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
+  const data = loadWebsiteShopData();
+  const id = String(req.params.id || "").trim();
+  const idx = data.products.findIndex((p) => String(p.id) === id);
+  if (idx === -1) {
+    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    return;
+  }
+
+  const name = String(req.body.name || "").trim().slice(0, 80);
+  const description = String(req.body.description || "").trim().slice(0, 400);
+  const category = String(req.body.category || "").trim().slice(0, 40);
+  const image = String(req.body.image || "").trim().slice(0, 500);
+  const price = Number.parseFloat(String(req.body.price || "0").trim());
+  if (!name) {
+    res.redirect("/panel/shop?shop_view=website&warn=Product%20name%20is%20required");
+    return;
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    res.redirect("/panel/shop?shop_view=website&warn=Price%20must%20be%20greater%20than%200");
+    return;
+  }
+  if (!category) {
+    res.redirect("/panel/shop?shop_view=website&warn=Category%20is%20required");
+    return;
+  }
+  if (!image) {
+    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20is%20required");
+    return;
+  }
+  if (!data.categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
+    data.categories.push(category);
+  }
+  data.products[idx] = {
+    ...data.products[idx],
+    name,
+    description,
+    category,
+    image,
+    price: Number(price.toFixed(2))
+  };
+  saveWebsiteShopData(data);
+  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20updated");
+});
+
+app.post("/staff/webshop/product/:id/delete", requireStaff, (req, res) => {
+  const data = loadWebsiteShopData();
+  const id = String(req.params.id || "").trim();
+  const before = data.products.length;
+  data.products = data.products.filter((p) => String(p.id) !== id);
+  if (data.products.length === before) {
+    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    return;
+  }
+  saveWebsiteShopData(data);
+  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20deleted");
+});
+
+app.post("/staff/webshop/product/:id/stock", requireStaff, (req, res) => {
+  const data = loadWebsiteShopData();
+  const id = String(req.params.id || "").trim();
+  const idx = data.products.findIndex((p) => String(p.id) === id);
+  if (idx === -1) {
+    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    return;
+  }
+  const status = String(req.body.status || "").trim().toLowerCase();
+  data.products[idx].inStock = status === "in_stock";
+  saveWebsiteShopData(data);
+  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20stock%20updated");
 });
 
 app.post("/staff/application-forms/create", requireStaff, (req, res) => {
