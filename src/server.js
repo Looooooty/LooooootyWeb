@@ -867,19 +867,33 @@ function websiteShopHtml(websiteShop) {
     }
     .img-wrap { border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.15); background: rgba(5,9,25,0.8); }
     .img-wrap img { width: 100%; height: 170px; object-fit: cover; display: block; }
-    .shop-content { display:grid; grid-template-columns: 1fr 320px; gap:14px; align-items:start; }
+    .shop-content { display:grid; grid-template-columns: 1fr; gap:14px; align-items:start; }
     .add { justify-self: center; border-radius: 10px; border: 1px solid #5ca8ff; background: #4f95ea; color: white; font-weight: 800; padding: 9px 18px; cursor: pointer; opacity: 0.95; }
     .add:disabled { cursor: not-allowed; opacity: 0.55; }
+    .cart-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2,5,16,0.78);
+      backdrop-filter: blur(4px);
+      display: none;
+      z-index: 50;
+      padding: 20px;
+    }
+    .cart-overlay.open { display: block; }
     .cart-panel {
       border: 1px solid rgba(255,255,255,0.14);
       border-radius: 14px;
-      background: rgba(10,16,41,0.76);
-      padding: 12px;
-      position: sticky;
-      top: 12px;
+      background: rgba(10,16,41,0.96);
+      padding: 14px;
+      max-width: 920px;
+      width: 100%;
+      max-height: 92vh;
+      overflow: auto;
+      margin: 0 auto;
     }
+    .cart-top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
     .cart-title { font-size: 28px; margin: 0 0 8px; }
-    .cart-items { min-height: 80px; margin-bottom: 10px; color: var(--muted); white-space: pre-wrap; }
+    .cart-items { min-height: 80px; margin: 12px 0 10px; color: var(--muted); white-space: pre-wrap; }
     .cart-item {
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 10px;
@@ -928,8 +942,9 @@ function websiteShopHtml(websiteShop) {
       .topbar { flex-direction: column; align-items: stretch; }
       .top-actions { width: 100%; }
       .top-actions .btn { flex: 1; text-align: center; }
-      .shop-content { grid-template-columns: 1fr; }
       .grid { grid-template-columns: 1fr; }
+      .cart-overlay { padding: 8px; }
+      .cart-panel { max-height: 96vh; }
     }
   </style>
 </head>
@@ -984,18 +999,23 @@ function websiteShopHtml(websiteShop) {
             })
             .join("")}
         </div>
-        <aside class="cart-panel">
-          <h3 class="cart-title">Cart</h3>
-          <div id="cart-items" class="cart-items">No items yet.</div>
-          <div class="cart-line"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
-          <div class="cart-line"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
-          <div class="cart-line"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
-          <div class="cart-line"><span>Total Kits</span><b id="cart-count">0</b></div>
-          <div class="cart-actions">
-            <button id="cart-checkout" class="cart-btn checkout" type="button">Checkout</button>
-            <button id="cart-clear" class="cart-btn close" type="button">Close Cart</button>
-          </div>
-        </aside>
+        <div id="cart-overlay" class="cart-overlay">
+          <aside class="cart-panel">
+            <div class="cart-top">
+              <h3 class="cart-title">Cart</h3>
+              <button id="cart-hide" class="cart-btn close" type="button">Close</button>
+            </div>
+            <div id="cart-items" class="cart-items">No items yet.</div>
+            <div class="cart-line"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
+            <div class="cart-line"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
+            <div class="cart-line"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
+            <div class="cart-line"><span>Total Kits</span><b id="cart-count">0</b></div>
+            <div class="cart-actions">
+              <button id="cart-checkout" class="cart-btn checkout" type="button">Checkout</button>
+              <button id="cart-clear" class="cart-btn close" type="button">Clear Cart</button>
+            </div>
+          </aside>
+        </div>
       </section>
     </main>
   </div>
@@ -1013,7 +1033,8 @@ function websiteShopHtml(websiteShop) {
       const clearBtn = document.getElementById("cart-clear");
       const checkoutBtn = document.getElementById("cart-checkout");
       const topCartBtn = document.getElementById("top-cart-btn");
-      const cartPanel = document.querySelector(".cart-panel");
+      const cartOverlay = document.getElementById("cart-overlay");
+      const cartHideBtn = document.getElementById("cart-hide");
       const taxRate = 0.06;
       const storageKey = "looooooty_web_cart_v1";
       let currentCat = "Recommended";
@@ -1156,13 +1177,17 @@ function websiteShopHtml(websiteShop) {
       });
       if (topCartBtn) {
         topCartBtn.addEventListener("click", () => {
-          if (cartPanel) {
-            cartPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-            cartPanel.style.outline = "2px solid rgba(78,166,255,0.7)";
-            setTimeout(() => {
-              cartPanel.style.outline = "none";
-            }, 900);
-          }
+          if (cartOverlay) cartOverlay.classList.add("open");
+        });
+      }
+      if (cartHideBtn) {
+        cartHideBtn.addEventListener("click", () => {
+          if (cartOverlay) cartOverlay.classList.remove("open");
+        });
+      }
+      if (cartOverlay) {
+        cartOverlay.addEventListener("click", (e) => {
+          if (e.target === cartOverlay) cartOverlay.classList.remove("open");
         });
       }
       checkoutBtn.addEventListener("click", () => {
