@@ -36,6 +36,7 @@ const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json
 const APPLICATION_FORMS_FILE = path.join(BOT_DATA_DIR, "application_forms.json");
 const WEBSITE_SHOP_FILE = path.join(BOT_DATA_DIR, "website_shop.json");
 const WEBSITE_SHOP_DEFAULTS_FILE = path.join(process.cwd(), "data", "website_shop_defaults.json");
+const BASE_STATES_DEFAULTS_FILE = path.join(process.cwd(), "data", "base_states_defaults.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -172,9 +173,9 @@ function normalizeBaseEntry(entry, idx) {
 }
 
 function loadBaseStates() {
+  const defaults = loadBaseStateDefaults();
   const data = readJson(BASE_STATES_FILE, null);
   if (!Array.isArray(data) || data.length === 0) {
-    const defaults = defaultBases();
     writeJson(BASE_STATES_FILE, defaults);
     return defaults;
   }
@@ -185,6 +186,22 @@ function loadBaseStates() {
 
 function saveBaseStates(bases) {
   writeJson(BASE_STATES_FILE, bases.map((b, i) => normalizeBaseEntry(b, i)));
+}
+
+function loadBaseStateDefaults() {
+  const raw = readJson(BASE_STATES_DEFAULTS_FILE, null);
+  if (!Array.isArray(raw) || raw.length === 0) {
+    const defaults = defaultBases();
+    writeJson(BASE_STATES_DEFAULTS_FILE, defaults);
+    return defaults;
+  }
+  const normalized = raw.map((b, i) => normalizeBaseEntry(b, i));
+  writeJson(BASE_STATES_DEFAULTS_FILE, normalized);
+  return normalized;
+}
+
+function saveBaseStateDefaults(bases) {
+  writeJson(BASE_STATES_DEFAULTS_FILE, bases.map((b, i) => normalizeBaseEntry(b, i)));
 }
 
 function makeBaseId(name, bases) {
@@ -1151,6 +1168,23 @@ function staffPanelStyles() {
       pointer-events: auto;
     }
     .ws-inline { display:grid; gap:8px; grid-template-columns: 1fr 1fr; }
+    .mini-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin-top:12px; }
+    .mini-card { border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:10px; background: rgba(0,0,0,0.14); position:relative; }
+    .mini-title { font-weight:800; margin-bottom:6px; }
+    .mini-meta { font-size:12px; color: var(--muted); }
+    .mini-actions {
+      margin-top:10px;
+      display:grid;
+      gap:8px;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .16s ease;
+    }
+    .mini-card:hover .mini-actions,
+    .mini-card:focus-within .mini-actions {
+      opacity:1;
+      pointer-events:auto;
+    }
     .app-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
     .app-meta { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.5; }
     .app-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
@@ -1323,11 +1357,36 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
 function basesEditorPanelHtml(bases) {
   return `<div class="card base-panel">
     <h3 style="margin-top:0">State of Bases</h3>
-    <form method="post" action="/staff/bases/update">
-      ${baseStateEditorHtml(bases)}
-      <button class="save-btn" type="submit">Save Base States</button>
-    </form>
     <div class="note">Open = green, Open but less likely to be used = yellow, Closed = red.</div>
+    <div class="mini-grid">
+      ${bases
+        .map(
+          (b) => `<div class="mini-card">
+            <div class="mini-title">${esc(b.name)}</div>
+            <div class="mini-meta">ID: ${esc(b.id)}<br/>State: <b>${esc(b.state)}</b></div>
+            <div class="mini-actions">
+              <form method="post" action="/staff/bases/${encodeURIComponent(b.id)}/edit" style="display:grid; gap:8px;">
+                <input type="text" name="base_name" required maxlength="60" value="${esc(b.name)}" />
+                <select name="state" required>
+                  <option value="open"${b.state === "open" ? " selected" : ""}>Open</option>
+                  <option value="open_less"${b.state === "open_less" ? " selected" : ""}>Open but less likely</option>
+                  <option value="closed"${b.state === "closed" ? " selected" : ""}>Closed</option>
+                </select>
+                <button class="save-btn" type="submit">Edit Base</button>
+              </form>
+              <div class="ws-inline">
+                <form method="post" action="/staff/bases/${encodeURIComponent(b.id)}/save-default" style="margin:0;">
+                  <button class="btn" type="submit">Save to Default</button>
+                </form>
+                <form method="post" action="/staff/bases/${encodeURIComponent(b.id)}/delete" style="margin:0;" onsubmit="return confirm('Delete this base?');">
+                  <button class="danger-btn" type="submit">Delete Base</button>
+                </form>
+              </div>
+            </div>
+          </div>`
+        )
+        .join("")}
+    </div>
     <form method="post" action="/staff/bases/create" style="margin-top:12px; display:grid; grid-template-columns: 1fr auto; gap:10px;">
       <input type="text" name="base_name" placeholder="New base name" required maxlength="60" />
       <button class="save-btn" type="submit">Create Base</button>
@@ -1758,6 +1817,56 @@ app.post("/staff/bases/create", requireStaff, (req, res) => {
   bases.push({ id, name: rawName, state: "open" });
   saveBaseStates(bases);
   res.redirect("/panel/bases?msg=Base%20created");
+});
+
+app.post("/staff/bases/:id/edit", requireStaff, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const baseName = String(req.body.base_name || "").trim().slice(0, 60);
+  const state = normalizeBaseState(req.body.state);
+  if (!baseName) {
+    res.redirect("/panel/bases?warn=Base%20name%20is%20required");
+    return;
+  }
+  const bases = loadBaseStates();
+  const idx = bases.findIndex((b) => String(b.id) === id);
+  if (idx === -1) {
+    res.redirect("/panel/bases?warn=Base%20not%20found");
+    return;
+  }
+  bases[idx] = { ...bases[idx], name: baseName, state };
+  saveBaseStates(bases);
+  res.redirect("/panel/bases?msg=Base%20updated");
+});
+
+app.post("/staff/bases/:id/delete", requireStaff, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const bases = loadBaseStates();
+  const filtered = bases.filter((b) => String(b.id) !== id);
+  if (filtered.length === bases.length) {
+    res.redirect("/panel/bases?warn=Base%20not%20found");
+    return;
+  }
+  saveBaseStates(filtered);
+  res.redirect("/panel/bases?msg=Base%20deleted");
+});
+
+app.post("/staff/bases/:id/save-default", requireStaff, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const bases = loadBaseStates();
+  const base = bases.find((b) => String(b.id) === id);
+  if (!base) {
+    res.redirect("/panel/bases?warn=Base%20not%20found");
+    return;
+  }
+  const defaults = loadBaseStateDefaults();
+  const idx = defaults.findIndex((b) => String(b.id) === id);
+  if (idx === -1) {
+    defaults.push(base);
+  } else {
+    defaults[idx] = base;
+  }
+  saveBaseStateDefaults(defaults);
+  res.redirect("/panel/bases?msg=Base%20saved%20to%20defaults");
 });
 
 app.post("/staff/webshop/state", requireStaff, (req, res) => {
