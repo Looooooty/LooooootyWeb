@@ -18,6 +18,7 @@ const BOT_INVITE_URL = process.env.BOT_INVITE_URL || (BOT_CLIENT_ID
   : "https://discord.com/developers/applications");
 const BOT_SHOP_PUBLIC = String(process.env.BOT_SHOP_PUBLIC || "false").toLowerCase() === "true";
 const BOT_OWNER_KEY = process.env.BOT_OWNER_KEY || "";
+const SHOP_LOGO_URL = process.env.SHOP_LOGO_URL || "/Looooooty.png";
 const HOME_BG_URL =
   process.env.HOME_BG_URL ||
   "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1600&q=80";
@@ -654,10 +655,203 @@ function shopLandingHtml() {
       </section>
       <section class="shop-wrap">
         <a class="shop-half" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
-        <a class="shop-half" href="#" onclick="event.preventDefault()">Website Shop</a>
+        <a class="shop-half" href="/shop/web">Website Shop</a>
       </section>
     </main>
   </div>
+</body>
+</html>`;
+}
+
+function websiteShopHtml(products) {
+  const categories = Array.from(
+    new Set(
+      (products || [])
+        .map((p) => String(p.category || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const orderedCategories = ["Recommended", ...categories];
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LooooootyShop 2b2t</title>
+  ${faviconLinks()}
+  <style>
+    :root { --txt:#e8f0ff; --muted:#9ba8c3; --accent:#4ea6ff; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--txt);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+      background:
+        radial-gradient(1200px 700px at 85% 20%, rgba(78,166,255,0.18), transparent 60%),
+        radial-gradient(900px 500px at 20% 80%, rgba(78,166,255,0.12), transparent 60%),
+        linear-gradient(180deg, #060d2c, #050b22 60%, #04081b);
+      min-height: 100vh;
+    }
+    .shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+    .sidebar { border-right: 1px solid rgba(255,255,255,0.12); padding: 20px; background: rgba(7,12,34,0.78); }
+    .search {
+      width: 100%;
+      padding: 12px 13px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(4,8,25,0.8);
+      color: var(--txt);
+      outline: none;
+    }
+    .cat-list { margin-top: 18px; display: grid; gap: 10px; }
+    .cat {
+      text-align: left;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(14,20,46,0.65);
+      color: var(--txt);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .cat.active, .cat:hover { border-color: var(--accent); }
+    .main { padding: 18px 22px 30px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(8,13,34,0.72);
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand img { width: 46px; height: 46px; border-radius: 10px; object-fit: cover; border: 1px solid rgba(255,255,255,0.18); }
+    .brand-title {
+      margin: 0;
+      font-size: clamp(22px, 3.2vw, 42px);
+      font-style: italic;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .top-actions { display: flex; gap: 10px; }
+    .btn {
+      text-decoration: none;
+      color: var(--txt);
+      font-weight: 800;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: linear-gradient(180deg, rgba(56,83,130,0.55), rgba(28,42,68,0.8));
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .section-title { margin: 12px 2px 16px; font-size: 34px; }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      background: rgba(10,16,41,0.72);
+      padding: 12px;
+      display: grid;
+      gap: 9px;
+    }
+    .card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .price {
+      color: #31ff83;
+      font-weight: 900;
+      border: 1px solid rgba(49,255,131,0.35);
+      border-radius: 999px;
+      padding: 3px 8px;
+    }
+    .img-wrap { border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.15); background: rgba(5,9,25,0.8); }
+    .img-wrap img { width: 100%; height: 170px; object-fit: cover; display: block; }
+    .add { justify-self: center; border-radius: 10px; border: 1px solid #5ca8ff; background: #4f95ea; color: white; font-weight: 800; padding: 9px 18px; cursor: not-allowed; opacity: 0.95; }
+    @media (max-width: 1120px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.12); }
+      .topbar { flex-direction: column; align-items: stretch; }
+      .top-actions { width: 100%; }
+      .top-actions .btn { flex: 1; text-align: center; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <input id="shop-search" class="search" type="text" placeholder="Search items..." />
+      <div class="cat-list">
+        ${orderedCategories
+          .map(
+            (cat, idx) =>
+              `<button class="cat${idx === 0 ? " active" : ""}" data-cat="${esc(cat)}">${esc(cat)}</button>`
+          )
+          .join("")}
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="brand">
+          <img src="${SHOP_LOGO_URL}" alt="LooooootyShop logo" />
+          <h1 class="brand-title">LooooootyShop 2b2t</h1>
+        </div>
+        <div class="top-actions">
+          <a class="btn" href="/">Back to Home</a>
+          <a class="btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
+        </div>
+      </header>
+      <h2 class="section-title">Shop Catalog</h2>
+      <section id="product-grid" class="grid">
+        ${(products || [])
+          .map((p) => {
+            const inStock = p.inStock !== false;
+            return `<article class="card" data-name="${esc(String(p.name || "").toLowerCase())}" data-cat="${esc(
+              String(p.category || "Recommended")
+            )}">
+              <div class="card-top">
+                <h3 style="margin:0;">${esc(p.name || "Unnamed Product")}</h3>
+                <span class="price">$${Number(p.price || 0).toFixed(2)}</span>
+              </div>
+              <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
+              <button class="add" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Out of Stock"}</button>
+            </article>`;
+          })
+          .join("")}
+      </section>
+    </main>
+  </div>
+  <script>
+    (function () {
+      const search = document.getElementById("shop-search");
+      const cats = Array.from(document.querySelectorAll(".cat"));
+      const cards = Array.from(document.querySelectorAll(".card"));
+      let currentCat = "Recommended";
+      function applyFilter() {
+        const q = String(search.value || "").toLowerCase().trim();
+        cards.forEach((card) => {
+          const name = card.dataset.name || "";
+          const cat = card.dataset.cat || "Recommended";
+          const catOk = currentCat === "Recommended" ? true : cat === currentCat;
+          const nameOk = !q || name.includes(q);
+          card.style.display = catOk && nameOk ? "grid" : "none";
+        });
+      }
+      cats.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          currentCat = btn.dataset.cat || "Recommended";
+          cats.forEach((x) => x.classList.remove("active"));
+          btn.classList.add("active");
+          applyFilter();
+        });
+      });
+      search.addEventListener("input", applyFilter);
+      applyFilter();
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -1226,6 +1420,11 @@ app.get("/about", (_req, res) => {
 
 app.get("/shop", (_req, res) => {
   res.send(shopLandingHtml());
+});
+
+app.get("/shop/web", (_req, res) => {
+  const products = readJson(path.join(BOT_DATA_DIR, "products.json"), []);
+  res.send(websiteShopHtml(Array.isArray(products) ? products : []));
 });
 
 app.get("/apply", (req, res) => {
