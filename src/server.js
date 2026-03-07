@@ -1443,6 +1443,7 @@ function websiteShopHtml(websiteShop) {
       let pendingAddProductId = "";
       let pendingAddProductTitle = "";
       let activeOrder = null;
+      let orderStatusPoll = null;
 
       function openQtyModal(productId, productTitle) {
         pendingAddProductId = String(productId || "");
@@ -1595,6 +1596,34 @@ function websiteShopHtml(websiteShop) {
         }
       }
 
+      function stopOrderStatusPoll() {
+        if (orderStatusPoll) {
+          clearInterval(orderStatusPoll);
+          orderStatusPoll = null;
+        }
+      }
+
+      function startOrderStatusPoll() {
+        stopOrderStatusPoll();
+        if (!activeOrder || !activeOrder.orderId) return;
+        orderStatusPoll = setInterval(async () => {
+          if (!activeOrder || !activeOrder.orderId) return;
+          try {
+            const res = await fetch("/shop/web/order-status?orderId=" + encodeURIComponent(activeOrder.orderId));
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok || !payload || payload.ok !== true) return;
+            if (payload.status === "DELIVERED") {
+              activeOrder.delivered = true;
+              activeOrder.deliveredMessage = "Hope you enjoyed this delivery, please remember to drop a review!";
+              renderWebsiteOnlyPaidFlow();
+              stopOrderStatusPoll();
+            }
+          } catch {
+            // ignore polling failure
+          }
+        }, 10000);
+      }
+
       function renderWebsiteOnlyPaidFlow() {
         if (!cartFlow) return;
         if (!activeOrder) {
@@ -1605,6 +1634,7 @@ function websiteShopHtml(websiteShop) {
         const ign = activeOrder.ign || "";
         const coords = activeOrder.coordinates || "";
         const ready = Boolean(activeOrder.ready);
+        const delivered = Boolean(activeOrder.delivered);
         cartFlow.innerHTML =
           '<div class="flow-embed">' +
           "Paid Order " +
@@ -1614,11 +1644,14 @@ function websiteShopHtml(websiteShop) {
           "\\n\\nCoordinates: " +
           escHtml(coords) +
           "</div>" +
+          (delivered
+            ? '<div class="flow-embed">' + escHtml(activeOrder.deliveredMessage || "Hope you enjoyed this delivery, please remember to drop a review!") + "</div>"
+            : "") +
           '<div class="flow-actions">' +
           '<button id="flow-ign" class="flow-btn" type="button">IGN</button>' +
           '<button id="flow-coords" class="flow-btn" type="button">Coordinates</button>' +
           "</div>" +
-          (ign && coords
+          (ign && coords && !delivered
             ? '<div class="flow-embed">Are you ready for your delivery?</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
               (ready ? "Ready Confirmed" : "Yes") +
               "</button></div>"
@@ -1650,6 +1683,7 @@ function websiteShopHtml(websiteShop) {
             activeOrder.ready = true;
             renderWebsiteOnlyPaidFlow();
             await notifyReady(activeOrder);
+            startOrderStatusPoll();
           });
         }
       }
@@ -1749,6 +1783,7 @@ function websiteShopHtml(websiteShop) {
             })
           }).catch(() => null);
           activeOrder = null;
+          stopOrderStatusPoll();
           renderPostCheckoutState();
           renderWebsiteOnlyPaidFlow();
           if (checkoutResult) checkoutResult.textContent = "Order refunded.";
@@ -1821,14 +1856,13 @@ function websiteShopHtml(websiteShop) {
               userId: discordUserId,
               ign: "",
               coordinates: "",
-              ready: false
+              ready: false,
+              delivered: false
             };
             if (checkoutModal) checkoutModal.classList.remove("open");
             renderPostCheckoutState();
             renderWebsiteOnlyPaidFlow();
-            cart = {};
-            saveCart();
-            renderCart();
+            startOrderStatusPoll();
             if (checkoutError) checkoutError.textContent = "";
           } catch {
             if (checkoutError) checkoutError.textContent = "Checkout request failed.";
@@ -2166,7 +2200,7 @@ function shopAutomationPanelHtml() {
     .slice()
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
     .slice(0, 20);
-  const unreadReady = readyAlerts.filter((a) => a.read !== true).length;
+  const unreadReady = readyAlerts.filter((a) => a.delivered !== true).length;
 
   return `<div class="card base-panel" style="margin-top:12px;">
     <h3 style="margin-top:0;">Giveaways + Store Credit</h3>
@@ -2240,7 +2274,7 @@ function shopAutomationPanelHtml() {
         ? readyAlerts.map((a) => `<div class="app-row">
             <div class="app-head">
               <div><b>${esc(a.orderId || "-")}</b></div>
-              <div><span class="tag ${a.read === true ? "approved" : "pending"}">${a.read === true ? "READ" : "NEW"}</span></div>
+              <div><span class="tag ${a.delivered === true ? "approved" : "pending"}">${a.delivered === true ? "DELIVERED" : "NEW"}</span></div>
             </div>
             <div class="app-meta">
               User ID: <b>${esc(a.userId || "-")}</b><br/>
@@ -2248,7 +2282,7 @@ function shopAutomationPanelHtml() {
               Coordinates: <b>${esc(a.coordinates || "-")}</b><br/>
               At: <b>${esc(new Date(a.createdAt || Date.now()).toLocaleString("en-US", { hour12: false }))}</b>
             </div>
-            ${a.read === true ? "" : `<div class="app-actions"><form method="post" action="/staff/ready-alerts/${encodeURIComponent(a.id || "")}/read" style="margin:0;"><button class="save-btn" type="submit">Mark Read</button></form></div>`}
+            ${a.delivered === true ? "" : `<div class="app-actions"><form method="post" action="/staff/ready-alerts/${encodeURIComponent(a.id || "")}/deliver" style="margin:0;"><button class="save-btn" type="submit">Mark Delivered</button></form></div>`}
           </div>`).join("")
         : '<div class="note">No delivery-ready alerts yet.</div>'}
     </div>
@@ -2906,10 +2940,25 @@ app.post("/shop/web/ready", (req, res) => {
     ign,
     coordinates,
     createdAt: new Date().toISOString(),
-    read: false
+    delivered: false
   });
   saveWebsiteReadyAlerts(alerts);
   res.json({ ok: true });
+});
+
+app.get("/shop/web/order-status", (req, res) => {
+  const orderId = String(req.query && req.query.orderId ? req.query.orderId : "").trim();
+  if (!orderId) {
+    res.status(400).json({ ok: false, error: "Missing orderId." });
+    return;
+  }
+  const orders = loadWebsiteOrders();
+  const order = orders.find((o) => String(o.id) === orderId);
+  if (!order) {
+    res.status(404).json({ ok: false, error: "Order not found." });
+    return;
+  }
+  res.json({ ok: true, status: String(order.status || "PAID").toUpperCase() });
 });
 
 app.get("/apply", (req, res) => {
@@ -3309,7 +3358,7 @@ app.post("/staff/credits/update", requireStaff, (req, res) => {
   res.redirect("/panel/shop?msg=Store%20credit%20updated");
 });
 
-app.post("/staff/ready-alerts/:id/read", requireStaff, (req, res) => {
+app.post("/staff/ready-alerts/:id/deliver", requireStaff, (req, res) => {
   const id = String(req.params.id || "").trim();
   const alerts = loadWebsiteReadyAlerts();
   const idx = alerts.findIndex((a) => String(a.id) === id);
@@ -3317,10 +3366,22 @@ app.post("/staff/ready-alerts/:id/read", requireStaff, (req, res) => {
     res.redirect("/panel/shop?warn=Ready%20alert%20not%20found");
     return;
   }
-  alerts[idx].read = true;
-  alerts[idx].readAt = new Date().toISOString();
+  alerts[idx].delivered = true;
+  alerts[idx].deliveredAt = new Date().toISOString();
   saveWebsiteReadyAlerts(alerts);
-  res.redirect("/panel/shop?msg=Ready%20alert%20marked%20read");
+
+  const orderId = String(alerts[idx].orderId || "").trim();
+  if (orderId) {
+    const orders = loadWebsiteOrders();
+    const orderIdx = orders.findIndex((o) => String(o.id) === orderId);
+    if (orderIdx !== -1) {
+      orders[orderIdx].status = "DELIVERED";
+      orders[orderIdx].deliveredAt = new Date().toISOString();
+      saveWebsiteOrders(orders);
+    }
+  }
+
+  res.redirect("/panel/shop?msg=Order%20marked%20delivered");
 });
 
 app.post("/staff/giveaways/create", requireStaff, (req, res) => {
