@@ -11,6 +11,7 @@ const GUILD_ID = process.env.GUILD_ID || "";
 const STAFF_CODE = process.env.STAFF_CODE || "changeme";
 const DISCORD_INVITE_URL = process.env.DISCORD_INVITE_URL || "https://discord.gg/";
 const SHOP_INVITE_URL = process.env.SHOP_INVITE_URL || "https://discord.gg/";
+const WEBSITE_PAYPAL_URL = process.env.WEBSITE_PAYPAL_URL || "";
 const BOT_DASHBOARD_REPO_URL = process.env.BOT_DASHBOARD_REPO_URL || "https://github.com/Looooooty/LooooootyBot";
 const BOT_CLIENT_ID = process.env.BOT_CLIENT_ID || "";
 const BOT_INVITE_URL = process.env.BOT_INVITE_URL || (BOT_CLIENT_ID
@@ -37,6 +38,8 @@ const APPLICATION_FORMS_FILE = path.join(BOT_DATA_DIR, "application_forms.json")
 const WEBSITE_SHOP_FILE = path.join(BOT_DATA_DIR, "website_shop.json");
 const WEBSITE_SHOP_DEFAULTS_FILE = path.join(process.cwd(), "data", "website_shop_defaults.json");
 const BASE_STATES_DEFAULTS_FILE = path.join(process.cwd(), "data", "base_states_defaults.json");
+const CREDITS_FILE = path.join(BOT_DATA_DIR, "credits.json");
+const GIVEAWAYS_FILE = path.join(BOT_DATA_DIR, "giveaways.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -99,6 +102,73 @@ function isGiveawayActive(g) {
     }
   }
   return true;
+}
+
+function isGiveawayEnded(g) {
+  if (!g) {
+    return true;
+  }
+  if (g.ended === true) {
+    return true;
+  }
+  if (g.endsAt) {
+    const ts = new Date(g.endsAt).getTime();
+    if (Number.isFinite(ts) && Date.now() >= ts) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function loadCredits() {
+  const data = readJson(CREDITS_FILE, {});
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    writeJson(CREDITS_FILE, {});
+    return {};
+  }
+  return data;
+}
+
+function saveCredits(credits) {
+  writeJson(CREDITS_FILE, credits && typeof credits === "object" ? credits : {});
+}
+
+function loadGiveaways() {
+  const data = readJson(GIVEAWAYS_FILE, {});
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    writeJson(GIVEAWAYS_FILE, {});
+    return {};
+  }
+  return data;
+}
+
+function saveGiveaways(giveaways) {
+  writeJson(GIVEAWAYS_FILE, giveaways && typeof giveaways === "object" ? giveaways : {});
+}
+
+function giveawayEntriesCount(g) {
+  return Array.isArray(g && g.participants) ? g.participants.length : 0;
+}
+
+function pickRandomWinners(participants, winnerCount) {
+  const pool = [...participants];
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = pool[i];
+    pool[i] = pool[j];
+    pool[j] = tmp;
+  }
+  return pool.slice(0, Math.max(0, Math.min(winnerCount, pool.length)));
+}
+
+function getGiveawaySession(req) {
+  const cookies = parseCookies(req);
+  const userId = String(cookies.giveaway_user_id || "").trim();
+  const userTag = String(cookies.giveaway_user_tag || "").trim();
+  if (!isSnowflake(userId)) {
+    return { userId: "", userTag: "" };
+  }
+  return { userId, userTag };
 }
 
 function orderGross(o) {
@@ -477,6 +547,7 @@ function sideMenuHtml() {
     <div class="brand">LooooootyBases</div>
     <nav class="menu">
       <a href="/bases">State of bases</a>
+      <a href="/giveaways">Giveaways</a>
       <a href="/about">About Us</a>
       <a href="/apply">Apply</a>
       <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
@@ -685,6 +756,79 @@ function aboutPageHtml() {
       <section class="state-box" style="display:block; text-align:left;">
         <div class="state-head">About Us</div>
         <div style="white-space:pre-wrap; line-height:1.6;">${esc(ABOUT_US_TEXT)}</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
+  const userId = String(session && session.userId ? session.userId : "");
+  const userTag = String(session && session.userTag ? session.userTag : "");
+  const list = Array.isArray(giveaways) ? giveaways : [];
+  const sorted = list.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const cards = sorted
+    .map((g) => {
+      const ended = isGiveawayEnded(g);
+      const entries = giveawayEntriesCount(g);
+      const userEntered = userId ? Array.isArray(g.participants) && g.participants.includes(userId) : false;
+      const endsText = g.endsAt ? new Date(g.endsAt).toLocaleString("en-US", { hour12: false }) : "-";
+      const winners = Array.isArray(g.winnerIds) ? g.winnerIds : [];
+      const winnersText = winners.length ? winners.map((id) => `@${esc(id)}`).join(", ") : "None yet";
+      const participantsText = Array.isArray(g.participants) && g.participants.length
+        ? g.participants.slice(0, 100).map((id) => `@${esc(id)}`).join(", ")
+        : "No participants yet.";
+      return `<div class="card" style="margin-top:12px;">
+        <h3 style="margin:0 0 8px;">${esc(g.prize || "Giveaway")}</h3>
+        <div class="note" style="margin-top:0;">${esc(g.description || "")}</div>
+        <div class="note">ID: <b>${esc(g.id || "-")}</b></div>
+        <div class="note">${ended ? "Ended" : "Ends"}: <b>${endsText}</b></div>
+        <div class="note">Entries: <b>${entries}</b> • Winners: <b>${Number(g.winners || 1)}</b></div>
+        <div class="note">Selected winner(s): <b>${winnersText}</b></div>
+        <details style="margin-top:8px;">
+          <summary style="cursor:pointer;">See Participants</summary>
+          <div class="note" style="white-space:pre-wrap; margin-top:8px;">${participantsText}</div>
+        </details>
+        <div class="action-row" style="justify-content:flex-start; margin-top:10px;">
+          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}/enter" style="margin:0;">
+            <button class="save-btn" type="submit"${ended || !userId || userEntered ? " disabled" : ""}>Enter Giveaway</button>
+          </form>
+          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}/leave" style="margin:0;">
+            <button class="danger-btn" type="submit"${ended || !userId || !userEntered ? " disabled" : ""}>Leave Giveaway</button>
+          </form>
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Giveaways</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml()}</aside>
+    <main class="main">
+      <section class="hero" style="margin-bottom:12px; text-align:left;">
+        <a class="btn" href="/">Back Home</a>
+      </section>
+      <section class="state-box" style="display:block; text-align:left;">
+        <div class="state-head">Giveaways</div>
+        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+        <form class="form-grid" method="post" action="/giveaways/session" style="max-width:560px; margin-bottom:14px;">
+          <input type="text" name="discord_user_id" required maxlength="20" value="${esc(userId)}" placeholder="Your Discord User ID (numbers only)" />
+          <input type="text" name="discord_tag" maxlength="64" value="${esc(userTag)}" placeholder="Discord username (optional)" />
+          <button class="submit" type="submit">Save Giveaway Identity</button>
+        </form>
+        <div class="note">Current giveaway identity: <b>${userId ? `${esc(userTag || "User")} (${esc(userId)})` : "Not set"}</b></div>
+        ${cards || '<div class="note" style="margin-top:10px;">No giveaways yet.</div>'}
       </section>
     </main>
   </div>
@@ -1298,8 +1442,12 @@ function websiteShopHtml(websiteShop) {
             if (checkoutError) checkoutError.textContent = "Please enter a valid email.";
             return;
           }
+          if (!"${WEBSITE_PAYPAL_URL}".trim()) {
+            if (checkoutError) checkoutError.textContent = "PayPal checkout is not configured yet.";
+            return;
+          }
           if (checkoutError) checkoutError.textContent = "";
-          window.location.href = "${SHOP_INVITE_URL}";
+          window.location.href = "${WEBSITE_PAYPAL_URL}";
         });
       }
       if (qtyModal) {
@@ -1610,6 +1758,87 @@ function shopStatsHtml(s) {
   </div>`;
 }
 
+function shopAutomationPanelHtml() {
+  const credits = loadCredits();
+  const creditRows = Object.entries(credits || {})
+    .map(([userId, value]) => ({ userId: String(userId), value: Number(value || 0) }))
+    .filter((r) => isSnowflake(r.userId) && Number.isFinite(r.value) && r.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 30);
+
+  const giveawaysMap = loadGiveaways();
+  const giveaways = Object.values(giveawaysMap || {})
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .slice(0, 30);
+
+  return `<div class="card base-panel" style="margin-top:12px;">
+    <h3 style="margin-top:0;">Giveaways + Store Credit</h3>
+    <div class="note">Website actions here write directly to bot data files.</div>
+
+    <h4 style="margin:14px 0 6px;">Create Giveaway</h4>
+    <form method="post" action="/staff/giveaways/create" style="display:grid; gap:10px;">
+      <input type="text" name="prize" required maxlength="100" placeholder="Prize" />
+      <input type="text" name="description" required maxlength="500" placeholder="Description" />
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <input type="text" name="winners" required placeholder="Number of winners (1-20)" />
+        <input type="text" name="end_minutes" required placeholder="Ends in minutes (1-10080)" />
+      </div>
+      <button class="save-btn" type="submit">Create Giveaway</button>
+    </form>
+
+    <h4 style="margin:18px 0 6px;">Manage Giveaways (${giveaways.length})</h4>
+    <div class="app-list">
+      ${giveaways.length ? giveaways.map((g) => {
+        const ended = isGiveawayEnded(g);
+        const endsAt = g.endsAt ? new Date(g.endsAt).toLocaleString("en-US", { hour12: false }) : "-";
+        const winners = Array.isArray(g.winnerIds) ? g.winnerIds : [];
+        const winnersText = winners.length ? winners.map((id) => `@${esc(id)}`).join(", ") : "None yet";
+        return `<div class="app-row">
+          <div class="app-head">
+            <div><b>${esc(g.id || "-")}</b></div>
+            <div><span class="tag ${ended ? "approved" : "pending"}">${ended ? "ENDED" : "ACTIVE"}</span></div>
+          </div>
+          <div class="app-meta">
+            Prize: <b>${esc(g.prize || "-")}</b><br/>
+            Ends At: <b>${esc(endsAt)}</b><br/>
+            Entries: <b>${giveawayEntriesCount(g)}</b> • Winners configured: <b>${Number(g.winners || 1)}</b><br/>
+            Winner(s): <b>${winnersText}</b>
+          </div>
+          <div class="app-actions">
+            <form method="post" action="/staff/giveaways/${encodeURIComponent(g.id || "")}/end" style="margin:0;">
+              <button class="save-btn" type="submit"${ended ? " disabled" : ""}>End Giveaway</button>
+            </form>
+            <form method="post" action="/staff/giveaways/${encodeURIComponent(g.id || "")}/reroll" style="margin:0;">
+              <button class="btn" type="submit"${ended ? "" : " disabled"}>Reroll Winners</button>
+            </form>
+          </div>
+        </div>`;
+      }).join("") : '<div class="note">No giveaways yet.</div>'}
+    </div>
+
+    <h4 style="margin:18px 0 6px;">Add / Edit Store Credit</h4>
+    <form method="post" action="/staff/credits/update" style="display:grid; gap:10px;">
+      <input type="text" name="discord_user_id" required maxlength="20" placeholder="Discord User ID" />
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <input type="text" name="amount" required placeholder="Amount (e.g. 5.00)" />
+        <select name="mode" required>
+          <option value="add">Add</option>
+          <option value="set">Set</option>
+          <option value="subtract">Subtract</option>
+        </select>
+      </div>
+      <button class="save-btn" type="submit">Apply Credit Change</button>
+    </form>
+
+    <h4 style="margin:18px 0 6px;">Top Credit Balances</h4>
+    <div class="app-list">
+      ${creditRows.length
+        ? creditRows.map((r) => `<div class="app-row"><div class="app-head"><div><b>${esc(r.userId)}</b></div><div>$${r.value.toFixed(2)}</div></div></div>`).join("")
+        : '<div class="note">No credits assigned.</div>'}
+    </div>
+  </div>`;
+}
+
 function staffShopTabHtml(s, websiteShop, shopView = "discord") {
   const isWebsite = shopView === "website";
   const products = Array.isArray(websiteShop && websiteShop.products) ? websiteShop.products : [];
@@ -1620,7 +1849,7 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
         <a class="btn" href="/panel/shop?shop_view=discord">DC Shop (Active)</a>
         <a class="btn" href="/panel/shop?shop_view=website">Website Shop</a>
       </div>
-    </div>${shopStatsHtml(s)}`;
+    </div>${shopStatsHtml(s)}${shopAutomationPanelHtml()}`;
   }
 
   return `<div class="card base-panel">
@@ -1708,7 +1937,7 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
             .join("")
         : '<div class="note">No website products yet.</div>'}
     </div>
-  </div>`;
+  </div>${shopAutomationPanelHtml()}`;
 }
 
 function basesEditorPanelHtml(bases) {
@@ -2007,6 +2236,82 @@ app.get("/", (_req, res) => {
 app.get("/bases", (_req, res) => {
   const bases = loadBaseStates();
   res.send(basesPageHtml(bases));
+});
+
+app.get("/giveaways", (req, res) => {
+  const giveaways = Object.values(loadGiveaways()).sort((a, b) =>
+    String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+  );
+  const msg = typeof req.query.msg === "string" ? req.query.msg : "";
+  const err = typeof req.query.err === "string" ? req.query.err : "";
+  const session = getGiveawaySession(req);
+  res.send(giveawaysPageHtml({ giveaways, msg, err, session }));
+});
+
+app.post("/giveaways/session", (req, res) => {
+  const userId = String(req.body.discord_user_id || "").trim();
+  const userTag = String(req.body.discord_tag || "").trim().slice(0, 64);
+  if (!isSnowflake(userId)) {
+    res.redirect("/giveaways?err=Invalid%20Discord%20User%20ID");
+    return;
+  }
+  res.setHeader("Set-Cookie", [
+    `giveaway_user_id=${encodeURIComponent(userId)}; Path=/; HttpOnly; Max-Age=2592000; SameSite=Lax`,
+    `giveaway_user_tag=${encodeURIComponent(userTag)}; Path=/; HttpOnly; Max-Age=2592000; SameSite=Lax`
+  ]);
+  res.redirect("/giveaways?msg=Giveaway%20identity%20saved");
+});
+
+app.post("/giveaways/:id/enter", (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const { userId } = getGiveawaySession(req);
+  if (!isSnowflake(userId)) {
+    res.redirect("/giveaways?err=Set%20your%20giveaway%20identity%20first");
+    return;
+  }
+  const giveaways = loadGiveaways();
+  const giveaway = giveaways[id];
+  if (!giveaway) {
+    res.redirect("/giveaways?err=Giveaway%20not%20found");
+    return;
+  }
+  if (isGiveawayEnded(giveaway)) {
+    res.redirect("/giveaways?err=This%20giveaway%20has%20ended");
+    return;
+  }
+  giveaway.participants = Array.isArray(giveaway.participants) ? giveaway.participants : [];
+  if (giveaway.participants.includes(userId)) {
+    res.redirect("/giveaways?err=You%20already%20joined%20this%20giveaway");
+    return;
+  }
+  giveaway.participants.push(userId);
+  giveaways[id] = giveaway;
+  saveGiveaways(giveaways);
+  res.redirect("/giveaways?msg=Joined%20giveaway");
+});
+
+app.post("/giveaways/:id/leave", (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const { userId } = getGiveawaySession(req);
+  if (!isSnowflake(userId)) {
+    res.redirect("/giveaways?err=Set%20your%20giveaway%20identity%20first");
+    return;
+  }
+  const giveaways = loadGiveaways();
+  const giveaway = giveaways[id];
+  if (!giveaway) {
+    res.redirect("/giveaways?err=Giveaway%20not%20found");
+    return;
+  }
+  if (isGiveawayEnded(giveaway)) {
+    res.redirect("/giveaways?err=This%20giveaway%20has%20ended");
+    return;
+  }
+  giveaway.participants = Array.isArray(giveaway.participants) ? giveaway.participants : [];
+  giveaway.participants = giveaway.participants.filter((participantId) => String(participantId) !== userId);
+  giveaways[id] = giveaway;
+  saveGiveaways(giveaways);
+  res.redirect("/giveaways?msg=Left%20giveaway");
 });
 
 app.get("/about", (_req, res) => {
@@ -2385,6 +2690,127 @@ app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => 
     : [];
   saveWebsiteShopDefaults(defaults);
   res.redirect("/panel/shop?shop_view=website&msg=Website%20shop%20saved%20to%20defaults");
+});
+
+app.post("/staff/credits/update", requireStaff, (req, res) => {
+  const userId = String(req.body.discord_user_id || "").trim();
+  const amount = Number.parseFloat(String(req.body.amount || "").trim());
+  const mode = String(req.body.mode || "").trim().toLowerCase();
+  if (!isSnowflake(userId)) {
+    res.redirect("/panel/shop?warn=Invalid%20Discord%20User%20ID");
+    return;
+  }
+  if (!Number.isFinite(amount) || amount < 0 || amount > 100000) {
+    res.redirect("/panel/shop?warn=Invalid%20credit%20amount");
+    return;
+  }
+  const credits = loadCredits();
+  const current = Number(credits[userId] || 0);
+  let next = current;
+  if (mode === "set") {
+    next = amount;
+  } else if (mode === "subtract") {
+    next = Math.max(0, current - amount);
+  } else {
+    next = current + amount;
+  }
+  const rounded = money(next);
+  if (rounded <= 0) {
+    delete credits[userId];
+  } else {
+    credits[userId] = rounded;
+  }
+  saveCredits(credits);
+  res.redirect("/panel/shop?msg=Store%20credit%20updated");
+});
+
+app.post("/staff/giveaways/create", requireStaff, (req, res) => {
+  const prize = String(req.body.prize || "").trim().slice(0, 100);
+  const description = String(req.body.description || "").trim().slice(0, 500);
+  const winners = Number.parseInt(String(req.body.winners || "").trim(), 10);
+  const endMinutes = Number.parseInt(String(req.body.end_minutes || "").trim(), 10);
+  if (!prize) {
+    res.redirect("/panel/shop?warn=Giveaway%20prize%20is%20required");
+    return;
+  }
+  if (!description) {
+    res.redirect("/panel/shop?warn=Giveaway%20description%20is%20required");
+    return;
+  }
+  if (!Number.isInteger(winners) || winners <= 0 || winners > 20) {
+    res.redirect("/panel/shop?warn=Winners%20must%20be%201-20");
+    return;
+  }
+  if (!Number.isInteger(endMinutes) || endMinutes <= 0 || endMinutes > 10080) {
+    res.redirect("/panel/shop?warn=Ends%20in%20minutes%20must%20be%201-10080");
+    return;
+  }
+  const staff = getStaffSession(req);
+  const giveaways = loadGiveaways();
+  const id = `GW-${Date.now()}`;
+  giveaways[id] = {
+    id,
+    prize,
+    description,
+    winners,
+    endsAt: new Date(Date.now() + endMinutes * 60 * 1000).toISOString(),
+    participants: [],
+    createdAt: new Date().toISOString(),
+    createdBy: `web:${staff.user}`,
+    guildId: GUILD_ID || null,
+    channelId: null,
+    messageId: null
+  };
+  saveGiveaways(giveaways);
+  res.redirect("/panel/shop?msg=Giveaway%20created");
+});
+
+app.post("/staff/giveaways/:id/end", requireStaff, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const giveaways = loadGiveaways();
+  const giveaway = giveaways[id];
+  if (!giveaway) {
+    res.redirect("/panel/shop?warn=Giveaway%20not%20found");
+    return;
+  }
+  const participants = Array.isArray(giveaway.participants) ? giveaway.participants : [];
+  if (giveaway.ended === true && Array.isArray(giveaway.winnerIds)) {
+    res.redirect("/panel/shop?warn=Giveaway%20already%20ended");
+    return;
+  }
+  const winnerCount = Math.max(1, Math.min(Number(giveaway.winners || 1), participants.length || 1));
+  giveaway.winnerIds = participants.length ? pickRandomWinners(participants, winnerCount) : [];
+  giveaway.ended = true;
+  giveaway.endedAt = new Date().toISOString();
+  giveaways[id] = giveaway;
+  saveGiveaways(giveaways);
+  res.redirect("/panel/shop?msg=Giveaway%20ended");
+});
+
+app.post("/staff/giveaways/:id/reroll", requireStaff, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const giveaways = loadGiveaways();
+  const giveaway = giveaways[id];
+  if (!giveaway) {
+    res.redirect("/panel/shop?warn=Giveaway%20not%20found");
+    return;
+  }
+  if (!isGiveawayEnded(giveaway)) {
+    res.redirect("/panel/shop?warn=Giveaway%20is%20not%20ended%20yet");
+    return;
+  }
+  const participants = Array.isArray(giveaway.participants) ? giveaway.participants : [];
+  if (participants.length === 0) {
+    giveaway.winnerIds = [];
+  } else {
+    const winnerCount = Math.max(1, Math.min(Number(giveaway.winners || 1), participants.length));
+    giveaway.winnerIds = pickRandomWinners(participants, winnerCount);
+  }
+  giveaway.ended = true;
+  giveaway.endedAt = giveaway.endedAt || new Date().toISOString();
+  giveaways[id] = giveaway;
+  saveGiveaways(giveaways);
+  res.redirect("/panel/shop?msg=Giveaway%20rerolled");
 });
 
 app.post("/staff/application-forms/create", requireStaff, (req, res) => {
