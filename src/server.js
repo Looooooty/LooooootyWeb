@@ -935,6 +935,38 @@ function websiteShopHtml(websiteShop) {
     }
     .cart-btn.checkout { background: #1f8f4e; border-color: #1f8f4e; }
     .cart-btn.close { background: #b03a43; border-color: #b03a43; }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2,5,16,0.78);
+      backdrop-filter: blur(4px);
+      display: none;
+      z-index: 70;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: block; }
+    .modal-card {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      background: rgba(10,16,41,0.96);
+      padding: 14px;
+      max-width: 520px;
+      width: 100%;
+      margin: 8vh auto 0;
+    }
+    .modal-title { font-size: 24px; margin: 0 0 8px; }
+    .modal-input {
+      width: 100%;
+      padding: 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(9,13,20,0.62);
+      color: var(--txt);
+      margin: 8px 0;
+    }
+    .modal-note { color: var(--muted); font-size: 13px; }
+    .modal-error { color: #ff9b9b; font-size: 13px; min-height: 18px; margin-top: 4px; }
+    .modal-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
     @media (max-width: 1120px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 860px) {
       .shell { grid-template-columns: 1fr; }
@@ -945,6 +977,7 @@ function websiteShopHtml(websiteShop) {
       .grid { grid-template-columns: 1fr; }
       .cart-overlay { padding: 8px; }
       .cart-panel { max-height: 96vh; }
+      .modal-overlay { padding: 8px; }
     }
   </style>
 </head>
@@ -1016,6 +1049,30 @@ function websiteShopHtml(websiteShop) {
             </div>
           </aside>
         </div>
+        <div id="qty-modal" class="modal-overlay">
+          <div class="modal-card">
+            <h3 class="modal-title">Add to Cart</h3>
+            <div id="qty-modal-product" class="modal-note"></div>
+            <input id="qty-input" class="modal-input" type="number" min="1" max="999" placeholder="Item Quantity (1-999)" />
+            <div id="qty-error" class="modal-error"></div>
+            <div class="modal-actions">
+              <button id="qty-confirm" class="cart-btn checkout" type="button">Add</button>
+              <button id="qty-cancel" class="cart-btn close" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div id="checkout-modal" class="modal-overlay">
+          <div class="modal-card">
+            <h3 class="modal-title">Checkout</h3>
+            <div class="modal-note">Enter your email for payment receipt/invoice.</div>
+            <input id="checkout-email" class="modal-input" type="email" placeholder="you@example.com" />
+            <div id="checkout-error" class="modal-error"></div>
+            <div class="modal-actions">
+              <button id="checkout-paypal" class="cart-btn checkout" type="button">PayPal</button>
+              <button id="checkout-close" class="cart-btn close" type="button">Close</button>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -1035,10 +1092,23 @@ function websiteShopHtml(websiteShop) {
       const topCartBtn = document.getElementById("top-cart-btn");
       const cartOverlay = document.getElementById("cart-overlay");
       const cartHideBtn = document.getElementById("cart-hide");
+      const qtyModal = document.getElementById("qty-modal");
+      const qtyModalProduct = document.getElementById("qty-modal-product");
+      const qtyInput = document.getElementById("qty-input");
+      const qtyError = document.getElementById("qty-error");
+      const qtyConfirm = document.getElementById("qty-confirm");
+      const qtyCancel = document.getElementById("qty-cancel");
+      const checkoutModal = document.getElementById("checkout-modal");
+      const checkoutEmail = document.getElementById("checkout-email");
+      const checkoutError = document.getElementById("checkout-error");
+      const checkoutPaypal = document.getElementById("checkout-paypal");
+      const checkoutClose = document.getElementById("checkout-close");
       const taxRate = 0.06;
       const storageKey = "looooooty_web_cart_v1";
       let currentCat = "Recommended";
       let cart = {};
+      let pendingAddProductId = "";
+      let pendingAddProductTitle = "";
 
       function loadCart() {
         try {
@@ -1155,21 +1225,35 @@ function websiteShopHtml(websiteShop) {
       addButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
           if (btn.disabled) return;
-          const id = String(btn.dataset.addId || "");
+          pendingAddProductId = String(btn.dataset.addId || "");
           const card = btn.closest(".card");
-          const title = card ? String(card.dataset.title || "this item") : "this item";
-          const raw = window.prompt("Item Quantity for " + title + " (1-999):", "1");
-          if (raw === null) return;
-          const qty = Number.parseInt(String(raw).trim(), 10);
-          if (!Number.isInteger(qty) || qty <= 0 || qty > 999) {
-            window.alert("Quantity must be a whole number between 1 and 999.");
-            return;
-          }
-          cart[id] = Number(cart[id] || 0) + qty;
-          saveCart();
-          renderCart();
+          pendingAddProductTitle = card ? String(card.dataset.title || "this item") : "this item";
+          if (qtyModalProduct) qtyModalProduct.textContent = pendingAddProductTitle;
+          if (qtyInput) qtyInput.value = "1";
+          if (qtyError) qtyError.textContent = "";
+          if (qtyModal) qtyModal.classList.add("open");
+          if (qtyInput) qtyInput.focus();
         });
       });
+      if (qtyConfirm) {
+        qtyConfirm.addEventListener("click", () => {
+          const qty = Number.parseInt(String((qtyInput && qtyInput.value) || "").trim(), 10);
+          if (!Number.isInteger(qty) || qty <= 0 || qty > 999) {
+            if (qtyError) qtyError.textContent = "Quantity must be a whole number between 1 and 999.";
+            return;
+          }
+          if (!pendingAddProductId) return;
+          cart[pendingAddProductId] = Number(cart[pendingAddProductId] || 0) + qty;
+          saveCart();
+          renderCart();
+          if (qtyModal) qtyModal.classList.remove("open");
+        });
+      }
+      if (qtyCancel) {
+        qtyCancel.addEventListener("click", () => {
+          if (qtyModal) qtyModal.classList.remove("open");
+        });
+      }
       clearBtn.addEventListener("click", () => {
         cart = {};
         saveCart();
@@ -1191,7 +1275,35 @@ function websiteShopHtml(websiteShop) {
         });
       }
       checkoutBtn.addEventListener("click", () => {
-        window.alert("Website checkout is coming soon. Use Discord Shop checkout for now.");
+        if (checkoutError) checkoutError.textContent = "";
+        if (checkoutEmail) checkoutEmail.value = "";
+        if (checkoutModal) checkoutModal.classList.add("open");
+      });
+      if (checkoutClose) {
+        checkoutClose.addEventListener("click", () => {
+          if (checkoutModal) checkoutModal.classList.remove("open");
+        });
+      }
+      if (checkoutPaypal) {
+        checkoutPaypal.addEventListener("click", () => {
+          const email = String((checkoutEmail && checkoutEmail.value) || "").trim();
+          if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+            if (checkoutError) checkoutError.textContent = "Please enter a valid email.";
+            return;
+          }
+          if (checkoutError) checkoutError.textContent = "";
+          window.location.href = "${SHOP_INVITE_URL}";
+        });
+      }
+      if (qtyModal) {
+        qtyModal.addEventListener("click", (e) => {
+          if (e.target === qtyModal) qtyModal.classList.remove("open");
+        });
+      }
+      if (checkoutModal) {
+        checkoutModal.addEventListener("click", (e) => {
+          if (e.target === checkoutModal) checkoutModal.classList.remove("open");
+        });
       });
       loadCart();
       renderCart();
