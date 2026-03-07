@@ -1829,15 +1829,9 @@ app.post("/staff/bases/:id/save-default", requireStaff, (req, res) => {
     res.redirect("/panel/bases?warn=Base%20not%20found");
     return;
   }
-  const defaults = loadBaseStateDefaults();
-  const idx = defaults.findIndex((b) => String(b.id) === id);
-  if (idx === -1) {
-    defaults.push(base);
-  } else {
-    defaults[idx] = base;
-  }
-  saveBaseStateDefaults(defaults);
-  res.redirect("/panel/bases?msg=Base%20saved%20to%20defaults");
+  // Save a full snapshot so states (open/open_less/closed) remain exactly as current.
+  saveBaseStateDefaults(bases);
+  res.redirect("/panel/bases?msg=Base%20defaults%20snapshot%20saved");
 });
 
 app.post("/staff/webshop/state", requireStaff, (req, res) => {
