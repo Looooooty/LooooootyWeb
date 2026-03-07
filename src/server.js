@@ -382,11 +382,10 @@ function sideMenuHtml() {
     <div class="brand">LooooootyBases</div>
     <nav class="menu">
       <a href="/bases">State of bases</a>
-      <a href="/bot">Bot</a>
       <a href="/about">About Us</a>
       <a href="/apply">Apply</a>
       <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
-      <a href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">LooooootyShop</a>
+      <a href="/shop">LooooootyShop</a>
       <a href="/staff">Staff</a>
     </nav>
   </div>`;
@@ -532,7 +531,7 @@ function homeHtml() {
       <section class="btn-box">
         <div class="btns">
           <a class="btn" href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
-          <a class="btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Shop</a>
+          <a class="btn" href="/shop">Shop</a>
           <a class="btn" href="/apply">Apply</a>
           <a class="btn" href="/staff">Staff</a>
         </div>
@@ -598,16 +597,53 @@ function aboutPageHtml() {
 </html>`;
 }
 
-function botPageHtml({ ownerAccess = false, staffAccess = false } = {}) {
-  const shopUnlocked = BOT_SHOP_PUBLIC || ownerAccess || staffAccess;
+function shopLandingHtml() {
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bot Dashboard</title>
+  <title>LooooootyShop</title>
   ${faviconLinks()}
   ${sharedHomeStyles()}
+  <style>
+    .shop-wrap {
+      width: min(1100px, 98%);
+      height: min(70vh, 700px);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(9,13,20,0.62);
+      backdrop-filter: blur(10px);
+    }
+    .shop-half {
+      display: grid;
+      place-items: center;
+      text-decoration: none;
+      color: var(--txt);
+      font-weight: 800;
+      font-size: clamp(24px, 4vw, 46px);
+      border-right: 1px solid rgba(255,255,255,0.14);
+      background: linear-gradient(180deg, rgba(49,70,99,0.45), rgba(23,29,41,0.68));
+    }
+    .shop-half:last-child { border-right: 0; }
+    .shop-half:hover { border-color: var(--accent); filter: brightness(1.08); }
+    @media (max-width: 860px) {
+      .shop-wrap {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .shop-half {
+        min-height: 180px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.14);
+      }
+      .shop-half:last-child { border-bottom: 0; }
+    }
+  </style>
 </head>
 <body>
   <div class="layout">
@@ -616,18 +652,9 @@ function botPageHtml({ ownerAccess = false, staffAccess = false } = {}) {
       <section class="hero" style="margin-bottom:12px; text-align:left;">
         <a class="btn" href="/">Back Home</a>
       </section>
-      <section class="state-box" style="display:block; text-align:left;">
-        <div class="state-head">Bot Dashboard</div>
-        <div style="display:grid; gap:10px;">
-        </div>
-        <div style="margin-top:14px;">
-          <div class="state-head">Shop Controls</div>
-          ${
-            shopUnlocked
-              ? '<div>Shop section is currently visible to you. Use the staff panel for management.</div><div style="margin-top:8px;"><a class="btn" href="/panel/shop">Open Shop Panel</a></div>'
-              : "<div>Shop section is private right now. Public users cannot access it until you set BOT_SHOP_PUBLIC=true.</div>"
-          }
-        </div>
+      <section class="shop-wrap">
+        <a class="shop-half" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
+        <a class="shop-half" href="#" onclick="event.preventDefault()">Website Shop</a>
       </section>
     </main>
   </div>
@@ -1197,10 +1224,8 @@ app.get("/about", (_req, res) => {
   res.send(aboutPageHtml());
 });
 
-app.get("/bot", (req, res) => {
-  const ownerAccess = Boolean(BOT_OWNER_KEY) && String(req.query.owner_key || "").trim() === BOT_OWNER_KEY;
-  const staffAccess = isStaffAuthed(req);
-  res.send(botPageHtml({ ownerAccess, staffAccess }));
+app.get("/shop", (_req, res) => {
+  res.send(shopLandingHtml());
 });
 
 app.get("/apply", (req, res) => {
