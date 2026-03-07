@@ -1168,23 +1168,17 @@ function staffPanelStyles() {
       pointer-events: auto;
     }
     .ws-inline { display:grid; gap:8px; grid-template-columns: 1fr 1fr; }
-    .mini-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin-top:12px; }
-    .mini-card { border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:10px; background: rgba(0,0,0,0.14); position:relative; }
-    .mini-title { font-weight:800; margin-bottom:6px; }
-    .mini-meta { font-size:12px; color: var(--muted); }
-    .mini-actions {
-      margin-top:10px;
-      display:grid;
-      gap:8px;
-      opacity:0;
-      pointer-events:none;
-      transition: opacity .16s ease;
-    }
-    .mini-card:hover .mini-actions,
-    .mini-card:focus-within .mini-actions {
-      opacity:1;
-      pointer-events:auto;
-    }
+    .ws-compact-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:12px; margin-top:12px; }
+    .ws-compact-card { border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:10px; background: rgba(0,0,0,0.14); position:relative; }
+    .ws-compact-top { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px; }
+    .ws-compact-name { font-weight:800; }
+    .ws-compact-price { color:#31ff83; font-weight:900; }
+    .ws-compact-img { border-radius:10px; overflow:hidden; border:1px solid rgba(255,255,255,0.15); background: rgba(5,9,25,0.8); margin-bottom:8px; }
+    .ws-compact-img img { width:100%; height:120px; object-fit:cover; display:block; }
+    .ws-compact-meta { font-size:12px; color: var(--muted); }
+    .ws-compact-actions { display:grid; gap:8px; margin-top:10px; opacity:0; pointer-events:none; transition: opacity .16s ease; }
+    .ws-compact-card:hover .ws-compact-actions,
+    .ws-compact-card:focus-within .ws-compact-actions { opacity:1; pointer-events:auto; }
     .app-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
     .app-meta { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.5; }
     .app-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
@@ -1307,19 +1301,21 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
     </form>
 
     <h4 style="margin:18px 0 6px;">Products (${products.length})</h4>
-    <div class="app-list">
+    <div class="ws-compact-grid">
       ${products.length
         ? products
             .map(
-              (p) => `<div class="app-row ws-product">
-                <div class="app-head"><div><b>${esc(p.name)}</b></div><div>${p.inStock === false ? "Out of Stock" : "In Stock"}</div></div>
-                <div class="app-meta">ID: <b>${esc(p.id)}</b><br/>Price: <b>$${Number(p.price || 0).toFixed(
-                  2
-                )}</b><br/>Category: <b>${esc(p.category || "-")}</b><br/>Image: <b>${esc(p.image || "-")}</b><br/>Description: ${esc(
-                  p.description || "-"
-                )}</div>
-                <div class="ws-actions">
-                  <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/edit" style="display:grid; gap:8px;">
+              (p) => `<div class="ws-compact-card ws-product">
+                <div class="ws-compact-top">
+                  <div class="ws-compact-name">${esc(p.name)}</div>
+                  <div class="ws-compact-price">$${Number(p.price || 0).toFixed(2)}</div>
+                </div>
+                <div class="ws-compact-img"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
+                <div class="ws-compact-meta">
+                  ${p.inStock === false ? "Out of Stock" : "In Stock"} • ${esc(p.category || "-")}
+                </div>
+                <div class="ws-compact-actions">
+                  <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/edit" style="display:grid; gap:8px; border-top:1px solid rgba(255,255,255,0.12); padding-top:8px;">
                     <input type="text" name="name" required maxlength="80" value="${esc(p.name || "")}" />
                     <input type="text" name="description" maxlength="400" value="${esc(p.description || "")}" />
                     <div class="ws-inline">
@@ -1357,36 +1353,11 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
 function basesEditorPanelHtml(bases) {
   return `<div class="card base-panel">
     <h3 style="margin-top:0">State of Bases</h3>
+    <form method="post" action="/staff/bases/update">
+      ${baseStateEditorHtml(bases)}
+      <button class="save-btn" type="submit">Save Base States</button>
+    </form>
     <div class="note">Open = green, Open but less likely to be used = yellow, Closed = red.</div>
-    <div class="mini-grid">
-      ${bases
-        .map(
-          (b) => `<div class="mini-card">
-            <div class="mini-title">${esc(b.name)}</div>
-            <div class="mini-meta">ID: ${esc(b.id)}<br/>State: <b>${esc(b.state)}</b></div>
-            <div class="mini-actions">
-              <form method="post" action="/staff/bases/${encodeURIComponent(b.id)}/edit" style="display:grid; gap:8px;">
-                <input type="text" name="base_name" required maxlength="60" value="${esc(b.name)}" />
-                <select name="state" required>
-                  <option value="open"${b.state === "open" ? " selected" : ""}>Open</option>
-                  <option value="open_less"${b.state === "open_less" ? " selected" : ""}>Open but less likely</option>
-                  <option value="closed"${b.state === "closed" ? " selected" : ""}>Closed</option>
-                </select>
-                <button class="save-btn" type="submit">Edit Base</button>
-              </form>
-              <div class="ws-inline">
-                <form method="post" action="/staff/bases/${encodeURIComponent(b.id)}/save-default" style="margin:0;">
-                  <button class="btn" type="submit">Save to Default</button>
-                </form>
-                <form method="post" action="/staff/bases/${encodeURIComponent(b.id)}/delete" style="margin:0;" onsubmit="return confirm('Delete this base?');">
-                  <button class="danger-btn" type="submit">Delete Base</button>
-                </form>
-              </div>
-            </div>
-          </div>`
-        )
-        .join("")}
-    </div>
     <form method="post" action="/staff/bases/create" style="margin-top:12px; display:grid; grid-template-columns: 1fr auto; gap:10px;">
       <input type="text" name="base_name" placeholder="New base name" required maxlength="60" />
       <button class="save-btn" type="submit">Create Base</button>
@@ -2025,32 +1996,23 @@ app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => 
     return;
   }
 
-  if (!Array.isArray(defaults.categories)) {
-    defaults.categories = [];
-  }
-  if (product.category && !defaults.categories.some((c) => String(c).toLowerCase() === String(product.category).toLowerCase())) {
-    defaults.categories.push(product.category);
-  }
-  if (!Array.isArray(defaults.products)) {
-    defaults.products = [];
-  }
-  const idx = defaults.products.findIndex((p) => String(p && p.id ? p.id : "") === id);
-  const normalizedProduct = {
-    id: String(product.id || "").trim(),
-    name: String(product.name || "").trim().slice(0, 80),
-    price: Number(product.price || 0),
-    category: String(product.category || "").trim().slice(0, 40),
-    image: String(product.image || "").trim(),
-    description: String(product.description || "").trim().slice(0, 400),
-    inStock: product.inStock === false ? false : true
-  };
-  if (idx === -1) {
-    defaults.products.push(normalizedProduct);
-  } else {
-    defaults.products[idx] = normalizedProduct;
-  }
+  defaults.state = data.state === "closed" ? "closed" : "open";
+  defaults.categories = Array.isArray(data.categories)
+    ? data.categories.map((c) => String(c || "").trim()).filter(Boolean)
+    : [];
+  defaults.products = Array.isArray(data.products)
+    ? data.products.map((p) => ({
+        id: String(p && p.id ? p.id : "").trim(),
+        name: String(p && p.name ? p.name : "Unnamed").trim().slice(0, 80),
+        price: Number.isFinite(Number(p && p.price)) ? Number(p.price) : 0,
+        category: String(p && p.category ? p.category : "").trim().slice(0, 40),
+        image: String(p && p.image ? p.image : "").trim(),
+        description: String(p && p.description ? p.description : "").trim().slice(0, 400),
+        inStock: p && p.inStock === false ? false : true
+      }))
+    : [];
   saveWebsiteShopDefaults(defaults);
-  res.redirect("/panel/shop?shop_view=website&msg=Product%20saved%20to%20defaults");
+  res.redirect("/panel/shop?shop_view=website&msg=Website%20shop%20saved%20to%20defaults");
 });
 
 app.post("/staff/application-forms/create", requireStaff, (req, res) => {
