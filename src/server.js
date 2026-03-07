@@ -49,7 +49,7 @@ const BASE_STATUS_META = {
   closed: { label: "Closed", color: "#f85149" }
 };
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "12mb" }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
@@ -2442,7 +2442,7 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
     <div class="note">Current: ${categories.length ? categories.map((c) => `<b>${esc(c)}</b>`).join(", ") : "-"}</div>
 
     <h4 style="margin:18px 0 6px;">Add Product</h4>
-    <form method="post" action="/staff/webshop/product/add" style="display:grid; gap:10px;">
+    <form method="post" action="/staff/webshop/product/add" class="webshop-product-form" style="display:grid; gap:10px;">
       <input type="text" name="name" maxlength="80" required placeholder="Product name" />
       <input type="text" name="description" maxlength="400" placeholder="Description (optional)" />
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
@@ -2451,7 +2451,10 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
           ${categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
         </select>
       </div>
-      <input type="text" name="image" required placeholder="Image URL (https://...)" />
+      <input type="text" name="image" placeholder="Image URL (https://...)" />
+      <input type="file" name="image_file" accept="image/*" />
+      <input type="hidden" name="image_data" />
+      <div class="note">Use either image URL or upload file. URL is used if both are set.</div>
       <button class="save-btn" type="submit">Add Product</button>
     </form>
 
@@ -2470,7 +2473,7 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
                   ${p.inStock === false ? "Out of Stock" : "In Stock"} • ${esc(p.category || "-")}
                 </div>
                 <div class="ws-compact-actions">
-                  <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/edit" style="display:grid; gap:8px; border-top:1px solid rgba(255,255,255,0.12); padding-top:8px;">
+                  <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/edit" class="webshop-product-form" style="display:grid; gap:8px; border-top:1px solid rgba(255,255,255,0.12); padding-top:8px;">
                     <input type="text" name="name" required maxlength="80" value="${esc(p.name || "")}" />
                     <input type="text" name="description" maxlength="400" value="${esc(p.description || "")}" />
                     <div class="ws-inline">
@@ -2479,7 +2482,10 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
                         ${categories.map((c) => `<option value="${esc(c)}"${String(c) === String(p.category) ? " selected" : ""}>${esc(c)}</option>`).join("")}
                       </select>
                     </div>
-                    <input type="text" name="image" required value="${esc(p.image || "")}" />
+                    <input type="text" name="image" value="${esc(p.image || "")}" placeholder="Image URL (https://...)" />
+                    <input type="file" name="image_file" accept="image/*" />
+                    <input type="hidden" name="image_data" />
+                    <div class="note">Use either image URL or upload file. URL is used if both are set.</div>
                     <button class="save-btn" type="submit">Edit Product</button>
                   </form>
                   <div class="ws-inline">
@@ -2502,7 +2508,41 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
             .join("")
         : '<div class="note">No website products yet.</div>'}
     </div>
-  </div>${shopAutomationPanelHtml()}`;
+  </div>${shopAutomationPanelHtml()}
+  <script>
+    (function () {
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Failed to read image file"));
+          reader.readAsDataURL(file);
+        });
+      }
+      document.querySelectorAll("form.webshop-product-form").forEach((form) => {
+        form.addEventListener("submit", async (e) => {
+          const fileInput = form.querySelector('input[name="image_file"]');
+          const imageInput = form.querySelector('input[name="image"]');
+          const dataInput = form.querySelector('input[name="image_data"]');
+          if (!fileInput || !dataInput) return;
+          const hasUrl = Boolean(imageInput && String(imageInput.value || "").trim());
+          const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+          if (!file || hasUrl) {
+            dataInput.value = "";
+            return;
+          }
+          e.preventDefault();
+          try {
+            const dataUrl = await fileToDataUrl(file);
+            dataInput.value = dataUrl.slice(0, 10000000);
+            form.submit();
+          } catch {
+            alert("Image upload failed. Try a smaller file or use image URL.");
+          }
+        });
+      });
+    })();
+  </script>`;
 }
 
 function basesEditorPanelHtml(bases) {
@@ -3303,7 +3343,9 @@ app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
   const name = String(req.body.name || "").trim().slice(0, 80);
   const description = String(req.body.description || "").trim().slice(0, 400);
   const category = String(req.body.category || "").trim().slice(0, 40);
-  const image = String(req.body.image || "").trim().slice(0, 500);
+  const imageUrl = String(req.body.image || "").trim().slice(0, 500);
+  const imageData = String(req.body.image_data || "").trim().slice(0, 10000000);
+  const image = imageUrl || imageData;
   const price = Number.parseFloat(String(req.body.price || "0").trim());
   if (!name) {
     res.redirect("/panel/shop?shop_view=website&warn=Product%20name%20is%20required");
@@ -3318,7 +3360,7 @@ app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
     return;
   }
   if (!image) {
-    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20is%20required");
+    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20or%20image%20upload%20is%20required");
     return;
   }
   if (!data.categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
@@ -3361,7 +3403,9 @@ app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
   const name = String(req.body.name || "").trim().slice(0, 80);
   const description = String(req.body.description || "").trim().slice(0, 400);
   const category = String(req.body.category || "").trim().slice(0, 40);
-  const image = String(req.body.image || "").trim().slice(0, 500);
+  const imageUrl = String(req.body.image || "").trim().slice(0, 500);
+  const imageData = String(req.body.image_data || "").trim().slice(0, 10000000);
+  const image = imageUrl || imageData || String(data.products[idx].image || "");
   const price = Number.parseFloat(String(req.body.price || "0").trim());
   if (!name) {
     res.redirect("/panel/shop?shop_view=website&warn=Product%20name%20is%20required");
@@ -3376,7 +3420,7 @@ app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
     return;
   }
   if (!image) {
-    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20is%20required");
+    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20or%20image%20upload%20is%20required");
     return;
   }
   if (!data.categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
