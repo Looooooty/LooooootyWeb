@@ -774,32 +774,40 @@ function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
       const ended = isGiveawayEnded(g);
       const entries = giveawayEntriesCount(g);
       const userEntered = userId ? Array.isArray(g.participants) && g.participants.includes(userId) : false;
-      const endsText = g.endsAt ? new Date(g.endsAt).toLocaleString("en-US", { hour12: false }) : "-";
+      const endsText = g.endsAt
+        ? new Date(g.endsAt).toLocaleString("en-US", { hour12: false, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+        : "-";
       const winners = Array.isArray(g.winnerIds) ? g.winnerIds : [];
       const winnersText = winners.length ? winners.map((id) => `@${esc(id)}`).join(", ") : "None yet";
       const participantsText = Array.isArray(g.participants) && g.participants.length
         ? g.participants.slice(0, 100).map((id) => `@${esc(id)}`).join(", ")
         : "No participants yet.";
-      return `<div class="card" style="margin-top:12px;">
-        <h3 style="margin:0 0 8px;">${esc(g.prize || "Giveaway")}</h3>
-        <div class="note" style="margin-top:0;">${esc(g.description || "")}</div>
-        <div class="note">ID: <b>${esc(g.id || "-")}</b></div>
-        <div class="note">${ended ? "Ended" : "Ends"}: <b>${endsText}</b></div>
-        <div class="note">Entries: <b>${entries}</b> • Winners: <b>${Number(g.winners || 1)}</b></div>
-        <div class="note">Selected winner(s): <b>${winnersText}</b></div>
-        <details style="margin-top:8px;">
-          <summary style="cursor:pointer;">See Participants</summary>
-          <div class="note" style="white-space:pre-wrap; margin-top:8px;">${participantsText}</div>
+      return `<article class="gw-card">
+        <div class="gw-head">
+          <h3>${esc(g.prize || "Giveaway")}</h3>
+          <span class="gw-pill ${ended ? "ended" : "active"}">${ended ? "ENDED" : "ACTIVE"}</span>
+        </div>
+        <div class="gw-desc">${esc(g.description || "")}</div>
+        <div class="gw-meta-grid">
+          <div><span class="k">ID</span><b>${esc(g.id || "-")}</b></div>
+          <div><span class="k">${ended ? "Ended" : "Ends"}</span><b>${endsText}</b></div>
+          <div><span class="k">Entries</span><b>${entries}</b></div>
+          <div><span class="k">Winners</span><b>${Number(g.winners || 1)}</b></div>
+        </div>
+        <div class="gw-winners"><span class="k">Selected Winner(s)</span><b>${winnersText}</b></div>
+        <details class="gw-participants">
+          <summary>See Participants</summary>
+          <div>${participantsText}</div>
         </details>
-        <div class="action-row" style="justify-content:flex-start; margin-top:10px;">
-          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}/enter" style="margin:0;">
-            <button class="save-btn" type="submit"${ended || !userId || userEntered ? " disabled" : ""}>Enter Giveaway</button>
+        <div class="gw-actions">
+          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}">
+            <button class="gw-btn gw-enter" type="submit" formaction="/giveaways/${encodeURIComponent(g.id || "")}/enter"${ended || !userId || userEntered ? " disabled" : ""}>Enter Giveaway</button>
           </form>
-          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}/leave" style="margin:0;">
-            <button class="danger-btn" type="submit"${ended || !userId || !userEntered ? " disabled" : ""}>Leave Giveaway</button>
+          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}">
+            <button class="gw-btn gw-leave" type="submit" formaction="/giveaways/${encodeURIComponent(g.id || "")}/leave"${ended || !userId || !userEntered ? " disabled" : ""}>Leave Giveaway</button>
           </form>
         </div>
-      </div>`;
+      </article>`;
     })
     .join("");
 
@@ -811,25 +819,143 @@ function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
   <title>Giveaways</title>
   ${faviconLinks()}
   ${sharedHomeStyles()}
+  <style>
+    .gw-shell {
+      width: min(1100px, 98%);
+      display: grid;
+      gap: 14px;
+    }
+    .gw-top, .gw-identity {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(9,13,20,0.72);
+      border-radius: 16px;
+      padding: 16px;
+      backdrop-filter: blur(10px);
+    }
+    .gw-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .gw-title {
+      margin: 0;
+      font-size: clamp(24px, 3.2vw, 38px);
+      font-style: italic;
+    }
+    .gw-sub { color: var(--muted); margin-top: 6px; }
+    .gw-identity .form-grid { margin-top: 8px; }
+    .gw-id {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .gw-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px;
+    }
+    .gw-card {
+      border: 1px solid rgba(255,255,255,0.14);
+      background: linear-gradient(180deg, rgba(12,18,44,0.88), rgba(8,12,30,0.88));
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .gw-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .gw-head h3 { margin: 0; font-size: 24px; }
+    .gw-pill {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+    }
+    .gw-pill.active { color: #0f172a; background: #3fb950; border-color: #3fb950; }
+    .gw-pill.ended { color: #fee2e2; background: #7f1d1d; border-color: #b91c1c; }
+    .gw-desc { color: #d7e0f5; line-height: 1.45; }
+    .gw-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(4,8,25,0.55);
+    }
+    .gw-meta-grid .k, .gw-winners .k { display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+    .gw-winners {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(4,8,25,0.55);
+    }
+    .gw-participants {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: rgba(4,8,25,0.4);
+    }
+    .gw-participants summary { cursor: pointer; font-weight: 700; }
+    .gw-participants div {
+      margin-top: 8px;
+      color: var(--muted);
+      white-space: pre-wrap;
+      max-height: 120px;
+      overflow: auto;
+    }
+    .gw-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .gw-actions form { margin: 0; }
+    .gw-btn {
+      width: 100%;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+      cursor: pointer;
+      color: #fff;
+    }
+    .gw-enter { background: #1f8f4e; border-color: #1f8f4e; }
+    .gw-leave { background: #b03a43; border-color: #b03a43; }
+    .gw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
 </head>
 <body>
   <div class="layout">
     <aside class="side">${sideMenuHtml()}</aside>
     <main class="main">
-      <section class="hero" style="margin-bottom:12px; text-align:left;">
-        <a class="btn" href="/">Back Home</a>
-      </section>
-      <section class="state-box" style="display:block; text-align:left;">
-        <div class="state-head">Giveaways</div>
+      <section class="gw-shell">
+        <div class="gw-top">
+          <div class="gw-title-row">
+            <h2 class="gw-title">Looooooty Giveaways</h2>
+            <a class="btn" href="/">Back Home</a>
+          </div>
+          <div class="gw-sub">Join active giveaways, track entries, and check winners.</div>
+        </div>
+        <div class="gw-identity">
         ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
         ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        <form class="form-grid" method="post" action="/giveaways/session" style="max-width:560px; margin-bottom:14px;">
+        <form class="form-grid" method="post" action="/giveaways/session" style="max-width:560px;">
           <input type="text" name="discord_user_id" required maxlength="20" value="${esc(userId)}" placeholder="Your Discord User ID (numbers only)" />
           <input type="text" name="discord_tag" maxlength="64" value="${esc(userTag)}" placeholder="Discord username (optional)" />
           <button class="submit" type="submit">Save Giveaway Identity</button>
         </form>
-        <div class="note">Current giveaway identity: <b>${userId ? `${esc(userTag || "User")} (${esc(userId)})` : "Not set"}</b></div>
-        ${cards || '<div class="note" style="margin-top:10px;">No giveaways yet.</div>'}
+        <div class="gw-id">Current giveaway identity: <b>${userId ? `${esc(userTag || "User")} (${esc(userId)})` : "Not set"}</b></div>
+        </div>
+        <div class="gw-grid">
+          ${cards || '<div class="note">No giveaways yet.</div>'}
+        </div>
       </section>
     </main>
   </div>
