@@ -1444,6 +1444,7 @@ function websiteShopHtml(websiteShop) {
       let pendingAddProductTitle = "";
       let activeOrder = null;
       let orderStatusPoll = null;
+      let deliveryAutoCloseTimer = null;
 
       function openQtyModal(productId, productTitle) {
         pendingAddProductId = String(productId || "");
@@ -1603,6 +1604,13 @@ function websiteShopHtml(websiteShop) {
         }
       }
 
+      function stopDeliveryAutoCloseTimer() {
+        if (deliveryAutoCloseTimer) {
+          clearTimeout(deliveryAutoCloseTimer);
+          deliveryAutoCloseTimer = null;
+        }
+      }
+
       function startOrderStatusPoll() {
         stopOrderStatusPoll();
         if (!activeOrder || !activeOrder.orderId) return;
@@ -1617,6 +1625,15 @@ function websiteShopHtml(websiteShop) {
               activeOrder.deliveredMessage = "Hope you enjoyed this delivery, please remember to drop a review!";
               renderWebsiteOnlyPaidFlow();
               stopOrderStatusPoll();
+              stopDeliveryAutoCloseTimer();
+              deliveryAutoCloseTimer = setTimeout(() => {
+                activeOrder = null;
+                renderPostCheckoutState();
+                renderWebsiteOnlyPaidFlow();
+                if (cartOverlay) {
+                  cartOverlay.classList.remove("open");
+                }
+              }, 60000);
             }
           } catch {
             // ignore polling failure
@@ -1784,6 +1801,7 @@ function websiteShopHtml(websiteShop) {
           }).catch(() => null);
           activeOrder = null;
           stopOrderStatusPoll();
+          stopDeliveryAutoCloseTimer();
           renderPostCheckoutState();
           renderWebsiteOnlyPaidFlow();
           if (checkoutResult) checkoutResult.textContent = "Order refunded.";
@@ -1859,6 +1877,7 @@ function websiteShopHtml(websiteShop) {
               ready: false,
               delivered: false
             };
+            stopDeliveryAutoCloseTimer();
             if (checkoutModal) checkoutModal.classList.remove("open");
             renderPostCheckoutState();
             renderWebsiteOnlyPaidFlow();
@@ -3380,6 +3399,16 @@ app.post("/staff/ready-alerts/:id/deliver", requireStaff, (req, res) => {
       saveWebsiteOrders(orders);
     }
   }
+
+  setTimeout(() => {
+    const latestAlerts = loadWebsiteReadyAlerts();
+    const stillIdx = latestAlerts.findIndex((a) => String(a.id) === id);
+    if (stillIdx === -1) {
+      return;
+    }
+    latestAlerts.splice(stillIdx, 1);
+    saveWebsiteReadyAlerts(latestAlerts);
+  }, 5000);
 
   res.redirect("/panel/shop?msg=Order%20marked%20delivered");
 });
