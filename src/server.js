@@ -48,6 +48,7 @@ const BASE_STATUS_META = {
 };
 
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 function readJson(file, fallback) {
@@ -1110,6 +1111,8 @@ function websiteShopHtml(websiteShop) {
     }
     .modal-note { color: var(--muted); font-size: 13px; }
     .modal-error { color: #ff9b9b; font-size: 13px; min-height: 18px; margin-top: 4px; }
+    .modal-ok { color: #7ee787; font-size: 13px; min-height: 18px; margin-top: 4px; }
+    .modal-check { display:flex; align-items:center; gap:8px; margin-top:8px; color: var(--txt); font-size:13px; }
     .modal-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
     @media (max-width: 1120px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 860px) {
@@ -1210,7 +1213,13 @@ function websiteShopHtml(websiteShop) {
             <h3 class="modal-title">Checkout</h3>
             <div class="modal-note">Enter your email for payment receipt/invoice.</div>
             <input id="checkout-email" class="modal-input" type="email" placeholder="you@example.com" />
+            <input id="checkout-discord-id" class="modal-input" type="text" maxlength="20" placeholder="Discord User ID (required for store credit)" />
+            <label class="modal-check">
+              <input id="checkout-use-credit" type="checkbox" />
+              Use store credit
+            </label>
             <div id="checkout-error" class="modal-error"></div>
+            <div id="checkout-result" class="modal-ok"></div>
             <div class="modal-actions">
               <button id="checkout-paypal" class="cart-btn checkout" type="button">PayPal</button>
               <button id="checkout-close" class="cart-btn close" type="button">Close</button>
@@ -1243,7 +1252,10 @@ function websiteShopHtml(websiteShop) {
       const qtyCancel = document.getElementById("qty-cancel");
       const checkoutModal = document.getElementById("checkout-modal");
       const checkoutEmail = document.getElementById("checkout-email");
+      const checkoutDiscordId = document.getElementById("checkout-discord-id");
+      const checkoutUseCredit = document.getElementById("checkout-use-credit");
       const checkoutError = document.getElementById("checkout-error");
+      const checkoutResult = document.getElementById("checkout-result");
       const checkoutPaypal = document.getElementById("checkout-paypal");
       const checkoutClose = document.getElementById("checkout-close");
       const taxRate = 0.06;
@@ -1347,6 +1359,24 @@ function websiteShopHtml(websiteShop) {
         }
       }
 
+      function cartSummaryForCheckout() {
+        const products = getProductMap();
+        let subtotal = 0;
+        let count = 0;
+        const normalized = {};
+        Object.entries(cart).forEach(([id, qtyRaw]) => {
+          const qty = Number(qtyRaw || 0);
+          const p = products[id];
+          if (!p || qty <= 0) return;
+          count += qty;
+          subtotal += p.price * qty;
+          normalized[id] = qty;
+        });
+        const tax = subtotal * taxRate;
+        const total = subtotal + tax;
+        return { subtotal, tax, total, count, normalized };
+      }
+
       function applyFilter() {
         const q = String(search.value || "").toLowerCase().trim();
         cards.forEach((card) => {
@@ -1427,7 +1457,10 @@ function websiteShopHtml(websiteShop) {
       }
       checkoutBtn.addEventListener("click", () => {
         if (checkoutError) checkoutError.textContent = "";
+        if (checkoutResult) checkoutResult.textContent = "";
         if (checkoutEmail) checkoutEmail.value = "";
+        if (checkoutDiscordId) checkoutDiscordId.value = "";
+        if (checkoutUseCredit) checkoutUseCredit.checked = false;
         if (checkoutModal) checkoutModal.classList.add("open");
       });
       if (checkoutClose) {
@@ -1436,18 +1469,69 @@ function websiteShopHtml(websiteShop) {
         });
       }
       if (checkoutPaypal) {
-        checkoutPaypal.addEventListener("click", () => {
+        checkoutPaypal.addEventListener("click", async () => {
+          const summary = cartSummaryForCheckout();
+          if (!summary.count) {
+            if (checkoutError) checkoutError.textContent = "Your cart is empty.";
+            if (checkoutResult) checkoutResult.textContent = "";
+            return;
+          }
           const email = String((checkoutEmail && checkoutEmail.value) || "").trim();
           if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
             if (checkoutError) checkoutError.textContent = "Please enter a valid email.";
-            return;
-          }
-          if (!"${WEBSITE_PAYPAL_URL}".trim()) {
-            if (checkoutError) checkoutError.textContent = "PayPal checkout is not configured yet.";
+            if (checkoutResult) checkoutResult.textContent = "";
             return;
           }
           if (checkoutError) checkoutError.textContent = "";
-          window.location.href = "${WEBSITE_PAYPAL_URL}";
+          if (checkoutResult) checkoutResult.textContent = "Processing checkout...";
+
+          const discordUserId = String((checkoutDiscordId && checkoutDiscordId.value) || "").trim();
+          const useCredit = Boolean(checkoutUseCredit && checkoutUseCredit.checked);
+
+          try {
+            const response = await fetch("/shop/web/checkout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email,
+                discordUserId,
+                useCredit,
+                cart: summary.normalized
+              })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload || payload.ok !== true) {
+              if (checkoutError) checkoutError.textContent = String((payload && payload.error) || "Checkout failed.");
+              if (checkoutResult) checkoutResult.textContent = "";
+              return;
+            }
+
+            if (checkoutResult) {
+              checkoutResult.textContent =
+                "Credit used: $" +
+                Number(payload.creditUsed || 0).toFixed(2) +
+                " | Total due: $" +
+                Number(payload.totalDue || 0).toFixed(2);
+            }
+
+            if (payload.paidWithCreditOnly) {
+              cart = {};
+              saveCart();
+              renderCart();
+              if (checkoutError) checkoutError.textContent = "";
+              return;
+            }
+
+            if (payload.paypalUrl) {
+              window.location.href = payload.paypalUrl;
+              return;
+            }
+
+            if (checkoutError) checkoutError.textContent = "PayPal checkout URL is not configured.";
+          } catch {
+            if (checkoutError) checkoutError.textContent = "Checkout request failed.";
+            if (checkoutResult) checkoutResult.textContent = "";
+          }
         });
       }
       if (qtyModal) {
@@ -2325,6 +2409,100 @@ app.get("/shop", (_req, res) => {
 app.get("/shop/web", (_req, res) => {
   const websiteShop = loadWebsiteShopData();
   res.send(websiteShopHtml(websiteShop));
+});
+
+app.post("/shop/web/checkout", (req, res) => {
+  const email = String(req.body && req.body.email ? req.body.email : "").trim();
+  const discordUserId = String(req.body && req.body.discordUserId ? req.body.discordUserId : "").trim();
+  const useCredit = Boolean(req.body && req.body.useCredit);
+  const cartInput = req.body && typeof req.body.cart === "object" && req.body.cart ? req.body.cart : {};
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ ok: false, error: "Please enter a valid email." });
+    return;
+  }
+  if (useCredit && !isSnowflake(discordUserId)) {
+    res.status(400).json({ ok: false, error: "Valid Discord User ID is required to use store credit." });
+    return;
+  }
+
+  const websiteShop = loadWebsiteShopData();
+  if (websiteShop.state === "closed") {
+    res.status(400).json({ ok: false, error: "Website shop is currently closed." });
+    return;
+  }
+
+  const productsById = new Map(
+    (Array.isArray(websiteShop.products) ? websiteShop.products : []).map((p) => [String(p.id), p])
+  );
+  let subtotal = 0;
+  let itemCount = 0;
+  const normalizedCart = {};
+
+  for (const [idRaw, qtyRaw] of Object.entries(cartInput)) {
+    const id = String(idRaw || "").trim();
+    const qty = Number.parseInt(String(qtyRaw || "").trim(), 10);
+    if (!id || !Number.isInteger(qty) || qty <= 0 || qty > 999) {
+      continue;
+    }
+    const product = productsById.get(id);
+    if (!product || product.inStock === false) {
+      continue;
+    }
+    subtotal += Number(product.price || 0) * qty;
+    itemCount += qty;
+    normalizedCart[id] = qty;
+  }
+
+  if (itemCount <= 0) {
+    res.status(400).json({ ok: false, error: "Your cart is empty." });
+    return;
+  }
+
+  const taxFees = money(subtotal * 0.06);
+  const total = money(subtotal + taxFees);
+
+  let creditUsed = 0;
+  let creditBefore = 0;
+  let creditAfter = 0;
+
+  if (useCredit) {
+    const credits = loadCredits();
+    creditBefore = money(Number(credits[discordUserId] || 0));
+    creditUsed = money(Math.min(creditBefore, total));
+    const previewDue = money(total - creditUsed);
+    if (previewDue > 0 && !String(WEBSITE_PAYPAL_URL || "").trim()) {
+      res.status(400).json({ ok: false, error: "PayPal checkout is not configured yet." });
+      return;
+    }
+    creditAfter = money(creditBefore - creditUsed);
+    if (creditAfter <= 0) {
+      delete credits[discordUserId];
+    } else {
+      credits[discordUserId] = creditAfter;
+    }
+    saveCredits(credits);
+  }
+
+  const totalDue = money(total - creditUsed);
+  if (totalDue > 0 && !String(WEBSITE_PAYPAL_URL || "").trim()) {
+    res.status(400).json({ ok: false, error: "PayPal checkout is not configured yet." });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    subtotal: money(subtotal),
+    taxFees,
+    total,
+    creditUsed,
+    totalDue,
+    paidWithCreditOnly: totalDue <= 0,
+    paypalUrl: totalDue > 0 ? WEBSITE_PAYPAL_URL : "",
+    creditBefore,
+    creditAfter,
+    itemCount
+  });
 });
 
 app.get("/apply", (req, res) => {
