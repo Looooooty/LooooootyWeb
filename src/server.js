@@ -1438,6 +1438,7 @@ function websiteShopHtml(websiteShop) {
       const checkoutClose = document.getElementById("checkout-close");
       const taxRate = 0.06;
       const storageKey = "looooooty_web_cart_v1";
+      const activeOrderStorageKey = "looooooty_web_active_order_v1";
       let currentCat = "Recommended";
       let cart = {};
       let pendingAddProductId = "";
@@ -1471,6 +1472,45 @@ function websiteShopHtml(websiteShop) {
 
       function saveCart() {
         localStorage.setItem(storageKey, JSON.stringify(cart));
+      }
+
+      function saveActiveOrder() {
+        try {
+          if (!activeOrder) {
+            localStorage.removeItem(activeOrderStorageKey);
+            return;
+          }
+          localStorage.setItem(activeOrderStorageKey, JSON.stringify(activeOrder));
+        } catch {
+          // ignore localStorage issues
+        }
+      }
+
+      function setActiveOrder(nextOrder) {
+        activeOrder = nextOrder || null;
+        saveActiveOrder();
+      }
+
+      function loadActiveOrder() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(activeOrderStorageKey) || "null");
+          if (parsed && typeof parsed === "object" && parsed.orderId) {
+            activeOrder = {
+              orderId: String(parsed.orderId || ""),
+              userId: String(parsed.userId || ""),
+              ign: String(parsed.ign || ""),
+              coordinates: String(parsed.coordinates || ""),
+              ready: Boolean(parsed.ready),
+              delivered: Boolean(parsed.delivered),
+              deliveredMessage: String(parsed.deliveredMessage || ""),
+              deliveredAutoClosed: Boolean(parsed.deliveredAutoClosed)
+            };
+            return;
+          }
+        } catch {
+          // ignore parse issues
+        }
+        activeOrder = null;
       }
 
       function fmt(v) {
@@ -1622,12 +1662,12 @@ function websiteShopHtml(websiteShop) {
 
       function startDeliveryAutoCloseTimer(ms) {
         if (!activeOrder || !activeOrder.delivered) return;
+        if (activeOrder.deliveredAutoClosed) return;
         const duration = Math.max(0, Number(ms || 0));
         deliveryAutoCloseRemainingMs = duration;
         if (duration <= 0) {
-          activeOrder = null;
-          renderPostCheckoutState();
-          renderWebsiteOnlyPaidFlow();
+          activeOrder.deliveredAutoClosed = true;
+          saveActiveOrder();
           if (cartOverlay) {
             cartOverlay.classList.remove("open");
           }
@@ -1638,9 +1678,10 @@ function websiteShopHtml(websiteShop) {
         deliveryAutoCloseTimer = setTimeout(() => {
           deliveryAutoCloseTimer = null;
           deliveryAutoCloseRemainingMs = 0;
-          activeOrder = null;
-          renderPostCheckoutState();
-          renderWebsiteOnlyPaidFlow();
+          if (activeOrder) {
+            activeOrder.deliveredAutoClosed = true;
+            saveActiveOrder();
+          }
           if (cartOverlay) {
             cartOverlay.classList.remove("open");
           }
@@ -1659,6 +1700,8 @@ function websiteShopHtml(websiteShop) {
             if (payload.status === "DELIVERED") {
               activeOrder.delivered = true;
               activeOrder.deliveredMessage = "Hope you enjoyed this delivery, please remember to drop a review!";
+              activeOrder.deliveredAutoClosed = false;
+              saveActiveOrder();
               renderWebsiteOnlyPaidFlow();
               stopOrderStatusPoll();
               startDeliveryAutoCloseTimer(60000);
@@ -1710,6 +1753,7 @@ function websiteShopHtml(websiteShop) {
             const next = window.prompt("Enter your IGN", activeOrder.ign || "");
             if (typeof next === "string") {
               activeOrder.ign = next.trim().slice(0, 32);
+              saveActiveOrder();
               renderWebsiteOnlyPaidFlow();
             }
           });
@@ -1719,6 +1763,7 @@ function websiteShopHtml(websiteShop) {
             const next = window.prompt("Enter your Coordinates", activeOrder.coordinates || "");
             if (typeof next === "string") {
               activeOrder.coordinates = next.trim().slice(0, 120);
+              saveActiveOrder();
               renderWebsiteOnlyPaidFlow();
             }
           });
@@ -1726,6 +1771,7 @@ function websiteShopHtml(websiteShop) {
         if (readyBtn) {
           readyBtn.addEventListener("click", async () => {
             activeOrder.ready = true;
+            saveActiveOrder();
             renderWebsiteOnlyPaidFlow();
             await notifyReady(activeOrder);
             startOrderStatusPoll();
@@ -1798,9 +1844,10 @@ function websiteShopHtml(websiteShop) {
         });
       }
       clearBtn.addEventListener("click", () => {
-        cart = {};
-        saveCart();
-        renderCart();
+        if (activeOrder && activeOrder.delivered) {
+          pauseDeliveryAutoCloseTimer();
+        }
+        if (cartOverlay) cartOverlay.classList.remove("open");
       });
       if (topCartBtn) {
         topCartBtn.addEventListener("click", () => {
@@ -1838,7 +1885,7 @@ function websiteShopHtml(websiteShop) {
               userId: activeOrder.userId
             })
           }).catch(() => null);
-          activeOrder = null;
+          setActiveOrder(null);
           stopOrderStatusPoll();
           stopDeliveryAutoCloseTimer();
           deliveryAutoCloseRemainingMs = 0;
@@ -1910,14 +1957,15 @@ function websiteShopHtml(websiteShop) {
                 Number(payload.totalDue || 0).toFixed(2);
             }
 
-            activeOrder = {
+            setActiveOrder({
               orderId: String(payload.orderId || "ORDER-LOCAL"),
               userId: discordUserId,
               ign: "",
               coordinates: "",
               ready: false,
-              delivered: false
-            };
+              delivered: false,
+              deliveredAutoClosed: false
+            });
             stopDeliveryAutoCloseTimer();
             deliveryAutoCloseRemainingMs = 0;
             deliveryAutoCloseStartedAt = 0;
@@ -1947,9 +1995,14 @@ function websiteShopHtml(websiteShop) {
         });
       }
       loadCart();
+      loadActiveOrder();
       syncCheckoutLabel();
       renderPostCheckoutState();
       renderCart();
+      renderWebsiteOnlyPaidFlow();
+      if (activeOrder && activeOrder.orderId) {
+        startOrderStatusPoll();
+      }
       applyFilter();
     })();
   </script>
