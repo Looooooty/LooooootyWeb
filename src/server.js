@@ -40,6 +40,8 @@ const WEBSITE_SHOP_DEFAULTS_FILE = path.join(process.cwd(), "data", "website_sho
 const BASE_STATES_DEFAULTS_FILE = path.join(process.cwd(), "data", "base_states_defaults.json");
 const CREDITS_FILE = path.join(BOT_DATA_DIR, "credits.json");
 const GIVEAWAYS_FILE = path.join(BOT_DATA_DIR, "giveaways.json");
+const WEBSITE_ORDERS_FILE = path.join(BOT_DATA_DIR, "website_orders.json");
+const WEBSITE_READY_ALERTS_FILE = path.join(BOT_DATA_DIR, "website_ready_alerts.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -145,6 +147,32 @@ function loadGiveaways() {
 
 function saveGiveaways(giveaways) {
   writeJson(GIVEAWAYS_FILE, giveaways && typeof giveaways === "object" ? giveaways : {});
+}
+
+function loadWebsiteOrders() {
+  const data = readJson(WEBSITE_ORDERS_FILE, []);
+  if (!Array.isArray(data)) {
+    writeJson(WEBSITE_ORDERS_FILE, []);
+    return [];
+  }
+  return data;
+}
+
+function saveWebsiteOrders(orders) {
+  writeJson(WEBSITE_ORDERS_FILE, Array.isArray(orders) ? orders : []);
+}
+
+function loadWebsiteReadyAlerts() {
+  const data = readJson(WEBSITE_READY_ALERTS_FILE, []);
+  if (!Array.isArray(data)) {
+    writeJson(WEBSITE_READY_ALERTS_FILE, []);
+    return [];
+  }
+  return data;
+}
+
+function saveWebsiteReadyAlerts(alerts) {
+  writeJson(WEBSITE_READY_ALERTS_FILE, Array.isArray(alerts) ? alerts : []);
 }
 
 function giveawayEntriesCount(g) {
@@ -1340,8 +1368,9 @@ function websiteShopHtml(websiteShop) {
             <div class="cart-line"><span>Total Kits</span><b id="cart-count">0</b></div>
             <div class="cart-actions">
               <button id="cart-checkout" class="cart-btn checkout" type="button">Checkout</button>
-              <button id="cart-clear" class="cart-btn close" type="button">Clear Cart</button>
+              <button id="cart-clear" class="cart-btn close" type="button">Close Cart</button>
             </div>
+            <div id="cart-flow" class="flow-wrap"></div>
           </aside>
         </div>
         <div id="qty-modal" class="modal-overlay">
@@ -1368,7 +1397,6 @@ function websiteShopHtml(websiteShop) {
             </label>
             <div id="checkout-error" class="modal-error"></div>
             <div id="checkout-result" class="modal-ok"></div>
-            <div id="checkout-flow" class="flow-wrap"></div>
             <div class="modal-actions">
               <button id="checkout-paypal" class="cart-btn checkout" type="button">PayPal</button>
               <button id="checkout-close" class="cart-btn close" type="button">Close</button>
@@ -1405,7 +1433,7 @@ function websiteShopHtml(websiteShop) {
       const checkoutUseCredit = document.getElementById("checkout-use-credit");
       const checkoutError = document.getElementById("checkout-error");
       const checkoutResult = document.getElementById("checkout-result");
-      const checkoutFlow = document.getElementById("checkout-flow");
+      const cartFlow = document.getElementById("cart-flow");
       const checkoutPaypal = document.getElementById("checkout-paypal");
       const checkoutClose = document.getElementById("checkout-close");
       const taxRate = 0.06;
@@ -1414,6 +1442,7 @@ function websiteShopHtml(websiteShop) {
       let cart = {};
       let pendingAddProductId = "";
       let pendingAddProductTitle = "";
+      let activeOrder = null;
 
       function openQtyModal(productId, productTitle) {
         pendingAddProductId = String(productId || "");
@@ -1536,62 +1565,93 @@ function websiteShopHtml(websiteShop) {
         return { subtotal, tax, total, count, normalized };
       }
 
-      function renderWebsiteOnlyPaidFlow(orderId) {
-        if (!checkoutFlow) return;
-        let ign = "";
-        let coords = "";
-        let ready = false;
+      function renderPostCheckoutState() {
+        if (checkoutBtn) {
+          checkoutBtn.textContent = activeOrder ? "Refund" : "Checkout";
+          checkoutBtn.classList.toggle("checkout", !activeOrder);
+          checkoutBtn.classList.toggle("close", Boolean(activeOrder));
+        }
+        if (clearBtn) {
+          clearBtn.disabled = Boolean(activeOrder);
+          clearBtn.style.opacity = activeOrder ? "0.55" : "";
+          clearBtn.textContent = "Close Cart";
+        }
+      }
 
-        function redraw() {
-          checkoutFlow.innerHTML =
-            '<div class="flow-embed">' +
-            "Paid Order " +
-            escHtml(orderId) +
-            "\\n\\nThis order is now paid, please put your coordinates and IGN below. a ETA would be shared soon by one of our admins as soon as they can get online.\\n\\nIGN: " +
-            escHtml(ign) +
-            "\\n\\nCoordinates: " +
-            escHtml(coords) +
-            "</div>" +
-            '<div class="flow-actions">' +
-            '<button id="flow-ign" class="flow-btn" type="button">IGN</button>' +
-            '<button id="flow-coords" class="flow-btn" type="button">Coordinates</button>' +
-            "</div>" +
-            (ign && coords
-              ? '<div class="flow-embed">Are you ready for your delivery?</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
-                (ready ? "Ready Confirmed" : "Yes") +
-                "</button></div>"
-              : "");
+      async function notifyReady(order) {
+        try {
+          await fetch("/shop/web/ready", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: order.orderId,
+              userId: order.userId,
+              ign: order.ign || "",
+              coordinates: order.coordinates || ""
+            })
+          });
+        } catch {
+          // best-effort only
+        }
+      }
 
-          const ignBtn = document.getElementById("flow-ign");
-          const coordsBtn = document.getElementById("flow-coords");
-          const readyBtn = document.getElementById("flow-ready");
-          if (ignBtn) {
-            ignBtn.addEventListener("click", () => {
-              const next = window.prompt("Enter your IGN", ign || "");
-              if (typeof next === "string") {
-                ign = next.trim().slice(0, 32);
-                redraw();
-              }
-            });
-          }
-          if (coordsBtn) {
-            coordsBtn.addEventListener("click", () => {
-              const next = window.prompt("Enter your Coordinates", coords || "");
-              if (typeof next === "string") {
-                coords = next.trim().slice(0, 120);
-                redraw();
-              }
-            });
-          }
-          if (readyBtn) {
-            readyBtn.addEventListener("click", () => {
-              ready = true;
-              redraw();
-            });
-          }
+      function renderWebsiteOnlyPaidFlow() {
+        if (!cartFlow) return;
+        if (!activeOrder) {
+          cartFlow.innerHTML = "";
+          return;
         }
 
-        redraw();
+        const ign = activeOrder.ign || "";
+        const coords = activeOrder.coordinates || "";
+        const ready = Boolean(activeOrder.ready);
+        cartFlow.innerHTML =
+          '<div class="flow-embed">' +
+          "Paid Order " +
+          escHtml(activeOrder.orderId) +
+          "\\n\\nThis order is now paid, please put your coordinates and IGN below. a ETA would be shared soon by one of our admins as soon as they can get online.\\n\\nIGN: " +
+          escHtml(ign) +
+          "\\n\\nCoordinates: " +
+          escHtml(coords) +
+          "</div>" +
+          '<div class="flow-actions">' +
+          '<button id="flow-ign" class="flow-btn" type="button">IGN</button>' +
+          '<button id="flow-coords" class="flow-btn" type="button">Coordinates</button>' +
+          "</div>" +
+          (ign && coords
+            ? '<div class="flow-embed">Are you ready for your delivery?</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
+              (ready ? "Ready Confirmed" : "Yes") +
+              "</button></div>"
+            : "");
+
+        const ignBtn = document.getElementById("flow-ign");
+        const coordsBtn = document.getElementById("flow-coords");
+        const readyBtn = document.getElementById("flow-ready");
+        if (ignBtn) {
+          ignBtn.addEventListener("click", () => {
+            const next = window.prompt("Enter your IGN", activeOrder.ign || "");
+            if (typeof next === "string") {
+              activeOrder.ign = next.trim().slice(0, 32);
+              renderWebsiteOnlyPaidFlow();
+            }
+          });
+        }
+        if (coordsBtn) {
+          coordsBtn.addEventListener("click", () => {
+            const next = window.prompt("Enter your Coordinates", activeOrder.coordinates || "");
+            if (typeof next === "string") {
+              activeOrder.coordinates = next.trim().slice(0, 120);
+              renderWebsiteOnlyPaidFlow();
+            }
+          });
+        }
+        if (readyBtn) {
+          readyBtn.addEventListener("click", async () => {
+            activeOrder.ready = true;
+            renderWebsiteOnlyPaidFlow();
+            await notifyReady(activeOrder);
+          });
+        }
       }
 
       function syncCheckoutLabel() {
@@ -1679,9 +1739,24 @@ function websiteShopHtml(websiteShop) {
         });
       }
       checkoutBtn.addEventListener("click", () => {
+        if (activeOrder) {
+          fetch("/shop/web/refund", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: activeOrder.orderId,
+              userId: activeOrder.userId
+            })
+          }).catch(() => null);
+          activeOrder = null;
+          renderPostCheckoutState();
+          renderWebsiteOnlyPaidFlow();
+          if (checkoutResult) checkoutResult.textContent = "Order refunded.";
+          if (checkoutError) checkoutError.textContent = "";
+          return;
+        }
         if (checkoutError) checkoutError.textContent = "";
         if (checkoutResult) checkoutResult.textContent = "";
-        if (checkoutFlow) checkoutFlow.innerHTML = "";
         if (checkoutEmail) checkoutEmail.value = "";
         if (checkoutDiscordId) checkoutDiscordId.value = "";
         if (checkoutUseCredit) checkoutUseCredit.checked = false;
@@ -1741,7 +1816,16 @@ function websiteShopHtml(websiteShop) {
                 Number(payload.totalDue || 0).toFixed(2);
             }
 
-            renderWebsiteOnlyPaidFlow(String(payload.orderId || "ORDER-LOCAL"));
+            activeOrder = {
+              orderId: String(payload.orderId || "ORDER-LOCAL"),
+              userId: discordUserId,
+              ign: "",
+              coordinates: "",
+              ready: false
+            };
+            if (checkoutModal) checkoutModal.classList.remove("open");
+            renderPostCheckoutState();
+            renderWebsiteOnlyPaidFlow();
             cart = {};
             saveCart();
             renderCart();
@@ -1749,7 +1833,6 @@ function websiteShopHtml(websiteShop) {
           } catch {
             if (checkoutError) checkoutError.textContent = "Checkout request failed.";
             if (checkoutResult) checkoutResult.textContent = "";
-            if (checkoutFlow) checkoutFlow.innerHTML = "";
           }
         });
       }
@@ -1769,6 +1852,7 @@ function websiteShopHtml(websiteShop) {
       }
       loadCart();
       syncCheckoutLabel();
+      renderPostCheckoutState();
       renderCart();
       applyFilter();
     })();
@@ -2078,6 +2162,11 @@ function shopAutomationPanelHtml() {
   const giveaways = Object.values(giveawaysMap || {})
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
     .slice(0, 30);
+  const readyAlerts = loadWebsiteReadyAlerts()
+    .slice()
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .slice(0, 20);
+  const unreadReady = readyAlerts.filter((a) => a.read !== true).length;
 
   return `<div class="card base-panel" style="margin-top:12px;">
     <h3 style="margin-top:0;">Giveaways + Store Credit</h3>
@@ -2143,6 +2232,25 @@ function shopAutomationPanelHtml() {
       ${creditRows.length
         ? creditRows.map((r) => `<div class="app-row"><div class="app-head"><div><b>${esc(r.userId)}</b></div><div>$${r.value.toFixed(2)}</div></div></div>`).join("")
         : '<div class="note">No credits assigned.</div>'}
+    </div>
+
+    <h4 style="margin:18px 0 6px;">Ready For Delivery Alerts (${unreadReady} unread)</h4>
+    <div class="app-list">
+      ${readyAlerts.length
+        ? readyAlerts.map((a) => `<div class="app-row">
+            <div class="app-head">
+              <div><b>${esc(a.orderId || "-")}</b></div>
+              <div><span class="tag ${a.read === true ? "approved" : "pending"}">${a.read === true ? "READ" : "NEW"}</span></div>
+            </div>
+            <div class="app-meta">
+              User ID: <b>${esc(a.userId || "-")}</b><br/>
+              IGN: <b>${esc(a.ign || "-")}</b><br/>
+              Coordinates: <b>${esc(a.coordinates || "-")}</b><br/>
+              At: <b>${esc(new Date(a.createdAt || Date.now()).toLocaleString("en-US", { hour12: false }))}</b>
+            </div>
+            ${a.read === true ? "" : `<div class="app-actions"><form method="post" action="/staff/ready-alerts/${encodeURIComponent(a.id || "")}/read" style="margin:0;"><button class="save-btn" type="submit">Mark Read</button></form></div>`}
+          </div>`).join("")
+        : '<div class="note">No delivery-ready alerts yet.</div>'}
     </div>
   </div>`;
 }
@@ -2706,6 +2814,26 @@ app.post("/shop/web/checkout", async (req, res) => {
 
   const orderId = `ORDER-${Date.now()}`;
   const paypalUrl = totalDue > 0 ? WEBSITE_PAYPAL_URL : "";
+  const websiteOrders = loadWebsiteOrders();
+  websiteOrders.push({
+    id: orderId,
+    userId: discordUserId,
+    email,
+    items: normalizedItems,
+    subtotal,
+    taxFees,
+    total,
+    creditUsed: money(creditUsed),
+    totalDue: money(totalDue),
+    paidWithCreditOnly: totalDue <= 0,
+    status: "PAID",
+    createdAt: new Date().toISOString(),
+    refundedAt: null,
+    ign: "",
+    coordinates: "",
+    readyForDelivery: false
+  });
+  saveWebsiteOrders(websiteOrders);
   res.json({
     ok: true,
     orderId,
@@ -2718,6 +2846,70 @@ app.post("/shop/web/checkout", async (req, res) => {
     paypalUrl,
     itemCount
   });
+});
+
+app.post("/shop/web/refund", (req, res) => {
+  const orderId = String(req.body && req.body.orderId ? req.body.orderId : "").trim();
+  const userId = String(req.body && req.body.userId ? req.body.userId : "").trim();
+  if (!orderId) {
+    res.status(400).json({ ok: false, error: "Missing orderId." });
+    return;
+  }
+  const orders = loadWebsiteOrders();
+  const idx = orders.findIndex((o) => String(o.id) === orderId);
+  if (idx === -1) {
+    res.status(404).json({ ok: false, error: "Order not found." });
+    return;
+  }
+  if (orders[idx].status === "REFUNDED") {
+    res.json({ ok: true, refunded: true });
+    return;
+  }
+  const creditUsed = money(Number(orders[idx].creditUsed || 0));
+  if (creditUsed > 0 && isSnowflake(userId)) {
+    const credits = loadCredits();
+    const existing = money(Number(credits[userId] || 0));
+    credits[userId] = money(existing + creditUsed);
+    saveCredits(credits);
+  }
+  orders[idx].status = "REFUNDED";
+  orders[idx].refundedAt = new Date().toISOString();
+  saveWebsiteOrders(orders);
+  res.json({ ok: true, refunded: true });
+});
+
+app.post("/shop/web/ready", (req, res) => {
+  const orderId = String(req.body && req.body.orderId ? req.body.orderId : "").trim();
+  const userId = String(req.body && req.body.userId ? req.body.userId : "").trim();
+  const ign = String(req.body && req.body.ign ? req.body.ign : "").trim().slice(0, 32);
+  const coordinates = String(req.body && req.body.coordinates ? req.body.coordinates : "").trim().slice(0, 120);
+  if (!orderId || !isSnowflake(userId)) {
+    res.status(400).json({ ok: false, error: "Invalid order/user." });
+    return;
+  }
+
+  const orders = loadWebsiteOrders();
+  const idx = orders.findIndex((o) => String(o.id) === orderId);
+  if (idx !== -1) {
+    orders[idx].ign = ign;
+    orders[idx].coordinates = coordinates;
+    orders[idx].readyForDelivery = true;
+    orders[idx].readyAt = new Date().toISOString();
+    saveWebsiteOrders(orders);
+  }
+
+  const alerts = loadWebsiteReadyAlerts();
+  alerts.push({
+    id: `RDY-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    orderId,
+    userId,
+    ign,
+    coordinates,
+    createdAt: new Date().toISOString(),
+    read: false
+  });
+  saveWebsiteReadyAlerts(alerts);
+  res.json({ ok: true });
 });
 
 app.get("/apply", (req, res) => {
@@ -3115,6 +3307,20 @@ app.post("/staff/credits/update", requireStaff, (req, res) => {
   }
   saveCredits(credits);
   res.redirect("/panel/shop?msg=Store%20credit%20updated");
+});
+
+app.post("/staff/ready-alerts/:id/read", requireStaff, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const alerts = loadWebsiteReadyAlerts();
+  const idx = alerts.findIndex((a) => String(a.id) === id);
+  if (idx === -1) {
+    res.redirect("/panel/shop?warn=Ready%20alert%20not%20found");
+    return;
+  }
+  alerts[idx].read = true;
+  alerts[idx].readAt = new Date().toISOString();
+  saveWebsiteReadyAlerts(alerts);
+  res.redirect("/panel/shop?msg=Ready%20alert%20marked%20read");
 });
 
 app.post("/staff/giveaways/create", requireStaff, (req, res) => {
