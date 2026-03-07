@@ -880,6 +880,33 @@ function websiteShopHtml(websiteShop) {
     }
     .cart-title { font-size: 28px; margin: 0 0 8px; }
     .cart-items { min-height: 80px; margin-bottom: 10px; color: var(--muted); white-space: pre-wrap; }
+    .cart-item {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      padding: 8px 9px;
+      margin-bottom: 8px;
+      background: rgba(8,12,30,0.7);
+      position: relative;
+    }
+    .cart-item-row { display:flex; justify-content:space-between; gap:10px; font-size: 13px; }
+    .cart-remove {
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #b03a43;
+      background: #b03a43;
+      color: white;
+      font-weight: 700;
+      padding: 6px 10px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+    }
+    .cart-item:hover .cart-remove,
+    .cart-item:focus-within .cart-remove {
+      opacity: 1;
+      pointer-events: auto;
+    }
     .cart-line { display:flex; justify-content:space-between; gap:10px; margin: 4px 0; }
     .cart-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
     .cart-btn {
@@ -927,6 +954,7 @@ function websiteShopHtml(websiteShop) {
         </div>
         <div class="top-actions">
           <a class="btn" href="/">Back to Home</a>
+          <button id="top-cart-btn" class="btn" type="button" style="display:none;">Cart (0)</button>
           <a class="btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
         </div>
       </header>
@@ -984,6 +1012,8 @@ function websiteShopHtml(websiteShop) {
       const cartCountEl = document.getElementById("cart-count");
       const clearBtn = document.getElementById("cart-clear");
       const checkoutBtn = document.getElementById("cart-checkout");
+      const topCartBtn = document.getElementById("top-cart-btn");
+      const cartPanel = document.querySelector(".cart-panel");
       const taxRate = 0.06;
       const storageKey = "looooooty_web_cart_v1";
       let currentCat = "Recommended";
@@ -1033,15 +1063,53 @@ function websiteShopHtml(websiteShop) {
           if (!p || qty <= 0) return;
           count += qty;
           subtotal += p.price * qty;
-          rows.push(qty + "x " + p.name + " (" + fmt(p.price * qty) + ")");
+          rows.push({ id, qty, name: p.name, lineTotal: p.price * qty });
         });
         const tax = subtotal * taxRate;
         const total = subtotal + tax;
-        cartItemsEl.textContent = rows.length ? rows.join("\n") : "No items yet.";
+        if (!rows.length) {
+          cartItemsEl.textContent = "No items yet.";
+        } else {
+          cartItemsEl.innerHTML = rows
+            .map(
+              (r) =>
+                '<div class="cart-item" data-cart-id="' +
+                r.id +
+                '">' +
+                '<div class="cart-item-row"><b>' +
+                r.qty +
+                "x " +
+                r.name +
+                "</b><span>" +
+                fmt(r.lineTotal) +
+                '</span></div><button class="cart-remove" type="button" data-remove-id="' +
+                r.id +
+                '">Remove from Cart</button></div>'
+            )
+            .join("");
+          cartItemsEl.querySelectorAll(".cart-remove").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const id = String(btn.dataset.removeId || "");
+              if (!id) return;
+              delete cart[id];
+              saveCart();
+              renderCart();
+            });
+          });
+        }
         cartSubtotalEl.textContent = fmt(subtotal);
         cartTaxEl.textContent = fmt(tax);
         cartTotalEl.textContent = fmt(total);
         cartCountEl.textContent = String(count);
+        if (topCartBtn) {
+          if (count > 0) {
+            topCartBtn.style.display = "inline-block";
+            topCartBtn.textContent = "Cart (" + count + ")";
+          } else {
+            topCartBtn.style.display = "none";
+            topCartBtn.textContent = "Cart (0)";
+          }
+        }
       }
 
       function applyFilter() {
@@ -1086,6 +1154,17 @@ function websiteShopHtml(websiteShop) {
         saveCart();
         renderCart();
       });
+      if (topCartBtn) {
+        topCartBtn.addEventListener("click", () => {
+          if (cartPanel) {
+            cartPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+            cartPanel.style.outline = "2px solid rgba(78,166,255,0.7)";
+            setTimeout(() => {
+              cartPanel.style.outline = "none";
+            }, 900);
+          }
+        });
+      }
       checkoutBtn.addEventListener("click", () => {
         window.alert("Website checkout is coming soon. Use Discord Shop checkout for now.");
       });
