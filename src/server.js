@@ -867,7 +867,33 @@ function websiteShopHtml(websiteShop) {
     }
     .img-wrap { border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.15); background: rgba(5,9,25,0.8); }
     .img-wrap img { width: 100%; height: 170px; object-fit: cover; display: block; }
-    .add { justify-self: center; border-radius: 10px; border: 1px solid #5ca8ff; background: #4f95ea; color: white; font-weight: 800; padding: 9px 18px; cursor: not-allowed; opacity: 0.95; }
+    .shop-content { display:grid; grid-template-columns: 1fr 320px; gap:14px; align-items:start; }
+    .add { justify-self: center; border-radius: 10px; border: 1px solid #5ca8ff; background: #4f95ea; color: white; font-weight: 800; padding: 9px 18px; cursor: pointer; opacity: 0.95; }
+    .add:disabled { cursor: not-allowed; opacity: 0.55; }
+    .cart-panel {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      background: rgba(10,16,41,0.76);
+      padding: 12px;
+      position: sticky;
+      top: 12px;
+    }
+    .cart-title { font-size: 28px; margin: 0 0 8px; }
+    .cart-items { min-height: 80px; margin-bottom: 10px; color: var(--muted); white-space: pre-wrap; }
+    .cart-line { display:flex; justify-content:space-between; gap:10px; margin: 4px 0; }
+    .cart-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
+    .cart-btn {
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 10px 12px;
+      text-align: center;
+      font-weight: 800;
+      cursor: pointer;
+      background: rgba(20,28,58,0.85);
+      color: var(--txt);
+    }
+    .cart-btn.checkout { background: #1f8f4e; border-color: #1f8f4e; }
+    .cart-btn.close { background: #b03a43; border-color: #b03a43; }
     @media (max-width: 1120px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 860px) {
       .shell { grid-template-columns: 1fr; }
@@ -875,6 +901,7 @@ function websiteShopHtml(websiteShop) {
       .topbar { flex-direction: column; align-items: stretch; }
       .top-actions { width: 100%; }
       .top-actions .btn { flex: 1; text-align: center; }
+      .shop-content { grid-template-columns: 1fr; }
       .grid { grid-template-columns: 1fr; }
     }
   </style>
@@ -909,22 +936,38 @@ function websiteShopHtml(websiteShop) {
           ? '<div class="warn" style="margin:0 2px 12px;">Website shop is currently CLOSED.</div>'
           : ""
       }
-      <section id="product-grid" class="grid">
-        ${(products || [])
-          .map((p) => {
-            const inStock = p.inStock !== false && state !== "closed";
-            return `<article class="card" data-name="${esc(String(p.name || "").toLowerCase())}" data-cat="${esc(
-              String(p.category || "Recommended")
-            )}">
-              <div class="card-top">
-                <h3 style="margin:0;">${esc(p.name || "Unnamed Product")}</h3>
-                <span class="price">$${Number(p.price || 0).toFixed(2)}</span>
-              </div>
-              <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
-              <button class="add" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
-            </article>`;
-          })
-          .join("")}
+      <section class="shop-content">
+        <div id="product-grid" class="grid">
+          ${(products || [])
+            .map((p) => {
+              const inStock = p.inStock !== false && state !== "closed";
+              return `<article class="card" data-id="${esc(String(p.id || ""))}" data-name="${esc(
+                String(p.name || "").toLowerCase()
+              )}" data-title="${esc(String(p.name || "Unnamed Product"))}" data-price="${Number(p.price || 0)}" data-cat="${esc(
+                String(p.category || "Recommended")
+              )}">
+                <div class="card-top">
+                  <h3 style="margin:0;">${esc(p.name || "Unnamed Product")}</h3>
+                  <span class="price">$${Number(p.price || 0).toFixed(2)}</span>
+                </div>
+                <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
+                <button class="add" data-add-id="${esc(String(p.id || ""))}" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
+              </article>`;
+            })
+            .join("")}
+        </div>
+        <aside class="cart-panel">
+          <h3 class="cart-title">Cart</h3>
+          <div id="cart-items" class="cart-items">No items yet.</div>
+          <div class="cart-line"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
+          <div class="cart-line"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
+          <div class="cart-line"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
+          <div class="cart-line"><span>Total Kits</span><b id="cart-count">0</b></div>
+          <div class="cart-actions">
+            <button id="cart-checkout" class="cart-btn checkout" type="button">Checkout</button>
+            <button id="cart-clear" class="cart-btn close" type="button">Close Cart</button>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
@@ -933,7 +976,74 @@ function websiteShopHtml(websiteShop) {
       const search = document.getElementById("shop-search");
       const cats = Array.from(document.querySelectorAll(".cat"));
       const cards = Array.from(document.querySelectorAll(".card"));
+      const addButtons = Array.from(document.querySelectorAll(".add[data-add-id]"));
+      const cartItemsEl = document.getElementById("cart-items");
+      const cartSubtotalEl = document.getElementById("cart-subtotal");
+      const cartTaxEl = document.getElementById("cart-tax");
+      const cartTotalEl = document.getElementById("cart-total");
+      const cartCountEl = document.getElementById("cart-count");
+      const clearBtn = document.getElementById("cart-clear");
+      const checkoutBtn = document.getElementById("cart-checkout");
+      const taxRate = 0.06;
+      const storageKey = "looooooty_web_cart_v1";
       let currentCat = "Recommended";
+      let cart = {};
+
+      function loadCart() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(storageKey) || "{}");
+          if (parsed && typeof parsed === "object") {
+            cart = parsed;
+          }
+        } catch {
+          cart = {};
+        }
+      }
+
+      function saveCart() {
+        localStorage.setItem(storageKey, JSON.stringify(cart));
+      }
+
+      function fmt(v) {
+        return "$" + Number(v || 0).toFixed(2);
+      }
+
+      function getProductMap() {
+        const map = {};
+        cards.forEach((card) => {
+          const id = String(card.dataset.id || "");
+          if (!id) return;
+          map[id] = {
+            id,
+            name: String(card.dataset.title || "Unnamed Product"),
+            price: Number(card.dataset.price || 0)
+          };
+        });
+        return map;
+      }
+
+      function renderCart() {
+        const products = getProductMap();
+        const rows = [];
+        let subtotal = 0;
+        let count = 0;
+        Object.entries(cart).forEach(([id, qtyRaw]) => {
+          const qty = Number(qtyRaw || 0);
+          const p = products[id];
+          if (!p || qty <= 0) return;
+          count += qty;
+          subtotal += p.price * qty;
+          rows.push(qty + "x " + p.name + " (" + fmt(p.price * qty) + ")");
+        });
+        const tax = subtotal * taxRate;
+        const total = subtotal + tax;
+        cartItemsEl.textContent = rows.length ? rows.join("\n") : "No items yet.";
+        cartSubtotalEl.textContent = fmt(subtotal);
+        cartTaxEl.textContent = fmt(tax);
+        cartTotalEl.textContent = fmt(total);
+        cartCountEl.textContent = String(count);
+      }
+
       function applyFilter() {
         const q = String(search.value || "").toLowerCase().trim();
         cards.forEach((card) => {
@@ -953,6 +1063,34 @@ function websiteShopHtml(websiteShop) {
         });
       });
       search.addEventListener("input", applyFilter);
+      addButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (btn.disabled) return;
+          const id = String(btn.dataset.addId || "");
+          const card = btn.closest(".card");
+          const title = card ? String(card.dataset.title || "this item") : "this item";
+          const raw = window.prompt("Item Quantity for " + title + " (1-999):", "1");
+          if (raw === null) return;
+          const qty = Number.parseInt(String(raw).trim(), 10);
+          if (!Number.isInteger(qty) || qty <= 0 || qty > 999) {
+            window.alert("Quantity must be a whole number between 1 and 999.");
+            return;
+          }
+          cart[id] = Number(cart[id] || 0) + qty;
+          saveCart();
+          renderCart();
+        });
+      });
+      clearBtn.addEventListener("click", () => {
+        cart = {};
+        saveCart();
+        renderCart();
+      });
+      checkoutBtn.addEventListener("click", () => {
+        window.alert("Website checkout is coming soon. Use Discord Shop checkout for now.");
+      });
+      loadCart();
+      renderCart();
       applyFilter();
     })();
   </script>
