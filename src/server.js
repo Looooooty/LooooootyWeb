@@ -1445,6 +1445,8 @@ function websiteShopHtml(websiteShop) {
       let activeOrder = null;
       let orderStatusPoll = null;
       let deliveryAutoCloseTimer = null;
+      let deliveryAutoCloseRemainingMs = 0;
+      let deliveryAutoCloseStartedAt = 0;
 
       function openQtyModal(productId, productTitle) {
         pendingAddProductId = String(productId || "");
@@ -1611,6 +1613,40 @@ function websiteShopHtml(websiteShop) {
         }
       }
 
+      function pauseDeliveryAutoCloseTimer() {
+        if (!deliveryAutoCloseTimer) return;
+        const elapsed = Math.max(0, Date.now() - deliveryAutoCloseStartedAt);
+        deliveryAutoCloseRemainingMs = Math.max(0, deliveryAutoCloseRemainingMs - elapsed);
+        stopDeliveryAutoCloseTimer();
+      }
+
+      function startDeliveryAutoCloseTimer(ms) {
+        if (!activeOrder || !activeOrder.delivered) return;
+        const duration = Math.max(0, Number(ms || 0));
+        deliveryAutoCloseRemainingMs = duration;
+        if (duration <= 0) {
+          activeOrder = null;
+          renderPostCheckoutState();
+          renderWebsiteOnlyPaidFlow();
+          if (cartOverlay) {
+            cartOverlay.classList.remove("open");
+          }
+          return;
+        }
+        stopDeliveryAutoCloseTimer();
+        deliveryAutoCloseStartedAt = Date.now();
+        deliveryAutoCloseTimer = setTimeout(() => {
+          deliveryAutoCloseTimer = null;
+          deliveryAutoCloseRemainingMs = 0;
+          activeOrder = null;
+          renderPostCheckoutState();
+          renderWebsiteOnlyPaidFlow();
+          if (cartOverlay) {
+            cartOverlay.classList.remove("open");
+          }
+        }, duration);
+      }
+
       function startOrderStatusPoll() {
         stopOrderStatusPoll();
         if (!activeOrder || !activeOrder.orderId) return;
@@ -1625,15 +1661,7 @@ function websiteShopHtml(websiteShop) {
               activeOrder.deliveredMessage = "Hope you enjoyed this delivery, please remember to drop a review!";
               renderWebsiteOnlyPaidFlow();
               stopOrderStatusPoll();
-              stopDeliveryAutoCloseTimer();
-              deliveryAutoCloseTimer = setTimeout(() => {
-                activeOrder = null;
-                renderPostCheckoutState();
-                renderWebsiteOnlyPaidFlow();
-                if (cartOverlay) {
-                  cartOverlay.classList.remove("open");
-                }
-              }, 60000);
+              startDeliveryAutoCloseTimer(60000);
             }
           } catch {
             // ignore polling failure
@@ -1777,16 +1805,27 @@ function websiteShopHtml(websiteShop) {
       if (topCartBtn) {
         topCartBtn.addEventListener("click", () => {
           if (cartOverlay) cartOverlay.classList.add("open");
+          if (activeOrder && activeOrder.delivered && deliveryAutoCloseRemainingMs > 0) {
+            startDeliveryAutoCloseTimer(deliveryAutoCloseRemainingMs);
+          }
         });
       }
       if (cartHideBtn) {
         cartHideBtn.addEventListener("click", () => {
+          if (activeOrder && activeOrder.delivered) {
+            pauseDeliveryAutoCloseTimer();
+          }
           if (cartOverlay) cartOverlay.classList.remove("open");
         });
       }
       if (cartOverlay) {
         cartOverlay.addEventListener("click", (e) => {
-          if (e.target === cartOverlay) cartOverlay.classList.remove("open");
+          if (e.target === cartOverlay) {
+            if (activeOrder && activeOrder.delivered) {
+              pauseDeliveryAutoCloseTimer();
+            }
+            cartOverlay.classList.remove("open");
+          }
         });
       }
       checkoutBtn.addEventListener("click", () => {
@@ -1802,6 +1841,8 @@ function websiteShopHtml(websiteShop) {
           activeOrder = null;
           stopOrderStatusPoll();
           stopDeliveryAutoCloseTimer();
+          deliveryAutoCloseRemainingMs = 0;
+          deliveryAutoCloseStartedAt = 0;
           renderPostCheckoutState();
           renderWebsiteOnlyPaidFlow();
           if (checkoutResult) checkoutResult.textContent = "Order refunded.";
@@ -1878,6 +1919,8 @@ function websiteShopHtml(websiteShop) {
               delivered: false
             };
             stopDeliveryAutoCloseTimer();
+            deliveryAutoCloseRemainingMs = 0;
+            deliveryAutoCloseStartedAt = 0;
             if (checkoutModal) checkoutModal.classList.remove("open");
             renderPostCheckoutState();
             renderWebsiteOnlyPaidFlow();
@@ -2853,10 +2896,19 @@ app.post("/shop/web/checkout", async (req, res) => {
 
   const credits = loadCredits();
   const currentCredit = money(Number(credits[discordUserId] || 0));
-  const creditUsed = useCredit ? Math.min(currentCredit, total) : 0;
-  const totalDue = money(total - creditUsed);
-  const nextCredit = money(currentCredit - creditUsed);
+  let creditUsed = 0;
+  let totalDue = money(total);
   if (useCredit) {
+    if (currentCredit < total) {
+      res.status(400).json({
+        ok: false,
+        error: `Not enough store credit. Needed ${money(total)}, available ${money(currentCredit)}.`
+      });
+      return;
+    }
+    creditUsed = money(total);
+    totalDue = 0;
+    const nextCredit = money(currentCredit - creditUsed);
     if (nextCredit <= 0) {
       delete credits[discordUserId];
     } else {
