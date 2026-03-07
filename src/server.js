@@ -34,6 +34,7 @@ const ABOUT_US_TEXT = process.env.ABOUT_US_TEXT || "About us content coming soon
 const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
 const APPLICATION_FORMS_FILE = path.join(BOT_DATA_DIR, "application_forms.json");
+const WEBSITE_SHOP_FILE = path.join(BOT_DATA_DIR, "website_shop.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -300,6 +301,43 @@ function saveApplicationForms(forms) {
 
 function findApplicationForm(forms, formId) {
   return (forms || []).find((f) => String(f.id) === String(formId || "")) || null;
+}
+
+function loadWebsiteShopData() {
+  const raw = readJson(WEBSITE_SHOP_FILE, null);
+  const fallback = {
+    state: "open",
+    categories: ["kits", "materials"],
+    products: []
+  };
+  const state = raw && raw.state === "closed" ? "closed" : "open";
+  const categories = Array.isArray(raw && raw.categories)
+    ? raw.categories.map((c) => String(c || "").trim()).filter(Boolean)
+    : fallback.categories;
+  const products = Array.isArray(raw && raw.products)
+    ? raw.products.map((p, i) => ({
+        id: String(p && p.id ? p.id : `web-${Date.now()}-${i}`).trim(),
+        name: String(p && p.name ? p.name : "Unnamed").trim().slice(0, 80),
+        price: Number.isFinite(Number(p && p.price)) ? Number(p.price) : 0,
+        category: String(p && p.category ? p.category : "kits").trim().slice(0, 40),
+        image: String(p && p.image ? p.image : "").trim(),
+        description: String(p && p.description ? p.description : "").trim().slice(0, 400),
+        inStock: p && p.inStock === false ? false : true
+      }))
+    : [];
+  const data = { state, categories, products };
+  writeJson(WEBSITE_SHOP_FILE, data);
+  return data;
+}
+
+function saveWebsiteShopData(data) {
+  writeJson(WEBSITE_SHOP_FILE, {
+    state: data && data.state === "closed" ? "closed" : "open",
+    categories: Array.isArray(data && data.categories)
+      ? data.categories.map((c) => String(c || "").trim()).filter(Boolean)
+      : [],
+    products: Array.isArray(data && data.products) ? data.products : []
+  });
 }
 
 function makeApplicationFormId(name, forms) {
@@ -663,11 +701,16 @@ function shopLandingHtml() {
 </html>`;
 }
 
-function websiteShopHtml(products) {
+function websiteShopHtml(websiteShop) {
+  const products = Array.isArray(websiteShop && websiteShop.products) ? websiteShop.products : [];
+  const state = websiteShop && websiteShop.state === "closed" ? "closed" : "open";
   const categories = Array.from(
     new Set(
-      (products || [])
-        .map((p) => String(p.category || "").trim())
+      [
+        ...(Array.isArray(websiteShop && websiteShop.categories) ? websiteShop.categories : []),
+        ...(products || []).map((p) => String(p && p.category ? p.category : "").trim())
+      ]
+        .map((c) => String(c || "").trim())
         .filter(Boolean)
     )
   );
@@ -805,10 +848,15 @@ function websiteShopHtml(products) {
         </div>
       </header>
       <h2 class="section-title">Shop Catalog</h2>
+      ${
+        state === "closed"
+          ? '<div class="warn" style="margin:0 2px 12px;">Website shop is currently CLOSED.</div>'
+          : ""
+      }
       <section id="product-grid" class="grid">
         ${(products || [])
           .map((p) => {
-            const inStock = p.inStock !== false;
+            const inStock = p.inStock !== false && state !== "closed";
             return `<article class="card" data-name="${esc(String(p.name || "").toLowerCase())}" data-cat="${esc(
               String(p.category || "Recommended")
             )}">
@@ -817,7 +865,7 @@ function websiteShopHtml(products) {
                 <span class="price">$${Number(p.price || 0).toFixed(2)}</span>
               </div>
               <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
-              <button class="add" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Out of Stock"}</button>
+              <button class="add" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
             </article>`;
           })
           .join("")}
@@ -1119,6 +1167,74 @@ function shopStatsHtml(s) {
   </div>`;
 }
 
+function staffShopTabHtml(s, websiteShop, shopView = "discord") {
+  const isWebsite = shopView === "website";
+  const products = Array.isArray(websiteShop && websiteShop.products) ? websiteShop.products : [];
+  const categories = Array.isArray(websiteShop && websiteShop.categories) ? websiteShop.categories : [];
+  if (!isWebsite) {
+    return `<div class="card" style="margin-bottom:12px;">
+      <div class="action-row" style="justify-content:flex-start;">
+        <a class="btn" href="/panel/shop?shop_view=discord">DC Shop (Active)</a>
+        <a class="btn" href="/panel/shop?shop_view=website">Website Shop</a>
+      </div>
+    </div>${shopStatsHtml(s)}`;
+  }
+
+  return `<div class="card base-panel">
+    <div class="action-row" style="justify-content:flex-start;">
+      <a class="btn" href="/panel/shop?shop_view=discord">DC Shop</a>
+      <a class="btn" href="/panel/shop?shop_view=website">Website Shop (Active)</a>
+    </div>
+    <h3 style="margin:12px 0 8px;">Website Shop Controls</h3>
+    <div class="note">Manage website-only categories/products here.</div>
+
+    <h4 style="margin:14px 0 6px;">Shop State</h4>
+    <form method="post" action="/staff/webshop/state" style="display:flex; gap:10px; flex-wrap:wrap;">
+      <select name="state" required style="max-width:220px;">
+        <option value="open"${websiteShop.state === "open" ? " selected" : ""}>OPEN</option>
+        <option value="closed"${websiteShop.state === "closed" ? " selected" : ""}>CLOSED</option>
+      </select>
+      <button class="save-btn" type="submit">Save State</button>
+    </form>
+
+    <h4 style="margin:18px 0 6px;">Add Category</h4>
+    <form method="post" action="/staff/webshop/category/add" style="display:grid; grid-template-columns: 1fr auto; gap:10px;">
+      <input type="text" name="category_name" maxlength="40" required placeholder="Category name (e.g. kits)" />
+      <button class="save-btn" type="submit">Add Category</button>
+    </form>
+    <div class="note">Current: ${categories.length ? categories.map((c) => `<b>${esc(c)}</b>`).join(", ") : "-"}</div>
+
+    <h4 style="margin:18px 0 6px;">Add Product</h4>
+    <form method="post" action="/staff/webshop/product/add" style="display:grid; gap:10px;">
+      <input type="text" name="name" maxlength="80" required placeholder="Product name" />
+      <input type="text" name="description" maxlength="400" placeholder="Description (optional)" />
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <input type="text" name="price" required placeholder="Price (e.g. 0.69)" />
+        <select name="category" required>
+          ${categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
+        </select>
+      </div>
+      <input type="text" name="image" required placeholder="Image URL (https://...)" />
+      <button class="save-btn" type="submit">Add Product</button>
+    </form>
+
+    <h4 style="margin:18px 0 6px;">Products (${products.length})</h4>
+    <div class="app-list">
+      ${products.length
+        ? products
+            .map(
+              (p) => `<div class="app-row"><div class="app-head"><div><b>${esc(p.name)}</b></div><div>${p.inStock === false ? "Out of Stock" : "In Stock"}</div></div><div class="app-meta">ID: <b>${esc(p.id)}</b><br/>Price: <b>$${Number(p.price || 0).toFixed(
+                2
+              )}</b><br/>Category: <b>${esc(p.category || "-")}</b><br/>Image: <b>${esc(p.image || "-")}</b><br/>Description: ${esc(
+                p.description || "-"
+              )}</div></div>`
+            )
+            .join("")
+        : '<div class="note">No website products yet.</div>'}
+    </div>
+  </div>`;
+}
+
 function basesEditorPanelHtml(bases) {
   return `<div class="card base-panel">
     <h3 style="margin-top:0">State of Bases</h3>
@@ -1275,8 +1391,8 @@ function applicationsPanelHtml(applications, forms) {
   </div>`;
 }
 
-function staffPageHtml({ s, bases, applications, forms, msg = "", warn = "", staff, activeTab }) {
-  let tabContent = shopStatsHtml(s);
+function staffPageHtml({ s, bases, applications, forms, websiteShop, shopView = "discord", msg = "", warn = "", staff, activeTab }) {
+  let tabContent = staffShopTabHtml(s, websiteShop, shopView);
   if (activeTab === "bases") {
     tabContent = basesEditorPanelHtml(bases);
   } else if (activeTab === "applications") {
@@ -1423,8 +1539,8 @@ app.get("/shop", (_req, res) => {
 });
 
 app.get("/shop/web", (_req, res) => {
-  const products = readJson(path.join(BOT_DATA_DIR, "products.json"), []);
-  res.send(websiteShopHtml(Array.isArray(products) ? products : []));
+  const websiteShop = loadWebsiteShopData();
+  res.send(websiteShopHtml(websiteShop));
 });
 
 app.get("/apply", (req, res) => {
@@ -1557,6 +1673,80 @@ app.post("/staff/bases/create", requireStaff, (req, res) => {
   bases.push({ id, name: rawName, state: "open" });
   saveBaseStates(bases);
   res.redirect("/panel/bases?msg=Base%20created");
+});
+
+app.post("/staff/webshop/state", requireStaff, (req, res) => {
+  const data = loadWebsiteShopData();
+  const state = String(req.body.state || "").trim().toLowerCase();
+  data.state = state === "closed" ? "closed" : "open";
+  saveWebsiteShopData(data);
+  res.redirect("/panel/shop?shop_view=website&msg=Website%20shop%20state%20saved");
+});
+
+app.post("/staff/webshop/category/add", requireStaff, (req, res) => {
+  const data = loadWebsiteShopData();
+  const categoryName = String(req.body.category_name || "").trim().slice(0, 40);
+  if (!categoryName) {
+    res.redirect("/panel/shop?shop_view=website&warn=Category%20name%20is%20required");
+    return;
+  }
+  const exists = data.categories.some((c) => c.toLowerCase() === categoryName.toLowerCase());
+  if (!exists) {
+    data.categories.push(categoryName);
+    saveWebsiteShopData(data);
+  }
+  res.redirect("/panel/shop?shop_view=website&msg=Category%20saved");
+});
+
+app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
+  const data = loadWebsiteShopData();
+  const name = String(req.body.name || "").trim().slice(0, 80);
+  const description = String(req.body.description || "").trim().slice(0, 400);
+  const category = String(req.body.category || "").trim().slice(0, 40);
+  const image = String(req.body.image || "").trim().slice(0, 500);
+  const price = Number.parseFloat(String(req.body.price || "0").trim());
+  if (!name) {
+    res.redirect("/panel/shop?shop_view=website&warn=Product%20name%20is%20required");
+    return;
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    res.redirect("/panel/shop?shop_view=website&warn=Price%20must%20be%20greater%20than%200");
+    return;
+  }
+  if (!category) {
+    res.redirect("/panel/shop?shop_view=website&warn=Category%20is%20required");
+    return;
+  }
+  if (!image) {
+    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20is%20required");
+    return;
+  }
+  if (!data.categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
+    data.categories.push(category);
+  }
+  const idBase = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "item";
+  let id = idBase;
+  let i = 2;
+  const used = new Set(data.products.map((p) => p.id));
+  while (used.has(id)) {
+    id = `${idBase}-${i}`;
+    i += 1;
+  }
+  data.products.push({
+    id,
+    name,
+    price: Number(price.toFixed(2)),
+    category,
+    image,
+    description,
+    inStock: true
+  });
+  saveWebsiteShopData(data);
+  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20added");
 });
 
 app.post("/staff/application-forms/create", requireStaff, (req, res) => {
@@ -1791,10 +1981,12 @@ app.get("/panel/shop", requireStaff, (req, res) => {
   const bases = loadBaseStates();
   const applications = loadApplications();
   const forms = loadApplicationForms();
+  const websiteShop = loadWebsiteShopData();
+  const shopView = String(req.query.shop_view || "discord") === "website" ? "website" : "discord";
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, msg, warn, staff, activeTab: "shop" }));
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, shopView, msg, warn, staff, activeTab: "shop" }));
 });
 
 app.get("/panel/bases", requireStaff, (req, res) => {
@@ -1802,10 +1994,11 @@ app.get("/panel/bases", requireStaff, (req, res) => {
   const bases = loadBaseStates();
   const applications = loadApplications();
   const forms = loadApplicationForms();
+  const websiteShop = loadWebsiteShopData();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, msg, warn, staff, activeTab: "bases" }));
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, shopView: "discord", msg, warn, staff, activeTab: "bases" }));
 });
 
 app.get("/panel/applications", requireStaff, (req, res) => {
@@ -1814,10 +2007,24 @@ app.get("/panel/applications", requireStaff, (req, res) => {
   const applications = loadApplications()
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   const forms = loadApplicationForms();
+  const websiteShop = loadWebsiteShopData();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, msg, warn, staff, activeTab: "applications" }));
+  res.send(
+    staffPageHtml({
+      s,
+      bases,
+      applications,
+      forms,
+      websiteShop,
+      shopView: "discord",
+      msg,
+      warn,
+      staff,
+      activeTab: "applications"
+    })
+  );
 });
 
 app.listen(PORT, HOST, () => {
