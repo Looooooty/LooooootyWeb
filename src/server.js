@@ -1355,10 +1355,10 @@ function basesEditorPanelHtml(bases) {
     <h3 style="margin-top:0">State of Bases</h3>
     <form method="post" action="/staff/bases/update">
       ${baseStateEditorHtml(bases)}
-      <button class="save-btn" type="submit">Save Base States</button>
-    </form>
-    <form method="post" action="/staff/bases/save-defaults" style="margin-top:10px;">
-      <button class="btn" type="submit">Save Current Bases to Default</button>
+      <div class="action-row" style="justify-content:flex-start; margin-top:10px;">
+        <button class="save-btn" type="submit">Save Base States</button>
+        <button class="btn" type="submit" formaction="/staff/bases/save-defaults">Save Current Bases to Default</button>
+      </div>
     </form>
     <div class="note">Open = green, Open but less likely to be used = yellow, Closed = red.</div>
     <form method="post" action="/staff/bases/create" style="margin-top:12px; display:grid; grid-template-columns: 1fr auto; gap:10px;">
@@ -1837,9 +1837,17 @@ app.post("/staff/bases/:id/save-default", requireStaff, (req, res) => {
   res.redirect("/panel/bases?msg=Base%20defaults%20snapshot%20saved");
 });
 
-app.post("/staff/bases/save-defaults", requireStaff, (_req, res) => {
+app.post("/staff/bases/save-defaults", requireStaff, (req, res) => {
   const bases = loadBaseStates();
-  saveBaseStateDefaults(bases);
+  const updated = bases.map((b) => {
+    const next = req.body[`state_${b.id}`];
+    return {
+      ...b,
+      state: normalizeBaseState(next)
+    };
+  });
+  saveBaseStates(updated);
+  saveBaseStateDefaults(updated);
   res.redirect("/panel/bases?msg=Base%20defaults%20snapshot%20saved");
 });
 
