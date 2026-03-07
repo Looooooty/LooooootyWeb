@@ -1239,6 +1239,28 @@ function websiteShopHtml(websiteShop) {
     .modal-error { color: #ff9b9b; font-size: 13px; min-height: 18px; margin-top: 4px; }
     .modal-ok { color: #7ee787; font-size: 13px; min-height: 18px; margin-top: 4px; }
     .modal-check { display:flex; align-items:center; gap:8px; margin-top:8px; color: var(--txt); font-size:13px; }
+    .flow-wrap { margin-top: 12px; display: grid; gap: 10px; }
+    .flow-embed {
+      border: 1px solid rgba(91,44,255,0.55);
+      border-left: 4px solid #5b2cff;
+      border-radius: 10px;
+      background: rgba(10,16,41,0.92);
+      padding: 10px;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .flow-actions { display:flex; gap:8px; flex-wrap: wrap; }
+    .flow-btn {
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(32,48,82,0.85);
+      color: #fff;
+      font-weight: 800;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    .flow-btn.ok { background: #1f8f4e; border-color: #1f8f4e; }
     .modal-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
     @media (max-width: 1120px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 860px) {
@@ -1346,6 +1368,7 @@ function websiteShopHtml(websiteShop) {
             </label>
             <div id="checkout-error" class="modal-error"></div>
             <div id="checkout-result" class="modal-ok"></div>
+            <div id="checkout-flow" class="flow-wrap"></div>
             <div class="modal-actions">
               <button id="checkout-paypal" class="cart-btn checkout" type="button">PayPal</button>
               <button id="checkout-close" class="cart-btn close" type="button">Close</button>
@@ -1382,6 +1405,7 @@ function websiteShopHtml(websiteShop) {
       const checkoutUseCredit = document.getElementById("checkout-use-credit");
       const checkoutError = document.getElementById("checkout-error");
       const checkoutResult = document.getElementById("checkout-result");
+      const checkoutFlow = document.getElementById("checkout-flow");
       const checkoutPaypal = document.getElementById("checkout-paypal");
       const checkoutClose = document.getElementById("checkout-close");
       const taxRate = 0.06;
@@ -1418,6 +1442,15 @@ function websiteShopHtml(websiteShop) {
 
       function fmt(v) {
         return "$" + Number(v || 0).toFixed(2);
+      }
+
+      function escHtml(v) {
+        return String(v || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
       }
 
       function getProductMap() {
@@ -1503,6 +1536,70 @@ function websiteShopHtml(websiteShop) {
         return { subtotal, tax, total, count, normalized };
       }
 
+      function renderWebsiteOnlyPaidFlow(orderId) {
+        if (!checkoutFlow) return;
+        let ign = "";
+        let coords = "";
+        let ready = false;
+
+        function redraw() {
+          checkoutFlow.innerHTML =
+            '<div class="flow-embed">' +
+            "Paid Order " +
+            escHtml(orderId) +
+            "\\n\\nThis order is now paid, please put your coordinates and IGN below. a ETA would be shared soon by one of our admins as soon as they can get online.\\n\\nIGN: " +
+            escHtml(ign) +
+            "\\n\\nCoordinates: " +
+            escHtml(coords) +
+            "</div>" +
+            '<div class="flow-actions">' +
+            '<button id="flow-ign" class="flow-btn" type="button">IGN</button>' +
+            '<button id="flow-coords" class="flow-btn" type="button">Coordinates</button>' +
+            "</div>" +
+            (ign && coords
+              ? '<div class="flow-embed">Are you ready for your delivery?</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
+                (ready ? "Ready Confirmed" : "Yes") +
+                "</button></div>"
+              : "");
+
+          const ignBtn = document.getElementById("flow-ign");
+          const coordsBtn = document.getElementById("flow-coords");
+          const readyBtn = document.getElementById("flow-ready");
+          if (ignBtn) {
+            ignBtn.addEventListener("click", () => {
+              const next = window.prompt("Enter your IGN", ign || "");
+              if (typeof next === "string") {
+                ign = next.trim().slice(0, 32);
+                redraw();
+              }
+            });
+          }
+          if (coordsBtn) {
+            coordsBtn.addEventListener("click", () => {
+              const next = window.prompt("Enter your Coordinates", coords || "");
+              if (typeof next === "string") {
+                coords = next.trim().slice(0, 120);
+                redraw();
+              }
+            });
+          }
+          if (readyBtn) {
+            readyBtn.addEventListener("click", () => {
+              ready = true;
+              redraw();
+            });
+          }
+        }
+
+        redraw();
+      }
+
+      function syncCheckoutLabel() {
+        if (!checkoutPaypal) return;
+        const useCredit = Boolean(checkoutUseCredit && checkoutUseCredit.checked);
+        checkoutPaypal.textContent = useCredit ? "Checkout" : "PayPal";
+      }
+
       function applyFilter() {
         const q = String(search.value || "").toLowerCase().trim();
         cards.forEach((card) => {
@@ -1584,9 +1681,11 @@ function websiteShopHtml(websiteShop) {
       checkoutBtn.addEventListener("click", () => {
         if (checkoutError) checkoutError.textContent = "";
         if (checkoutResult) checkoutResult.textContent = "";
+        if (checkoutFlow) checkoutFlow.innerHTML = "";
         if (checkoutEmail) checkoutEmail.value = "";
         if (checkoutDiscordId) checkoutDiscordId.value = "";
         if (checkoutUseCredit) checkoutUseCredit.checked = false;
+        syncCheckoutLabel();
         if (checkoutModal) checkoutModal.classList.add("open");
       });
       if (checkoutClose) {
@@ -1634,31 +1733,29 @@ function websiteShopHtml(websiteShop) {
 
             if (checkoutResult) {
               checkoutResult.textContent =
-                "Credit used: $" +
+                "Order created: " +
+                String(payload.orderId || "ORDER-LOCAL") +
+                " | Credit used: $" +
                 Number(payload.creditUsed || 0).toFixed(2) +
                 " | Total due: $" +
                 Number(payload.totalDue || 0).toFixed(2);
             }
 
-            if (payload.paidWithCreditOnly) {
-              cart = {};
-              saveCart();
-              renderCart();
-              if (checkoutError) checkoutError.textContent = "";
-              return;
-            }
-
-            if (payload.paypalUrl) {
-              window.location.href = payload.paypalUrl;
-              return;
-            }
-
-            if (checkoutError) checkoutError.textContent = "PayPal checkout URL is not configured.";
+            renderWebsiteOnlyPaidFlow(String(payload.orderId || "ORDER-LOCAL"));
+            cart = {};
+            saveCart();
+            renderCart();
+            if (checkoutError) checkoutError.textContent = "";
           } catch {
             if (checkoutError) checkoutError.textContent = "Checkout request failed.";
             if (checkoutResult) checkoutResult.textContent = "";
+            if (checkoutFlow) checkoutFlow.innerHTML = "";
           }
         });
+      }
+      if (checkoutUseCredit && checkoutPaypal) {
+        checkoutUseCredit.addEventListener("change", syncCheckoutLabel);
+        checkoutUseCredit.addEventListener("click", syncCheckoutLabel);
       }
       if (qtyModal) {
         qtyModal.addEventListener("click", (e) => {
@@ -1671,6 +1768,7 @@ function websiteShopHtml(websiteShop) {
         });
       }
       loadCart();
+      syncCheckoutLabel();
       renderCart();
       applyFilter();
     })();
@@ -2537,7 +2635,7 @@ app.get("/shop/web", (_req, res) => {
   res.send(websiteShopHtml(websiteShop));
 });
 
-app.post("/shop/web/checkout", (req, res) => {
+app.post("/shop/web/checkout", async (req, res) => {
   const email = String(req.body && req.body.email ? req.body.email : "").trim();
   const discordUserId = String(req.body && req.body.discordUserId ? req.body.discordUserId : "").trim();
   const useCredit = Boolean(req.body && req.body.useCredit);
@@ -2547,8 +2645,8 @@ app.post("/shop/web/checkout", (req, res) => {
     res.status(400).json({ ok: false, error: "Please enter a valid email." });
     return;
   }
-  if (useCredit && !isSnowflake(discordUserId)) {
-    res.status(400).json({ ok: false, error: "Valid Discord User ID is required to use store credit." });
+  if (!isSnowflake(discordUserId)) {
+    res.status(400).json({ ok: false, error: "Valid Discord User ID is required for checkout." });
     return;
   }
 
@@ -2561,9 +2659,8 @@ app.post("/shop/web/checkout", (req, res) => {
   const productsById = new Map(
     (Array.isArray(websiteShop.products) ? websiteShop.products : []).map((p) => [String(p.id), p])
   );
-  let subtotal = 0;
   let itemCount = 0;
-  const normalizedCart = {};
+  const normalizedItems = [];
 
   for (const [idRaw, qtyRaw] of Object.entries(cartInput)) {
     const id = String(idRaw || "").trim();
@@ -2575,9 +2672,13 @@ app.post("/shop/web/checkout", (req, res) => {
     if (!product || product.inStock === false) {
       continue;
     }
-    subtotal += Number(product.price || 0) * qty;
     itemCount += qty;
-    normalizedCart[id] = qty;
+    normalizedItems.push({
+      productId: id,
+      name: String(product.name || "Item"),
+      price: Number(product.price || 0),
+      quantity: qty
+    });
   }
 
   if (itemCount <= 0) {
@@ -2585,48 +2686,36 @@ app.post("/shop/web/checkout", (req, res) => {
     return;
   }
 
+  const subtotal = money(normalizedItems.reduce((sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 0), 0));
   const taxFees = money(subtotal * 0.06);
   const total = money(subtotal + taxFees);
 
-  let creditUsed = 0;
-  let creditBefore = 0;
-  let creditAfter = 0;
-
+  const credits = loadCredits();
+  const currentCredit = money(Number(credits[discordUserId] || 0));
+  const creditUsed = useCredit ? Math.min(currentCredit, total) : 0;
+  const totalDue = money(total - creditUsed);
+  const nextCredit = money(currentCredit - creditUsed);
   if (useCredit) {
-    const credits = loadCredits();
-    creditBefore = money(Number(credits[discordUserId] || 0));
-    creditUsed = money(Math.min(creditBefore, total));
-    const previewDue = money(total - creditUsed);
-    if (previewDue > 0 && !String(WEBSITE_PAYPAL_URL || "").trim()) {
-      res.status(400).json({ ok: false, error: "PayPal checkout is not configured yet." });
-      return;
-    }
-    creditAfter = money(creditBefore - creditUsed);
-    if (creditAfter <= 0) {
+    if (nextCredit <= 0) {
       delete credits[discordUserId];
     } else {
-      credits[discordUserId] = creditAfter;
+      credits[discordUserId] = nextCredit;
     }
     saveCredits(credits);
   }
 
-  const totalDue = money(total - creditUsed);
-  if (totalDue > 0 && !String(WEBSITE_PAYPAL_URL || "").trim()) {
-    res.status(400).json({ ok: false, error: "PayPal checkout is not configured yet." });
-    return;
-  }
-
+  const orderId = `ORDER-${Date.now()}`;
+  const paypalUrl = totalDue > 0 ? WEBSITE_PAYPAL_URL : "";
   res.json({
     ok: true,
-    subtotal: money(subtotal),
+    orderId,
+    subtotal,
     taxFees,
     total,
-    creditUsed,
-    totalDue,
+    creditUsed: money(creditUsed),
+    totalDue: money(totalDue),
     paidWithCreditOnly: totalDue <= 0,
-    paypalUrl: totalDue > 0 ? WEBSITE_PAYPAL_URL : "",
-    creditBefore,
-    creditAfter,
+    paypalUrl,
     itemCount
   });
 });
