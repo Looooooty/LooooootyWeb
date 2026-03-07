@@ -35,6 +35,7 @@ const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
 const APPLICATION_FORMS_FILE = path.join(BOT_DATA_DIR, "application_forms.json");
 const WEBSITE_SHOP_FILE = path.join(BOT_DATA_DIR, "website_shop.json");
+const WEBSITE_SHOP_DEFAULTS_FILE = path.join(process.cwd(), "data", "website_shop_defaults.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -304,12 +305,9 @@ function findApplicationForm(forms, formId) {
 }
 
 function loadWebsiteShopData() {
+  const defaults = loadWebsiteShopDefaults();
   const raw = readJson(WEBSITE_SHOP_FILE, null);
-  const fallback = {
-    state: "open",
-    categories: ["kits", "materials"],
-    products: []
-  };
+  const fallback = defaults;
   const state = raw && raw.state === "closed" ? "closed" : "open";
   const categories = Array.isArray(raw && raw.categories)
     ? raw.categories.map((c) => String(c || "").trim()).filter(Boolean)
@@ -332,6 +330,47 @@ function loadWebsiteShopData() {
 
 function saveWebsiteShopData(data) {
   writeJson(WEBSITE_SHOP_FILE, {
+    state: data && data.state === "closed" ? "closed" : "open",
+    categories: Array.isArray(data && data.categories)
+      ? data.categories.map((c) => String(c || "").trim()).filter(Boolean)
+      : [],
+    products: Array.isArray(data && data.products) ? data.products : []
+  });
+}
+
+function loadWebsiteShopDefaults() {
+  const raw = readJson(WEBSITE_SHOP_DEFAULTS_FILE, null);
+  const fallback = {
+    state: "open",
+    categories: ["kits", "materials"],
+    products: []
+  };
+  if (!raw || typeof raw !== "object") {
+    writeJson(WEBSITE_SHOP_DEFAULTS_FILE, fallback);
+    return fallback;
+  }
+  const state = raw.state === "closed" ? "closed" : "open";
+  const categories = Array.isArray(raw.categories)
+    ? raw.categories.map((c) => String(c || "").trim()).filter(Boolean)
+    : fallback.categories;
+  const products = Array.isArray(raw.products)
+    ? raw.products.map((p) => ({
+        id: String(p && p.id ? p.id : "").trim(),
+        name: String(p && p.name ? p.name : "Unnamed").trim().slice(0, 80),
+        price: Number.isFinite(Number(p && p.price)) ? Number(p.price) : 0,
+        category: String(p && p.category ? p.category : "kits").trim().slice(0, 40),
+        image: String(p && p.image ? p.image : "").trim(),
+        description: String(p && p.description ? p.description : "").trim().slice(0, 400),
+        inStock: p && p.inStock === false ? false : true
+      }))
+    : [];
+  const data = { state, categories, products };
+  writeJson(WEBSITE_SHOP_DEFAULTS_FILE, data);
+  return data;
+}
+
+function saveWebsiteShopDefaults(data) {
+  writeJson(WEBSITE_SHOP_DEFAULTS_FILE, {
     state: data && data.state === "closed" ? "closed" : "open",
     categories: Array.isArray(data && data.categories)
       ? data.categories.map((c) => String(c || "").trim()).filter(Boolean)
@@ -1263,6 +1302,11 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
                       <input type="hidden" name="status" value="${p.inStock === false ? "in_stock" : "out_of_stock"}" />
                       <button class="btn" type="submit">${p.inStock === false ? "Set In Stock" : "Set Out of Stock"}</button>
                     </form>
+                    <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/save-default" style="margin:0;">
+                      <button class="btn" type="submit">Save to Default</button>
+                    </form>
+                  </div>
+                  <div class="ws-inline">
                     <form method="post" action="/staff/webshop/product/${encodeURIComponent(p.id)}/delete" style="margin:0;" onsubmit="return confirm('Delete this product?');">
                       <button class="danger-btn" type="submit">Delete</button>
                     </form>
@@ -1860,6 +1904,44 @@ app.post("/staff/webshop/product/:id/stock", requireStaff, (req, res) => {
   data.products[idx].inStock = status === "in_stock";
   saveWebsiteShopData(data);
   res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20stock%20updated");
+});
+
+app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => {
+  const data = loadWebsiteShopData();
+  const defaults = loadWebsiteShopDefaults();
+  const id = String(req.params.id || "").trim();
+  const product = data.products.find((p) => String(p.id) === id);
+  if (!product) {
+    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    return;
+  }
+
+  if (!Array.isArray(defaults.categories)) {
+    defaults.categories = [];
+  }
+  if (product.category && !defaults.categories.some((c) => String(c).toLowerCase() === String(product.category).toLowerCase())) {
+    defaults.categories.push(product.category);
+  }
+  if (!Array.isArray(defaults.products)) {
+    defaults.products = [];
+  }
+  const idx = defaults.products.findIndex((p) => String(p && p.id ? p.id : "") === id);
+  const normalizedProduct = {
+    id: String(product.id || "").trim(),
+    name: String(product.name || "").trim().slice(0, 80),
+    price: Number(product.price || 0),
+    category: String(product.category || "").trim().slice(0, 40),
+    image: String(product.image || "").trim(),
+    description: String(product.description || "").trim().slice(0, 400),
+    inStock: product.inStock === false ? false : true
+  };
+  if (idx === -1) {
+    defaults.products.push(normalizedProduct);
+  } else {
+    defaults.products[idx] = normalizedProduct;
+  }
+  saveWebsiteShopDefaults(defaults);
+  res.redirect("/panel/shop?shop_view=website&msg=Product%20saved%20to%20defaults");
 });
 
 app.post("/staff/application-forms/create", requireStaff, (req, res) => {
