@@ -1048,7 +1048,7 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
             : `<div class="auth-grid">
                 <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Looooooty Accounts (Soon)</a>
                 <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Google (Soon)</a>
-                <a class="auth-btn" href="/auth/discord/start?next=${encodeURIComponent(nextPath)}">Create a Looooooty Account</a>
+                <a class="auth-btn disabled" href="#" title="Coming soon">Create a Looooooty Account (Soon)</a>
                 <a class="auth-btn" href="/auth/discord/start?next=${encodeURIComponent(nextPath)}">Log in with Discord</a>
               </div>`
         }
