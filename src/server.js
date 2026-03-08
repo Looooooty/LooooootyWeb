@@ -1,6 +1,7 @@
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const express = require("express");
 
 const app = express();
@@ -31,6 +32,18 @@ const BOT_INTERNAL_API_SECRET = process.env.BOT_INTERNAL_API_SECRET || "";
 const BASE_MEMBER_ROLE_ID = process.env.BASE_MEMBER_ROLE_ID || "";
 const SITE_ICON_URL = process.env.SITE_ICON_URL || "/logo.png";
 const ABOUT_US_TEXT = process.env.ABOUT_US_TEXT || "About us content coming soon.";
+const DISCORD_OAUTH_CLIENT_ID = process.env.DISCORD_OAUTH_CLIENT_ID || BOT_CLIENT_ID || "";
+const DISCORD_OAUTH_CLIENT_SECRET = process.env.DISCORD_OAUTH_CLIENT_SECRET || "";
+const DISCORD_OAUTH_REDIRECT_URI = process.env.DISCORD_OAUTH_REDIRECT_URI || "";
+const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || GUILD_ID || "";
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || "";
+const REQUIRE_GUILD_MEMBERSHIP = String(process.env.REQUIRE_GUILD_MEMBERSHIP || "true").toLowerCase() === "true";
+const MIN_DISCORD_ACCOUNT_AGE_DAYS = Math.max(0, Number(process.env.MIN_DISCORD_ACCOUNT_AGE_DAYS || 0));
+const WEB_SESSION_COOKIE = "web_auth";
+const WEB_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_CHECKOUT = 6;
+const RATE_LIMIT_MAX_GIVEAWAY = 20;
 
 const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
@@ -48,6 +61,11 @@ const BASE_STATUS_META = {
   open_less: { label: "Open but less likely to be used", color: "#d29922" },
   closed: { label: "Closed", color: "#f85149" }
 };
+
+const webSessions = new Map();
+const oauthStateMap = new Map();
+const rateLimitMap = new Map();
+const guildMemberCache = new Map();
 
 app.use(express.urlencoded({ extended: false, limit: "12mb" }));
 app.use(express.json({ limit: "1mb" }));
@@ -191,13 +209,11 @@ function pickRandomWinners(participants, winnerCount) {
 }
 
 function getGiveawaySession(req) {
-  const cookies = parseCookies(req);
-  const userId = String(cookies.giveaway_user_id || "").trim();
-  const userTag = String(cookies.giveaway_user_tag || "").trim();
-  if (!isSnowflake(userId)) {
-    return { userId: "", userTag: "" };
-  }
-  return { userId, userTag };
+  const session = getWebSession(req);
+  return {
+    userId: session ? String(session.userId || "") : "",
+    userTag: session ? String(session.userTag || "") : ""
+  };
 }
 
 function orderGross(o) {
@@ -223,6 +239,169 @@ function parseCookies(req) {
     out[key] = value;
   }
   return out;
+}
+
+function parseForwardedIp(raw) {
+  const head = String(raw || "").split(",")[0].trim();
+  return head || "";
+}
+
+function clientIp(req) {
+  const forwarded = parseForwardedIp(req.headers["x-forwarded-for"]);
+  return forwarded || req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+function setWebSessionCookie(res, token) {
+  const secure = String(HOST) !== "127.0.0.1" && String(HOST) !== "localhost";
+  const parts = [
+    `${WEB_SESSION_COOKIE}=${encodeURIComponent(token)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${Math.floor(WEB_SESSION_TTL_MS / 1000)}`
+  ];
+  if (secure) {
+    parts.push("Secure");
+  }
+  res.setHeader("Set-Cookie", parts.join("; "));
+}
+
+function clearWebSessionCookie(res) {
+  const secure = String(HOST) !== "127.0.0.1" && String(HOST) !== "localhost";
+  const parts = [
+    `${WEB_SESSION_COOKIE}=`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=0"
+  ];
+  if (secure) {
+    parts.push("Secure");
+  }
+  res.setHeader("Set-Cookie", parts.join("; "));
+}
+
+function createWebSession(user) {
+  const token = crypto.randomBytes(32).toString("hex");
+  const now = Date.now();
+  const session = {
+    userId: String(user.userId || ""),
+    userTag: String(user.userTag || ""),
+    avatarUrl: String(user.avatarUrl || ""),
+    createdAt: new Date(now).toISOString(),
+    expiresAt: now + WEB_SESSION_TTL_MS
+  };
+  webSessions.set(token, session);
+  return { token, session };
+}
+
+function getWebSession(req) {
+  const cookies = parseCookies(req);
+  const token = String(cookies[WEB_SESSION_COOKIE] || "").trim();
+  if (!token) {
+    return null;
+  }
+  const session = webSessions.get(token);
+  if (!session) {
+    return null;
+  }
+  if (Number(session.expiresAt || 0) <= Date.now()) {
+    webSessions.delete(token);
+    return null;
+  }
+  return { ...session, token };
+}
+
+function destroyWebSession(req, res) {
+  const cookies = parseCookies(req);
+  const token = String(cookies[WEB_SESSION_COOKIE] || "").trim();
+  if (token) {
+    webSessions.delete(token);
+  }
+  clearWebSessionCookie(res);
+}
+
+function checkRateLimit(key, maxAllowed, windowMs) {
+  const now = Date.now();
+  const rec = rateLimitMap.get(key);
+  if (!rec || rec.resetAt <= now) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  rec.count += 1;
+  if (rec.count > maxAllowed) {
+    return false;
+  }
+  return true;
+}
+
+function discordUserCreatedAtMs(userId) {
+  try {
+    const n = BigInt(String(userId));
+    return Number((n >> 22n) + 1420070400000n);
+  } catch {
+    return 0;
+  }
+}
+
+async function isDiscordMemberOfGuild(userId) {
+  if (!REQUIRE_GUILD_MEMBERSHIP) {
+    return true;
+  }
+  if (!isSnowflake(userId)) {
+    return false;
+  }
+  if (!DISCORD_GUILD_ID || !DISCORD_BOT_TOKEN) {
+    return false;
+  }
+  const key = `${DISCORD_GUILD_ID}:${userId}`;
+  const cached = guildMemberCache.get(key);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return Boolean(cached.ok);
+  }
+  const url = `https://discord.com/api/v10/guilds/${encodeURIComponent(DISCORD_GUILD_ID)}/members/${encodeURIComponent(userId)}`;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`
+      }
+    });
+    const ok = response.ok;
+    guildMemberCache.set(key, { ok, expiresAt: now + 10 * 60 * 1000 });
+    return ok;
+  } catch {
+    guildMemberCache.set(key, { ok: false, expiresAt: now + 60 * 1000 });
+    return false;
+  }
+}
+
+async function validateWebUserPolicy(userId) {
+  if (!isSnowflake(userId)) {
+    return "Invalid Discord identity.";
+  }
+  if (MIN_DISCORD_ACCOUNT_AGE_DAYS > 0) {
+    const createdAtMs = discordUserCreatedAtMs(userId);
+    if (!createdAtMs) {
+      return "Unable to validate Discord account age.";
+    }
+    const minAgeMs = MIN_DISCORD_ACCOUNT_AGE_DAYS * 24 * 60 * 60 * 1000;
+    if ((Date.now() - createdAtMs) < minAgeMs) {
+      return `Discord account must be at least ${MIN_DISCORD_ACCOUNT_AGE_DAYS} day(s) old.`;
+    }
+  }
+  const isMember = await isDiscordMemberOfGuild(userId);
+  if (!isMember) {
+    if (!DISCORD_GUILD_ID || !DISCORD_BOT_TOKEN) {
+      return "Guild membership check is not configured.";
+    }
+    return "You must be in the Discord server to use store credit and giveaways.";
+  }
+  return "";
+}
+
+function oauthReady() {
+  return Boolean(DISCORD_OAUTH_CLIENT_ID && DISCORD_OAUTH_CLIENT_SECRET && DISCORD_OAUTH_REDIRECT_URI);
 }
 
 function isStaffAuthed(req) {
@@ -571,7 +750,9 @@ function stats() {
   };
 }
 
-function sideMenuHtml() {
+function sideMenuHtml(session = {}) {
+  const userId = String(session && session.userId ? session.userId : "");
+  const authLabel = userId ? "Account" : "Sign Up";
   return `<div class="menu-shell">
     <div class="brand">LooooootyBases</div>
     <nav class="menu">
@@ -581,6 +762,7 @@ function sideMenuHtml() {
       <a href="/apply">Apply</a>
       <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
       <a href="/shop">LooooootyShop</a>
+      <a href="/auth">${authLabel}</a>
       <a href="/staff">Staff</a>
     </nav>
   </div>`;
@@ -705,7 +887,9 @@ function faviconLinks() {
   <link rel="apple-touch-icon" href="${SITE_ICON_URL}" />`;
 }
 
-function homeHtml() {
+function homeHtml(session = {}) {
+  const userId = String(session && session.userId ? session.userId : "");
+  const authLabel = userId ? "Account" : "Sign Up";
   return `<!doctype html>
 <html>
 <head>
@@ -717,7 +901,7 @@ function homeHtml() {
 </head>
 <body>
   <div class="layout">
-    <aside class="side">${sideMenuHtml()}</aside>
+    <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
       <section class="hero">
         <h1><span class="title-italic">LooooootyBases</span> | 2b2t</h1>
@@ -728,6 +912,7 @@ function homeHtml() {
           <a class="btn" href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
           <a class="btn" href="/shop">Shop</a>
           <a class="btn" href="/apply">Apply</a>
+          <a class="btn" href="/auth">${authLabel}</a>
           <a class="btn" href="/staff">Staff</a>
         </div>
         <div class="foot">Staff panel is code protected.</div>
@@ -738,7 +923,7 @@ function homeHtml() {
 </html>`;
 }
 
-function basesPageHtml(bases) {
+function basesPageHtml(bases, session = {}) {
   return `<!doctype html>
 <html>
 <head>
@@ -750,7 +935,7 @@ function basesPageHtml(bases) {
 </head>
 <body>
   <div class="layout">
-    <aside class="side">${sideMenuHtml()}</aside>
+    <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
       <section class="hero" style="margin-bottom:12px; text-align:left;">
         <a class="btn" href="/">Back Home</a>
@@ -765,7 +950,7 @@ function basesPageHtml(bases) {
 </html>`;
 }
 
-function aboutPageHtml() {
+function aboutPageHtml(session = {}) {
   return `<!doctype html>
 <html>
 <head>
@@ -777,7 +962,7 @@ function aboutPageHtml() {
 </head>
 <body>
   <div class="layout">
-    <aside class="side">${sideMenuHtml()}</aside>
+    <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
       <section class="hero" style="margin-bottom:12px; text-align:left;">
         <a class="btn" href="/">Back Home</a>
@@ -785,6 +970,88 @@ function aboutPageHtml() {
       <section class="state-box" style="display:block; text-align:left;">
         <div class="state-head">About Us</div>
         <div style="white-space:pre-wrap; line-height:1.6;">${esc(ABOUT_US_TEXT)}</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
+  const userId = String(session && session.userId ? session.userId : "");
+  const userTag = String(session && session.userTag ? session.userTag : "");
+  const nextPath = next && String(next).startsWith("/") ? String(next) : "/";
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${userId ? "Account" : "Sign Up / Login"}</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .auth-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 10px;
+    }
+    .auth-btn {
+      display: inline-block;
+      text-decoration: none;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: linear-gradient(180deg, rgba(56,83,130,0.55), rgba(28,42,68,0.8));
+      color: var(--txt);
+      font-weight: 800;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .auth-btn:hover { border-color: var(--accent); }
+    .auth-btn.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .account-meta {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: rgba(7,12,28,0.6);
+      padding: 10px 12px;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+    @media (max-width: 860px) {
+      .auth-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml(session)}</aside>
+    <main class="main">
+      <section class="state-box" style="text-align:left;">
+        <h2 style="margin-top:0;">${userId ? "Account" : "Sign Up / Login"}</h2>
+        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+        ${
+          userId
+            ? `<div class="account-meta">
+                Logged in as: <b>${esc(userTag || "User")}</b><br/>
+                Discord ID: <b>${esc(userId)}</b>
+              </div>
+              <div class="auth-grid">
+                <form method="post" action="/auth/logout?next=${encodeURIComponent(nextPath)}" style="margin:0;">
+                  <button class="submit" type="submit">Logout</button>
+                </form>
+                <a class="auth-btn" href="${esc(nextPath)}">Back</a>
+              </div>`
+            : `<div class="auth-grid">
+                <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Looooooty Accounts (Soon)</a>
+                <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Google (Soon)</a>
+                <a class="auth-btn" href="/auth/discord/start?next=${encodeURIComponent(nextPath)}">Create a Looooooty Account</a>
+                <a class="auth-btn" href="/auth/discord/start?next=${encodeURIComponent(nextPath)}">Log in with Discord</a>
+              </div>`
+        }
       </section>
     </main>
   </div>
@@ -961,7 +1228,7 @@ function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
 </head>
 <body>
   <div class="layout">
-    <aside class="side">${sideMenuHtml()}</aside>
+    <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
       <section class="gw-shell">
         <div class="gw-top">
@@ -974,12 +1241,16 @@ function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
         <div class="gw-identity">
         ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
         ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        <form class="form-grid" method="post" action="/giveaways/session" style="max-width:560px;">
-          <input type="text" name="discord_user_id" required maxlength="20" value="${esc(userId)}" placeholder="Your Discord User ID (numbers only)" />
-          <input type="text" name="discord_tag" maxlength="64" value="${esc(userTag)}" placeholder="Discord username (optional)" />
-          <button class="submit" type="submit">Save Giveaway Identity</button>
-        </form>
-        <div class="gw-id">Current giveaway identity: <b>${userId ? `${esc(userTag || "User")} (${esc(userId)})` : "Not set"}</b></div>
+        <div class="form-grid" style="max-width:560px;">
+          ${
+            userId
+              ? `<form method="post" action="/auth/logout?next=%2Fgiveaways" style="margin:0;">
+                  <button class="submit" type="submit">Logout Discord</button>
+                </form>`
+              : `<a class="submit" href="/auth" style="text-decoration:none; text-align:center; display:inline-block;">Sign Up / Login</a>`
+          }
+        </div>
+        <div class="gw-id">Current giveaway identity: <b>${userId ? `${esc(userTag || "User")} (${esc(userId)})` : "Not logged in"}</b></div>
         </div>
         <div class="gw-grid">
           ${cards || '<div class="note">No giveaways yet.</div>'}
@@ -1056,9 +1327,12 @@ function shopLandingHtml() {
 </html>`;
 }
 
-function websiteShopHtml(websiteShop) {
+function websiteShopHtml(websiteShop, session = {}) {
   const products = Array.isArray(websiteShop && websiteShop.products) ? websiteShop.products : [];
   const state = websiteShop && websiteShop.state === "closed" ? "closed" : "open";
+  const userId = String(session && session.userId ? session.userId : "");
+  const userTag = String(session && session.userTag ? session.userTag : "");
+  const authLabel = userId ? "Account" : "Sign Up";
   const categories = Array.from(
     new Set(
       [
@@ -1326,6 +1600,7 @@ function websiteShopHtml(websiteShop) {
         <div class="top-actions">
           <a class="btn" href="/">Back to Home</a>
           <button id="top-cart-btn" class="btn" type="button" style="display:none;">Cart (0)</button>
+          <a class="btn" href="/auth?next=%2Fshop%2Fweb">${authLabel}</a>
           <a class="btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
         </div>
       </header>
@@ -1390,7 +1665,7 @@ function websiteShopHtml(websiteShop) {
             <h3 class="modal-title">Checkout</h3>
             <div class="modal-note">Enter your email for payment receipt/invoice.</div>
             <input id="checkout-email" class="modal-input" type="email" placeholder="you@example.com" />
-            <input id="checkout-discord-id" class="modal-input" type="text" maxlength="20" placeholder="Discord User ID (required for store credit)" />
+            <div class="modal-note">Discord identity: <b>${userId ? esc(`${userTag || "User"} (${userId})`) : "Not logged in"}</b></div>
             <label class="modal-check">
               <input id="checkout-use-credit" type="checkbox" />
               Use store credit
@@ -1408,6 +1683,7 @@ function websiteShopHtml(websiteShop) {
   </div>
   <script>
     (function () {
+      const authedDiscordUserId = ${JSON.stringify(userId)};
       const search = document.getElementById("shop-search");
       const cats = Array.from(document.querySelectorAll(".cat"));
       const cards = Array.from(document.querySelectorAll(".card"));
@@ -1429,7 +1705,6 @@ function websiteShopHtml(websiteShop) {
       const qtyCancel = document.getElementById("qty-cancel");
       const checkoutModal = document.getElementById("checkout-modal");
       const checkoutEmail = document.getElementById("checkout-email");
-      const checkoutDiscordId = document.getElementById("checkout-discord-id");
       const checkoutUseCredit = document.getElementById("checkout-use-credit");
       const checkoutError = document.getElementById("checkout-error");
       const checkoutResult = document.getElementById("checkout-result");
@@ -1899,7 +2174,6 @@ function websiteShopHtml(websiteShop) {
         if (checkoutError) checkoutError.textContent = "";
         if (checkoutResult) checkoutResult.textContent = "";
         if (checkoutEmail) checkoutEmail.value = "";
-        if (checkoutDiscordId) checkoutDiscordId.value = "";
         if (checkoutUseCredit) checkoutUseCredit.checked = false;
         syncCheckoutLabel();
         if (checkoutModal) checkoutModal.classList.add("open");
@@ -1926,7 +2200,11 @@ function websiteShopHtml(websiteShop) {
           if (checkoutError) checkoutError.textContent = "";
           if (checkoutResult) checkoutResult.textContent = "Processing checkout...";
 
-          const discordUserId = String((checkoutDiscordId && checkoutDiscordId.value) || "").trim();
+          if (!authedDiscordUserId) {
+            if (checkoutError) checkoutError.textContent = "Please login with Discord first.";
+            if (checkoutResult) checkoutResult.textContent = "";
+            return;
+          }
           const useCredit = Boolean(checkoutUseCredit && checkoutUseCredit.checked);
 
           try {
@@ -1935,7 +2213,6 @@ function websiteShopHtml(websiteShop) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 email,
-                discordUserId,
                 useCredit,
                 cart: summary.normalized
               })
@@ -1959,7 +2236,7 @@ function websiteShopHtml(websiteShop) {
 
             setActiveOrder({
               orderId: String(payload.orderId || "ORDER-LOCAL"),
-              userId: discordUserId,
+              userId: authedDiscordUserId,
               ign: "",
               coordinates: "",
               ready: false,
@@ -2010,7 +2287,7 @@ function websiteShopHtml(websiteShop) {
 </html>`;
 }
 
-function applyPageHtml(forms, msg = "", err = "") {
+function applyPageHtml(forms, msg = "", err = "", session = {}) {
   const activeForms = (forms || []).filter((f) => f.active !== false);
   return `<!doctype html>
 <html>
@@ -2023,7 +2300,7 @@ function applyPageHtml(forms, msg = "", err = "") {
 </head>
 <body>
   <div class="layout">
-    <aside class="side">${sideMenuHtml()}</aside>
+    <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
       <section class="state-box" style="text-align:left;">
         <h2 style="margin-top:0;">Application</h2>
@@ -2835,12 +3112,105 @@ app.get("/api/stats", requireStaff, (_req, res) => {
 });
 
 app.get("/", (_req, res) => {
-  res.send(homeHtml());
+  const session = getWebSession(_req) || { userId: "", userTag: "" };
+  res.send(homeHtml(session));
 });
 
-app.get("/bases", (_req, res) => {
+app.get("/bases", (req, res) => {
   const bases = loadBaseStates();
-  res.send(basesPageHtml(bases));
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  res.send(basesPageHtml(bases, session));
+});
+
+app.get("/auth", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  const msg = typeof req.query.msg === "string" ? req.query.msg : "";
+  const err = typeof req.query.err === "string" ? req.query.err : "";
+  const next = typeof req.query.next === "string" ? req.query.next : "/";
+  res.send(authPageHtml({ session, msg, err, next }));
+});
+
+app.get("/auth/discord/start", (req, res) => {
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/";
+  if (!oauthReady()) {
+    res.redirect(`${next}?err=${encodeURIComponent("Discord login is not configured yet.")}`);
+    return;
+  }
+  const state = crypto.randomBytes(24).toString("hex");
+  oauthStateMap.set(state, { next, expiresAt: Date.now() + 10 * 60 * 1000 });
+  const query = new URLSearchParams({
+    client_id: DISCORD_OAUTH_CLIENT_ID,
+    response_type: "code",
+    redirect_uri: DISCORD_OAUTH_REDIRECT_URI,
+    scope: "identify",
+    state
+  });
+  res.redirect(`https://discord.com/oauth2/authorize?${query.toString()}`);
+});
+
+app.get("/auth/discord/callback", async (req, res) => {
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const state = typeof req.query.state === "string" ? req.query.state : "";
+  const rec = oauthStateMap.get(state);
+  oauthStateMap.delete(state);
+  if (!rec || rec.expiresAt < Date.now()) {
+    res.redirect("/?err=Discord%20login%20state%20expired");
+    return;
+  }
+  if (!code || !oauthReady()) {
+    res.redirect(`${rec.next}?err=${encodeURIComponent("Discord login failed.")}`);
+    return;
+  }
+  try {
+    const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: DISCORD_OAUTH_CLIENT_ID,
+        client_secret: DISCORD_OAUTH_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: DISCORD_OAUTH_REDIRECT_URI
+      }).toString()
+    });
+    const tokenJson = await tokenResponse.json().catch(() => ({}));
+    const accessToken = String(tokenJson && tokenJson.access_token ? tokenJson.access_token : "");
+    if (!tokenResponse.ok || !accessToken) {
+      res.redirect(`${rec.next}?err=${encodeURIComponent("Discord token exchange failed.")}`);
+      return;
+    }
+    const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const userJson = await userResponse.json().catch(() => ({}));
+    const userId = String(userJson && userJson.id ? userJson.id : "");
+    if (!userResponse.ok || !isSnowflake(userId)) {
+      res.redirect(`${rec.next}?err=${encodeURIComponent("Discord identity fetch failed.")}`);
+      return;
+    }
+    const policyErr = await validateWebUserPolicy(userId);
+    if (policyErr) {
+      res.redirect(`${rec.next}?err=${encodeURIComponent(policyErr)}`);
+      return;
+    }
+    const userTag = String(userJson.global_name || userJson.username || userId).slice(0, 64);
+    const avatarUrl = userJson.avatar
+      ? `https://cdn.discordapp.com/avatars/${userId}/${userJson.avatar}.png?size=128`
+      : "";
+    const created = createWebSession({ userId, userTag, avatarUrl });
+    setWebSessionCookie(res, created.token);
+    res.redirect(`${rec.next}?msg=${encodeURIComponent(`Logged in as ${userTag}`)}`);
+  } catch {
+    res.redirect(`${rec.next}?err=${encodeURIComponent("Discord login failed.")}`);
+  }
+});
+
+app.post("/auth/logout", (req, res) => {
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/";
+  destroyWebSession(req, res);
+  res.redirect(`${next}?msg=${encodeURIComponent("Logged out.")}`);
 });
 
 app.get("/giveaways", (req, res) => {
@@ -2849,29 +3219,30 @@ app.get("/giveaways", (req, res) => {
   );
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const err = typeof req.query.err === "string" ? req.query.err : "";
-  const session = getGiveawaySession(req);
+  const session = getWebSession(req) || { userId: "", userTag: "" };
   res.send(giveawaysPageHtml({ giveaways, msg, err, session }));
 });
 
 app.post("/giveaways/session", (req, res) => {
-  const userId = String(req.body.discord_user_id || "").trim();
-  const userTag = String(req.body.discord_tag || "").trim().slice(0, 64);
-  if (!isSnowflake(userId)) {
-    res.redirect("/giveaways?err=Invalid%20Discord%20User%20ID");
-    return;
-  }
-  res.setHeader("Set-Cookie", [
-    `giveaway_user_id=${encodeURIComponent(userId)}; Path=/; HttpOnly; Max-Age=2592000; SameSite=Lax`,
-    `giveaway_user_tag=${encodeURIComponent(userTag)}; Path=/; HttpOnly; Max-Age=2592000; SameSite=Lax`
-  ]);
-  res.redirect("/giveaways?msg=Giveaway%20identity%20saved");
+  res.redirect("/auth/discord/start?next=%2Fgiveaways");
 });
 
-app.post("/giveaways/:id/enter", (req, res) => {
+app.post("/giveaways/:id/enter", async (req, res) => {
   const id = String(req.params.id || "").trim();
-  const { userId } = getGiveawaySession(req);
+  const session = getWebSession(req);
+  const userId = String(session && session.userId ? session.userId : "");
   if (!isSnowflake(userId)) {
-    res.redirect("/giveaways?err=Set%20your%20giveaway%20identity%20first");
+    res.redirect("/auth/discord/start?next=%2Fgiveaways");
+    return;
+  }
+  const policyErr = await validateWebUserPolicy(userId);
+  if (policyErr) {
+    res.redirect(`/giveaways?err=${encodeURIComponent(policyErr)}`);
+    return;
+  }
+  const ip = clientIp(req);
+  if (!checkRateLimit(`gw-enter:${userId}:${ip}`, RATE_LIMIT_MAX_GIVEAWAY, RATE_LIMIT_WINDOW_MS)) {
+    res.redirect("/giveaways?err=Rate%20limit%20exceeded.%20Try%20again%20in%201%20minute.");
     return;
   }
   const giveaways = loadGiveaways();
@@ -2895,11 +3266,22 @@ app.post("/giveaways/:id/enter", (req, res) => {
   res.redirect("/giveaways?msg=Joined%20giveaway");
 });
 
-app.post("/giveaways/:id/leave", (req, res) => {
+app.post("/giveaways/:id/leave", async (req, res) => {
   const id = String(req.params.id || "").trim();
-  const { userId } = getGiveawaySession(req);
+  const session = getWebSession(req);
+  const userId = String(session && session.userId ? session.userId : "");
   if (!isSnowflake(userId)) {
-    res.redirect("/giveaways?err=Set%20your%20giveaway%20identity%20first");
+    res.redirect("/auth/discord/start?next=%2Fgiveaways");
+    return;
+  }
+  const policyErr = await validateWebUserPolicy(userId);
+  if (policyErr) {
+    res.redirect(`/giveaways?err=${encodeURIComponent(policyErr)}`);
+    return;
+  }
+  const ip = clientIp(req);
+  if (!checkRateLimit(`gw-leave:${userId}:${ip}`, RATE_LIMIT_MAX_GIVEAWAY, RATE_LIMIT_WINDOW_MS)) {
+    res.redirect("/giveaways?err=Rate%20limit%20exceeded.%20Try%20again%20in%201%20minute.");
     return;
   }
   const giveaways = loadGiveaways();
@@ -2920,30 +3302,44 @@ app.post("/giveaways/:id/leave", (req, res) => {
 });
 
 app.get("/about", (_req, res) => {
-  res.send(aboutPageHtml());
+  const session = getWebSession(_req) || { userId: "", userTag: "" };
+  res.send(aboutPageHtml(session));
 });
 
 app.get("/shop", (_req, res) => {
   res.send(shopLandingHtml());
 });
 
-app.get("/shop/web", (_req, res) => {
+app.get("/shop/web", (req, res) => {
   const websiteShop = loadWebsiteShopData();
-  res.send(websiteShopHtml(websiteShop));
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  res.send(websiteShopHtml(websiteShop, session));
 });
 
 app.post("/shop/web/checkout", async (req, res) => {
   const email = String(req.body && req.body.email ? req.body.email : "").trim();
-  const discordUserId = String(req.body && req.body.discordUserId ? req.body.discordUserId : "").trim();
+  const session = getWebSession(req);
+  const discordUserId = String(session && session.userId ? session.userId : "").trim();
   const useCredit = Boolean(req.body && req.body.useCredit);
   const cartInput = req.body && typeof req.body.cart === "object" && req.body.cart ? req.body.cart : {};
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    res.status(400).json({ ok: false, error: "Please enter a valid email." });
+  if (!isSnowflake(discordUserId)) {
+    res.status(401).json({ ok: false, error: "Please login with Discord first." });
     return;
   }
-  if (!isSnowflake(discordUserId)) {
-    res.status(400).json({ ok: false, error: "Valid Discord User ID is required for checkout." });
+  const policyErr = await validateWebUserPolicy(discordUserId);
+  if (policyErr) {
+    res.status(403).json({ ok: false, error: policyErr });
+    return;
+  }
+  const ip = clientIp(req);
+  if (!checkRateLimit(`checkout:${discordUserId}:${ip}`, RATE_LIMIT_MAX_CHECKOUT, RATE_LIMIT_WINDOW_MS)) {
+    res.status(429).json({ ok: false, error: "Too many checkout attempts. Try again in 1 minute." });
+    return;
+  }
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ ok: false, error: "Please enter a valid email." });
     return;
   }
 
@@ -3129,7 +3525,8 @@ app.get("/apply", (req, res) => {
   const forms = loadApplicationForms().filter((f) => f.active !== false);
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const err = typeof req.query.err === "string" ? req.query.err : "";
-  res.send(applyPageHtml(forms, msg, err));
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  res.send(applyPageHtml(forms, msg, err, session));
 });
 
 app.post("/apply", (req, res) => {
