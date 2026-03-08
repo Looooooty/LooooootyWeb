@@ -1088,7 +1088,7 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
                 <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Looooooty Accounts (Soon)</a>
                 <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Google (Soon)</a>
                 <a class="auth-btn disabled" href="#" title="Coming soon">Create a Looooooty Account (Soon)</a>
-                <a class="auth-btn" href="/auth/discord/start?next=${encodeURIComponent(nextPath)}">Log in with Discord</a>
+                <a class="auth-btn" href="/auth/discord/start?next=%2Fauth">Log in with Discord</a>
               </div>`
         }
       </section>
@@ -3182,7 +3182,7 @@ app.get("/auth", (req, res) => {
 });
 
 app.get("/auth/discord/start", (req, res) => {
-  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/";
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
   const next = nextRaw.startsWith("/") ? nextRaw : "/";
   if (!oauthReady()) {
     res.redirect(`${next}?err=${encodeURIComponent("Discord login is not configured yet.")}`);
@@ -3206,7 +3206,7 @@ app.get("/auth/discord/callback", async (req, res) => {
   const rec = oauthStateMap.get(state);
   oauthStateMap.delete(state);
   if (!rec || rec.expiresAt < Date.now()) {
-    res.redirect("/?err=Discord%20login%20state%20expired");
+    res.redirect("/auth?err=Discord%20login%20state%20expired");
     return;
   }
   if (!code || !oauthReady()) {
