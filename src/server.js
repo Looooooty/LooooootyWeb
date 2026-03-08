@@ -3228,7 +3228,13 @@ app.get("/auth/discord/callback", async (req, res) => {
     const tokenJson = await tokenResponse.json().catch(() => ({}));
     const accessToken = String(tokenJson && tokenJson.access_token ? tokenJson.access_token : "");
     if (!tokenResponse.ok || !accessToken) {
-      res.redirect(`${rec.next}?err=${encodeURIComponent("Discord token exchange failed.")}`);
+      const details = [
+        "Discord token exchange failed.",
+        tokenJson && tokenJson.error ? `error=${String(tokenJson.error)}` : "",
+        tokenJson && tokenJson.error_description ? `description=${String(tokenJson.error_description)}` : "",
+        `status=${tokenResponse.status}`
+      ].filter(Boolean).join(" ");
+      res.redirect(`${rec.next}?err=${encodeURIComponent(details)}`);
       return;
     }
     const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
