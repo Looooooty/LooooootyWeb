@@ -41,6 +41,7 @@ const REQUIRE_GUILD_MEMBERSHIP = String(process.env.REQUIRE_GUILD_MEMBERSHIP || 
 const MIN_DISCORD_ACCOUNT_AGE_DAYS = Math.max(0, Number(process.env.MIN_DISCORD_ACCOUNT_AGE_DAYS || 0));
 const WEB_SESSION_COOKIE = "web_auth";
 const WEB_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const WEB_SESSION_SIGNING_KEY = process.env.WEB_SESSION_SIGNING_KEY || BOT_INTERNAL_API_SECRET || "change_me_web_session_key";
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_CHECKOUT = 6;
 const RATE_LIMIT_MAX_GIVEAWAY = 20;
@@ -62,7 +63,6 @@ const BASE_STATUS_META = {
   closed: { label: "Closed", color: "#f85149" }
 };
 
-const webSessions = new Map();
 const oauthStateMap = new Map();
 const rateLimitMap = new Map();
 const guildMemberCache = new Map();
@@ -281,8 +281,53 @@ function clearWebSessionCookie(res) {
   res.setHeader("Set-Cookie", parts.join("; "));
 }
 
+function base64UrlEncode(input) {
+  return Buffer.from(String(input), "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function base64UrlDecode(input) {
+  const raw = String(input || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = raw + "===".slice((raw.length + 3) % 4);
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+function signSessionPayload(payloadRaw) {
+  return crypto
+    .createHmac("sha256", WEB_SESSION_SIGNING_KEY)
+    .update(payloadRaw)
+    .digest("hex");
+}
+
+function encodeWebSessionToken(session) {
+  const payloadRaw = base64UrlEncode(JSON.stringify(session));
+  const sig = signSessionPayload(payloadRaw);
+  return `${payloadRaw}.${sig}`;
+}
+
+function decodeWebSessionToken(token) {
+  const value = String(token || "");
+  const idx = value.lastIndexOf(".");
+  if (idx <= 0) {
+    return null;
+  }
+  const payloadRaw = value.slice(0, idx);
+  const sig = value.slice(idx + 1);
+  const expected = signSessionPayload(payloadRaw);
+  if (sig !== expected) {
+    return null;
+  }
+  try {
+    return JSON.parse(base64UrlDecode(payloadRaw));
+  } catch {
+    return null;
+  }
+}
+
 function createWebSession(user) {
-  const token = crypto.randomBytes(32).toString("hex");
   const now = Date.now();
   const session = {
     userId: String(user.userId || ""),
@@ -291,7 +336,7 @@ function createWebSession(user) {
     createdAt: new Date(now).toISOString(),
     expiresAt: now + WEB_SESSION_TTL_MS
   };
-  webSessions.set(token, session);
+  const token = encodeWebSessionToken(session);
   return { token, session };
 }
 
@@ -301,23 +346,17 @@ function getWebSession(req) {
   if (!token) {
     return null;
   }
-  const session = webSessions.get(token);
+  const session = decodeWebSessionToken(token);
   if (!session) {
     return null;
   }
   if (Number(session.expiresAt || 0) <= Date.now()) {
-    webSessions.delete(token);
     return null;
   }
   return { ...session, token };
 }
 
 function destroyWebSession(req, res) {
-  const cookies = parseCookies(req);
-  const token = String(cookies[WEB_SESSION_COOKIE] || "").trim();
-  if (token) {
-    webSessions.delete(token);
-  }
   clearWebSessionCookie(res);
 }
 
