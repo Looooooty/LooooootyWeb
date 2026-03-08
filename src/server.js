@@ -3146,6 +3146,18 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, now: new Date().toISOString() });
 });
 
+app.get("/auth/me", (req, res) => {
+  const session = getWebSession(req);
+  res.json({
+    ok: true,
+    loggedIn: Boolean(session && session.userId),
+    userId: session ? session.userId : "",
+    userTag: session ? session.userTag : "",
+    oauthReady: oauthReady(),
+    hasSessionSigningKey: Boolean(WEB_SESSION_SIGNING_KEY && WEB_SESSION_SIGNING_KEY !== "change_me_web_session_key")
+  });
+});
+
 app.get("/api/stats", requireStaff, (_req, res) => {
   res.json(stats());
 });
