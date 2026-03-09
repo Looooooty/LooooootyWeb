@@ -760,6 +760,17 @@ function isSnowflake(value) {
   return /^\d{17,20}$/.test(String(value || "").trim());
 }
 
+function isValidCreditAccountId(value) {
+  const id = String(value || "").trim();
+  if (!id) {
+    return false;
+  }
+  if (isSnowflake(id)) {
+    return true;
+  }
+  return /^[a-z][a-z0-9_-]{1,31}:[A-Za-z0-9._:@-]{3,200}$/.test(id);
+}
+
 function stats() {
   const allOrders = readJson(path.join(BOT_DATA_DIR, "orders.json"), []);
   const products = readJson(path.join(BOT_DATA_DIR, "products.json"), []);
@@ -2703,7 +2714,7 @@ function shopAutomationPanelHtml() {
 
     <h4 style="margin:18px 0 6px;">Add / Edit Store Credit</h4>
     <form method="post" action="/staff/credits/update" style="display:grid; gap:10px;">
-      <input type="text" name="discord_user_id" required maxlength="20" placeholder="Discord User ID" />
+      <input type="text" name="account_id" required maxlength="240" placeholder="Account ID (Discord ID or google:... or looooooty:...)" />
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
         <input type="text" name="amount" required placeholder="Amount (e.g. 5.00)" />
         <select name="mode" required>
@@ -4054,11 +4065,11 @@ app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => 
 });
 
 app.post("/staff/credits/update", requireStaff, (req, res) => {
-  const userId = String(req.body.discord_user_id || "").trim();
+  const userId = String(req.body.account_id || req.body.discord_user_id || "").trim();
   const amount = Number.parseFloat(String(req.body.amount || "").trim());
   const mode = String(req.body.mode || "").trim().toLowerCase();
-  if (!isSnowflake(userId)) {
-    res.redirect("/panel/shop?warn=Invalid%20Discord%20User%20ID");
+  if (!isValidCreditAccountId(userId)) {
+    res.redirect("/panel/shop?warn=Invalid%20account%20ID.%20Use%20Discord%20ID%20or%20provider%3AuserId%20format");
     return;
   }
   if (!Number.isFinite(amount) || amount < 0 || amount > 100000) {
