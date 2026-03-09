@@ -59,6 +59,7 @@ const CREDITS_FILE = path.join(BOT_DATA_DIR, "credits.json");
 const GIVEAWAYS_FILE = path.join(BOT_DATA_DIR, "giveaways.json");
 const WEBSITE_ORDERS_FILE = path.join(BOT_DATA_DIR, "website_orders.json");
 const WEBSITE_READY_ALERTS_FILE = path.join(BOT_DATA_DIR, "website_ready_alerts.json");
+const WEB_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_accounts.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -194,6 +195,55 @@ function loadWebsiteReadyAlerts() {
 
 function saveWebsiteReadyAlerts(alerts) {
   writeJson(WEBSITE_READY_ALERTS_FILE, Array.isArray(alerts) ? alerts : []);
+}
+
+function loadWebAccounts() {
+  const data = readJson(WEB_ACCOUNTS_FILE, []);
+  if (!Array.isArray(data)) {
+    writeJson(WEB_ACCOUNTS_FILE, []);
+    return [];
+  }
+  return data;
+}
+
+function saveWebAccounts(accounts) {
+  writeJson(WEB_ACCOUNTS_FILE, Array.isArray(accounts) ? accounts : []);
+}
+
+function recordWebAccountLogin({ provider, userId, userTag }) {
+  const safeProvider = String(provider || "").trim().toLowerCase();
+  const safeUserId = String(userId || "").trim();
+  const safeUserTag = String(userTag || "").trim().slice(0, 80);
+  if (!safeProvider || !safeUserId) {
+    return;
+  }
+  const accounts = loadWebAccounts();
+  const now = new Date().toISOString();
+  const idx = accounts.findIndex(
+    (a) => String(a && a.provider || "") === safeProvider && String(a && a.userId || "") === safeUserId
+  );
+  if (idx === -1) {
+    accounts.push({
+      provider: safeProvider,
+      userId: safeUserId,
+      userTag: safeUserTag || safeUserId,
+      firstSeenAt: now,
+      lastLoginAt: now,
+      loginCount: 1
+    });
+  } else {
+    const prev = accounts[idx] || {};
+    accounts[idx] = {
+      ...prev,
+      provider: safeProvider,
+      userId: safeUserId,
+      userTag: safeUserTag || String(prev.userTag || safeUserId),
+      firstSeenAt: String(prev.firstSeenAt || now),
+      lastLoginAt: now,
+      loginCount: Number(prev.loginCount || 0) + 1
+    };
+  }
+  saveWebAccounts(accounts);
 }
 
 function giveawayEntriesCount(g) {
@@ -2727,6 +2777,7 @@ function staffHeaderHtml(staff, s, activeTab) {
   const shopBtnLabel = activeTab === "shop" ? "Shop (Active)" : "Shop";
   const basesBtnLabel = activeTab === "bases" ? "Bases (Active)" : "Bases";
   const appsBtnLabel = activeTab === "applications" ? "Applications (Active)" : "Applications";
+  const accountsBtnLabel = activeTab === "accounts" ? "Accounts (Active)" : "Accounts";
   return `<div class="head">
     <div class="head-left">
       <h1>Looooooty Staff Panel</h1>
@@ -2742,6 +2793,7 @@ function staffHeaderHtml(staff, s, activeTab) {
         <a class="btn" href="/panel/shop">${shopBtnLabel}</a>
         <a class="btn" href="/panel/bases">${basesBtnLabel}</a>
         <a class="btn" href="/panel/applications">${appsBtnLabel}</a>
+        <a class="btn" href="/panel/accounts">${accountsBtnLabel}</a>
         <a class="btn" href="/">Back Home</a>
         <form method="post" action="/staff/logout" style="margin:0"><button class="btn" type="submit">Logout</button></form>
       </div>
@@ -2871,11 +2923,43 @@ function shopDeliveryAlertsPanelHtml() {
               User ID: <b>${esc(a.userId || "-")}</b><br/>
               IGN: <b>${esc(a.ign || "-")}</b><br/>
               Coordinates: <b>${esc(a.coordinates || "-")}</b><br/>
+              Items: <b>${esc(
+                Array.isArray(a.items) && a.items.length
+                  ? a.items.map((it) => `${Number(it && it.qty ? it.qty : 1)}x ${String(it && it.name ? it.name : "Item")}`).join(", ")
+                  : "-"
+              )}</b><br/>
               At: <b>${esc(new Date(a.createdAt || Date.now()).toLocaleString("en-US", { hour12: false }))}</b>
             </div>
             ${a.delivered === true ? "" : `<div class="app-actions"><form method="post" action="/staff/ready-alerts/${encodeURIComponent(a.id || "")}/deliver" style="margin:0;"><button class="save-btn" type="submit">Mark Delivered</button></form></div>`}
           </div>`).join("")
         : '<div class="note">No delivery-ready alerts yet.</div>'}
+    </div>
+  </div>`;
+}
+
+function staffAccountsPanelHtml(accounts) {
+  const rows = Array.isArray(accounts) ? accounts.slice() : [];
+  rows.sort((a, b) => String(b && b.lastLoginAt || "").localeCompare(String(a && a.lastLoginAt || "")));
+  return `<div class="card base-panel">
+    <h3 style="margin-top:0;">Web Accounts (${rows.length})</h3>
+    <div class="note">Accounts that logged into the website.</div>
+    <div class="app-list">
+      ${rows.length
+        ? rows.map((a) => `<div class="app-row">
+            <div class="app-head">
+              <div><b>${esc(a.userTag || a.userId || "-")}</b></div>
+              <div><span class="tag approved">${esc(String(a.provider || "unknown").toUpperCase())}</span></div>
+            </div>
+            <div class="app-meta">
+              ID: <b>${esc(a.userId || "-")}</b><br/>
+              Username: <b>${esc(a.userTag || "-")}</b><br/>
+              Provider: <b>${esc(a.provider || "-")}</b><br/>
+              First Seen: <b>${esc(a.firstSeenAt ? new Date(a.firstSeenAt).toLocaleString("en-US", { hour12: false }) : "-")}</b><br/>
+              Last Login: <b>${esc(a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString("en-US", { hour12: false }) : "-")}</b><br/>
+              Logins: <b>${Number(a.loginCount || 0)}</b>
+            </div>
+          </div>`).join("")
+        : '<div class="note">No accounts logged in yet.</div>'}
     </div>
   </div>`;
 }
@@ -3180,14 +3264,23 @@ function applicationsPanelHtml(applications, forms) {
   </div>`;
 }
 
-function staffPageHtml({ s, bases, applications, forms, websiteShop, shopView = "discord", msg = "", warn = "", staff, activeTab }) {
+function staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, shopView = "discord", msg = "", warn = "", staff, activeTab }) {
   let tabContent = staffShopTabHtml(s, websiteShop, shopView);
   if (activeTab === "bases") {
     tabContent = basesEditorPanelHtml(bases);
   } else if (activeTab === "applications") {
     tabContent = applicationsPanelHtml(applications, forms);
+  } else if (activeTab === "accounts") {
+    tabContent = staffAccountsPanelHtml(webAccounts);
   }
-  const title = activeTab === "bases" ? "Staff Bases" : activeTab === "applications" ? "Staff Applications" : "Staff Shop";
+  const title =
+    activeTab === "bases"
+      ? "Staff Bases"
+      : activeTab === "applications"
+        ? "Staff Applications"
+        : activeTab === "accounts"
+          ? "Staff Accounts"
+          : "Staff Shop";
 
   return `<!doctype html>
 <html>
@@ -3439,6 +3532,7 @@ app.get("/auth/discord/callback", async (req, res) => {
       ? `https://cdn.discordapp.com/avatars/${userId}/${userJson.avatar}.png?size=128`
       : "";
     const created = createWebSession({ provider: "discord", userId, userTag, avatarUrl });
+    recordWebAccountLogin({ provider: "discord", userId, userTag });
     setWebSessionCookie(res, created.token);
     res.redirect(`${rec.next}?msg=${encodeURIComponent(`Logged in as ${userTag}`)}`);
   } catch {
@@ -3496,6 +3590,7 @@ app.get("/auth/google/callback", async (req, res) => {
     const userTag = String(userJson.name || userJson.email || googleSub).slice(0, 64);
     const avatarUrl = String(userJson.picture || "");
     const created = createWebSession({ provider: "google", userId, userTag, avatarUrl });
+    recordWebAccountLogin({ provider: "google", userId, userTag });
     setWebSessionCookie(res, created.token);
     res.redirect(`${rec.next}?msg=${encodeURIComponent(`Logged in as ${userTag}`)}`);
   } catch {
@@ -3783,11 +3878,18 @@ app.post("/shop/web/ready", (req, res) => {
 
   const orders = loadWebsiteOrders();
   const idx = orders.findIndex((o) => String(o.id) === orderId);
+  let items = [];
   if (idx !== -1) {
     orders[idx].ign = ign;
     orders[idx].coordinates = coordinates;
     orders[idx].readyForDelivery = true;
     orders[idx].readyAt = new Date().toISOString();
+    items = Array.isArray(orders[idx].items)
+      ? orders[idx].items.map((it) => ({
+          name: String((it && (it.name || it.productName || it.id)) || "Item").slice(0, 100),
+          qty: Math.max(1, Number.parseInt(it && it.qty ? it.qty : 1, 10) || 1)
+        }))
+      : [];
     saveWebsiteOrders(orders);
   }
 
@@ -3798,6 +3900,7 @@ app.post("/shop/web/ready", (req, res) => {
     userId,
     ign,
     coordinates,
+    items,
     createdAt: new Date().toISOString(),
     delivered: false
   });
@@ -4580,11 +4683,12 @@ app.get("/panel/shop", requireStaff, (req, res) => {
   const applications = loadApplications();
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
+  const webAccounts = loadWebAccounts();
   const shopView = String(req.query.shop_view || "discord") === "website" ? "website" : "discord";
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, shopView, msg, warn, staff, activeTab: "shop" }));
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, shopView, msg, warn, staff, activeTab: "shop" }));
 });
 
 app.get("/panel/bases", requireStaff, (req, res) => {
@@ -4593,10 +4697,11 @@ app.get("/panel/bases", requireStaff, (req, res) => {
   const applications = loadApplications();
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
+  const webAccounts = loadWebAccounts();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, shopView: "discord", msg, warn, staff, activeTab: "bases" }));
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, shopView: "discord", msg, warn, staff, activeTab: "bases" }));
 });
 
 app.get("/panel/applications", requireStaff, (req, res) => {
@@ -4606,6 +4711,7 @@ app.get("/panel/applications", requireStaff, (req, res) => {
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
+  const webAccounts = loadWebAccounts();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
@@ -4616,11 +4722,39 @@ app.get("/panel/applications", requireStaff, (req, res) => {
       applications,
       forms,
       websiteShop,
+      webAccounts,
       shopView: "discord",
       msg,
       warn,
       staff,
       activeTab: "applications"
+    })
+  );
+});
+
+app.get("/panel/accounts", requireStaff, (req, res) => {
+  const s = stats();
+  const bases = loadBaseStates();
+  const applications = loadApplications();
+  const forms = loadApplicationForms();
+  const websiteShop = loadWebsiteShopData();
+  const webAccounts = loadWebAccounts();
+  const msg = typeof req.query.msg === "string" ? req.query.msg : "";
+  const warn = typeof req.query.warn === "string" ? req.query.warn : "";
+  const staff = getStaffSession(req);
+  res.send(
+    staffPageHtml({
+      s,
+      bases,
+      applications,
+      forms,
+      websiteShop,
+      webAccounts,
+      shopView: "discord",
+      msg,
+      warn,
+      staff,
+      activeTab: "accounts"
     })
   );
 });
