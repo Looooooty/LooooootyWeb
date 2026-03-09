@@ -2007,7 +2007,7 @@ function websiteShopHtml(websiteShop, session = {}) {
         if (clearBtn) {
           clearBtn.disabled = Boolean(activeOrder);
           clearBtn.style.opacity = activeOrder ? "0.55" : "";
-          clearBtn.textContent = "Close Cart";
+          clearBtn.textContent = "Clear Cart";
         }
       }
 
@@ -2055,8 +2055,14 @@ function websiteShopHtml(websiteShop, session = {}) {
         const duration = Math.max(0, Number(ms || 0));
         deliveryAutoCloseRemainingMs = duration;
         if (duration <= 0) {
-          activeOrder.deliveredAutoClosed = true;
-          saveActiveOrder();
+          cart = {};
+          saveCart();
+          setActiveOrder(null);
+          stopOrderStatusPoll();
+          stopDeliveryAutoCloseTimer();
+          renderCart();
+          renderPostCheckoutState();
+          renderWebsiteOnlyPaidFlow();
           if (cartOverlay) {
             cartOverlay.classList.remove("open");
           }
@@ -2067,10 +2073,14 @@ function websiteShopHtml(websiteShop, session = {}) {
         deliveryAutoCloseTimer = setTimeout(() => {
           deliveryAutoCloseTimer = null;
           deliveryAutoCloseRemainingMs = 0;
-          if (activeOrder) {
-            activeOrder.deliveredAutoClosed = true;
-            saveActiveOrder();
-          }
+          cart = {};
+          saveCart();
+          setActiveOrder(null);
+          stopOrderStatusPoll();
+          stopDeliveryAutoCloseTimer();
+          renderCart();
+          renderPostCheckoutState();
+          renderWebsiteOnlyPaidFlow();
           if (cartOverlay) {
             cartOverlay.classList.remove("open");
           }
@@ -2098,7 +2108,7 @@ function websiteShopHtml(websiteShop, session = {}) {
           } catch {
             // ignore polling failure
           }
-        }, 10000);
+        }, 1500);
       }
 
       function renderWebsiteOnlyPaidFlow() {
@@ -2112,6 +2122,13 @@ function websiteShopHtml(websiteShop, session = {}) {
         const coords = activeOrder.coordinates || "";
         const ready = Boolean(activeOrder.ready);
         const delivered = Boolean(activeOrder.delivered);
+        if (delivered) {
+          cartFlow.innerHTML =
+            '<div class="flow-embed">' +
+            escHtml(activeOrder.deliveredMessage || "Hope you enjoyed this delivery, please remember to drop a review!") +
+            "</div>";
+          return;
+        }
         cartFlow.innerHTML =
           '<div class="flow-embed">' +
           "<h4>Paid Order " + escHtml(activeOrder.orderId) + "</h4>" +
@@ -2121,14 +2138,11 @@ function websiteShopHtml(websiteShop, session = {}) {
           '<div class="flow-meta-row"><span class="flow-meta-label">Coordinates</span><span class="flow-meta-value">' + escHtml(coords || "-") + "</span></div>" +
           "</div>" +
           "</div>" +
-          (delivered
-            ? '<div class="flow-embed">' + escHtml(activeOrder.deliveredMessage || "Hope you enjoyed this delivery, please remember to drop a review!") + "</div>"
-            : "") +
           '<div class="flow-actions">' +
           '<button id="flow-ign" class="flow-btn" type="button">IGN</button>' +
           '<button id="flow-coords" class="flow-btn" type="button">Coordinates</button>' +
           "</div>" +
-          (ign && coords && !delivered
+          (ign && coords
             ? '<div class="flow-embed">Are you ready for your delivery?</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
               (ready ? "Ready Confirmed" : "Yes") +
               "</button></div>"
@@ -2290,10 +2304,19 @@ function websiteShopHtml(websiteShop, session = {}) {
         });
       }
       clearBtn.addEventListener("click", () => {
-        if (activeOrder && activeOrder.delivered) {
-          pauseDeliveryAutoCloseTimer();
+        if (activeOrder) {
+          return;
         }
-        if (cartOverlay) cartOverlay.classList.remove("open");
+        cart = {};
+        saveCart();
+        setActiveOrder(null);
+        stopOrderStatusPoll();
+        stopDeliveryAutoCloseTimer();
+        deliveryAutoCloseRemainingMs = 0;
+        deliveryAutoCloseStartedAt = 0;
+        renderCart();
+        renderPostCheckoutState();
+        renderWebsiteOnlyPaidFlow();
       });
       if (topCartBtn) {
         topCartBtn.addEventListener("click", () => {
