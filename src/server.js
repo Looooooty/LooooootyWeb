@@ -60,6 +60,7 @@ const GIVEAWAYS_FILE = path.join(BOT_DATA_DIR, "giveaways.json");
 const WEBSITE_ORDERS_FILE = path.join(BOT_DATA_DIR, "website_orders.json");
 const WEBSITE_READY_ALERTS_FILE = path.join(BOT_DATA_DIR, "website_ready_alerts.json");
 const WEB_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_accounts.json");
+const LOCAL_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_local_accounts.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -244,6 +245,65 @@ function recordWebAccountLogin({ provider, userId, userTag }) {
     };
   }
   saveWebAccounts(accounts);
+}
+
+function loadLocalAccounts() {
+  const data = readJson(LOCAL_ACCOUNTS_FILE, []);
+  if (!Array.isArray(data)) {
+    writeJson(LOCAL_ACCOUNTS_FILE, []);
+    return [];
+  }
+  return data;
+}
+
+function saveLocalAccounts(accounts) {
+  writeJson(LOCAL_ACCOUNTS_FILE, Array.isArray(accounts) ? accounts : []);
+}
+
+function normalizeLocalUsername(value) {
+  return String(value || "").trim();
+}
+
+function normalizeLocalEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidLocalUsername(value) {
+  return /^[a-zA-Z0-9._-]{3,32}$/.test(String(value || ""));
+}
+
+function isValidLocalEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ""));
+}
+
+function hashLocalPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derived = crypto.scryptSync(String(password), salt, 64).toString("hex");
+  return `scrypt:${salt}:${derived}`;
+}
+
+function verifyLocalPassword(password, storedHash) {
+  const parts = String(storedHash || "").split(":");
+  if (parts.length !== 3 || parts[0] !== "scrypt") {
+    return false;
+  }
+  const salt = parts[1];
+  const expectedHex = parts[2];
+  if (!salt || !expectedHex) {
+    return false;
+  }
+  let actual;
+  let expected;
+  try {
+    actual = Buffer.from(crypto.scryptSync(String(password), salt, 64).toString("hex"), "hex");
+    expected = Buffer.from(expectedHex, "hex");
+  } catch {
+    return false;
+  }
+  if (actual.length !== expected.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(actual, expected);
 }
 
 function giveawayEntriesCount(g) {
@@ -479,7 +539,13 @@ async function validateWebUserPolicy(session) {
   if (!userId) {
     return "Login is required.";
   }
-  if (provider === "google") {
+  if (provider === "google" || provider === "looooooty") {
+    return "";
+  }
+  if (provider && provider !== "discord") {
+    return "Unsupported account provider.";
+  }
+  if (String(userId).startsWith("google:") || String(userId).startsWith("looooooty:")) {
     return "";
   }
   if (!isSnowflake(userId)) {
@@ -1167,12 +1233,60 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
                 <a class="auth-btn" href="${esc(nextPath)}">Back</a>
               </div>`
             : `<div class="auth-grid">
-                <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Looooooty Accounts (Soon)</a>
+                <a class="auth-btn" href="/auth/looooooty?mode=login&next=${encodeURIComponent(nextPath)}">Log in with Looooooty Accounts</a>
                 <a class="auth-btn" href="/auth/google/start?next=%2Fauth">Log in with Google</a>
-                <a class="auth-btn disabled" href="#" title="Coming soon">Create a Looooooty Account (Soon)</a>
+                <a class="auth-btn" href="/auth/looooooty?mode=signup&next=${encodeURIComponent(nextPath)}">Create a Looooooty Account</a>
                 <a class="auth-btn" href="/auth/discord/start?next=%2Fauth">Log in with Discord</a>
               </div>`
         }
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth", session = {} }) {
+  const safeMode = mode === "signup" ? "signup" : "login";
+  const nextPath = next && String(next).startsWith("/") ? String(next) : "/auth";
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${safeMode === "signup" ? "Create Looooooty Account" : "Login Looooooty Account"}</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml(session)}</aside>
+    <main class="main">
+      <section class="state-box" style="text-align:left; max-width:620px;">
+        <h2 style="margin-top:0;">${safeMode === "signup" ? "Create Looooooty Account" : "Log in with Looooooty Account"}</h2>
+        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+        ${
+          safeMode === "signup"
+            ? `<form method="post" action="/auth/looooooty/signup?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
+                <input type="text" name="username" required maxlength="32" placeholder="Username (3-32 letters/numbers/._-)" />
+                <input type="email" name="email" required maxlength="120" placeholder="Email" />
+                <input type="password" name="password" required minlength="8" maxlength="120" placeholder="Password (min 8 chars)" />
+                <input type="password" name="password_confirm" required minlength="8" maxlength="120" placeholder="Confirm password" />
+                <button class="submit" type="submit">Create Account</button>
+              </form>`
+            : `<form method="post" action="/auth/looooooty/login?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
+                <input type="text" name="identifier" required maxlength="120" placeholder="Username or Email" />
+                <input type="password" name="password" required maxlength="120" placeholder="Password" />
+                <button class="submit" type="submit">Log In</button>
+              </form>`
+        }
+        <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+          <a class="btn" href="/auth/looooooty?mode=${safeMode === "signup" ? "login" : "signup"}&next=${encodeURIComponent(nextPath)}">
+            ${safeMode === "signup" ? "Already have an account? Log in" : "Need an account? Sign up"}
+          </a>
+          <a class="btn" href="/auth?next=${encodeURIComponent(nextPath)}">Back to Login Options</a>
+        </div>
       </section>
     </main>
   </div>
@@ -3436,6 +3550,119 @@ app.get("/auth", (req, res) => {
   const err = typeof req.query.err === "string" ? req.query.err : "";
   const next = typeof req.query.next === "string" ? req.query.next : "/";
   res.send(authPageHtml({ session, msg, err, next }));
+});
+
+app.get("/auth/looooooty", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  const mode = String(req.query.mode || "login") === "signup" ? "signup" : "login";
+  const msg = typeof req.query.msg === "string" ? req.query.msg : "";
+  const err = typeof req.query.err === "string" ? req.query.err : "";
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/auth";
+  res.send(localAuthPageHtml({ mode, msg, err, next, session }));
+});
+
+app.post("/auth/looooooty/signup", (req, res) => {
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/";
+  const username = normalizeLocalUsername(req.body && req.body.username);
+  const email = normalizeLocalEmail(req.body && req.body.email);
+  const password = String(req.body && req.body.password ? req.body.password : "");
+  const passwordConfirm = String(req.body && req.body.password_confirm ? req.body.password_confirm : "");
+
+  if (!isValidLocalUsername(username)) {
+    res.redirect(`/auth/looooooty?mode=signup&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Invalid username. Use 3-32 letters/numbers/._-")}`);
+    return;
+  }
+  if (!isValidLocalEmail(email)) {
+    res.redirect(`/auth/looooooty?mode=signup&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Invalid email address.")}`);
+    return;
+  }
+  if (password.length < 8) {
+    res.redirect(`/auth/looooooty?mode=signup&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Password must be at least 8 characters.")}`);
+    return;
+  }
+  if (password !== passwordConfirm) {
+    res.redirect(`/auth/looooooty?mode=signup&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Passwords do not match.")}`);
+    return;
+  }
+
+  const accounts = loadLocalAccounts();
+  const usernameKey = username.toLowerCase();
+  const emailKey = email.toLowerCase();
+  const nameTaken = accounts.some((a) => String(a && a.usernameLower || "") === usernameKey);
+  const emailTaken = accounts.some((a) => String(a && a.emailLower || "") === emailKey);
+  if (nameTaken) {
+    res.redirect(`/auth/looooooty?mode=signup&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Username already exists.")}`);
+    return;
+  }
+  if (emailTaken) {
+    res.redirect(`/auth/looooooty?mode=signup&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Email already exists.")}`);
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const userId = `looooooty:${crypto.randomBytes(12).toString("hex")}`;
+  const record = {
+    userId,
+    provider: "looooooty",
+    username,
+    usernameLower: usernameKey,
+    email,
+    emailLower: emailKey,
+    passwordHash: hashLocalPassword(password),
+    createdAt: now,
+    lastLoginAt: now,
+    loginCount: 1
+  };
+  accounts.push(record);
+  saveLocalAccounts(accounts);
+
+  const created = createWebSession({ provider: "looooooty", userId, userTag: username, avatarUrl: "" });
+  recordWebAccountLogin({ provider: "looooooty", userId, userTag: username });
+  setWebSessionCookie(res, created.token);
+  res.redirect(`${next}?msg=${encodeURIComponent(`Logged in as ${username}`)}`);
+});
+
+app.post("/auth/looooooty/login", (req, res) => {
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/";
+  const identifierRaw = String(req.body && req.body.identifier ? req.body.identifier : "").trim();
+  const password = String(req.body && req.body.password ? req.body.password : "");
+  const identifier = identifierRaw.toLowerCase();
+  if (!identifier || !password) {
+    res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Invalid credentials.")}`);
+    return;
+  }
+
+  const accounts = loadLocalAccounts();
+  const idx = accounts.findIndex((a) =>
+    String(a && a.usernameLower || "") === identifier ||
+    String(a && a.emailLower || "") === identifier
+  );
+  if (idx === -1) {
+    res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Invalid credentials.")}`);
+    return;
+  }
+  const account = accounts[idx] || {};
+  if (!verifyLocalPassword(password, account.passwordHash)) {
+    res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Invalid credentials.")}`);
+    return;
+  }
+
+  accounts[idx] = {
+    ...account,
+    lastLoginAt: new Date().toISOString(),
+    loginCount: Number(account.loginCount || 0) + 1
+  };
+  saveLocalAccounts(accounts);
+
+  const userId = String(account.userId || "");
+  const userTag = String(account.username || "LooooootyUser");
+  const created = createWebSession({ provider: "looooooty", userId, userTag, avatarUrl: "" });
+  recordWebAccountLogin({ provider: "looooooty", userId, userTag });
+  setWebSessionCookie(res, created.token);
+  res.redirect(`${next}?msg=${encodeURIComponent(`Logged in as ${userTag}`)}`);
 });
 
 app.get("/auth/discord/start", (req, res) => {
