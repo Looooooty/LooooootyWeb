@@ -1616,15 +1616,36 @@ function websiteShopHtml(websiteShop, session = {}) {
     .modal-check { display:flex; align-items:center; gap:8px; margin-top:8px; color: var(--txt); font-size:13px; }
     .flow-wrap { margin-top: 12px; display: grid; gap: 10px; }
     .flow-embed {
-      border: 1px solid rgba(91,44,255,0.55);
-      border-left: 4px solid #5b2cff;
-      border-radius: 10px;
-      background: rgba(10,16,41,0.92);
-      padding: 10px;
-      white-space: pre-wrap;
+      border: 1px solid rgba(93, 141, 255, 0.35);
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(17,25,56,0.9), rgba(9,14,34,0.92));
+      padding: 12px;
       line-height: 1.45;
       font-size: 14px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
     }
+    .flow-embed h4 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .flow-meta {
+      display: grid;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .flow-meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 6px;
+    }
+    .flow-meta-row:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+    .flow-meta-label { color: var(--muted); font-weight: 700; }
+    .flow-meta-value { font-weight: 800; }
     .flow-actions { display:flex; gap:8px; flex-wrap: wrap; }
     .flow-btn {
       border-radius: 8px;
@@ -1751,12 +1772,24 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
           </div>
         </div>
+        <div id="flow-input-modal" class="modal-overlay">
+          <div class="modal-card">
+            <h3 id="flow-input-title" class="modal-title">Enter Value</h3>
+            <div id="flow-input-hint" class="modal-note"></div>
+            <input id="flow-input-value" class="modal-input" type="text" maxlength="120" />
+            <div id="flow-input-error" class="modal-error"></div>
+            <div class="modal-actions">
+              <button id="flow-input-save" class="cart-btn checkout" type="button">Save</button>
+              <button id="flow-input-cancel" class="cart-btn close" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   </div>
   <script>
     (function () {
-      const authedDiscordUserId = ${JSON.stringify(userId)};
+      const authedAccountUserId = ${JSON.stringify(userId)};
       const search = document.getElementById("shop-search");
       const cats = Array.from(document.querySelectorAll(".cat"));
       const cards = Array.from(document.querySelectorAll(".card"));
@@ -1784,6 +1817,13 @@ function websiteShopHtml(websiteShop, session = {}) {
       const cartFlow = document.getElementById("cart-flow");
       const checkoutPaypal = document.getElementById("checkout-paypal");
       const checkoutClose = document.getElementById("checkout-close");
+      const flowInputModal = document.getElementById("flow-input-modal");
+      const flowInputTitle = document.getElementById("flow-input-title");
+      const flowInputHint = document.getElementById("flow-input-hint");
+      const flowInputValue = document.getElementById("flow-input-value");
+      const flowInputError = document.getElementById("flow-input-error");
+      const flowInputSave = document.getElementById("flow-input-save");
+      const flowInputCancel = document.getElementById("flow-input-cancel");
       const taxRate = 0.06;
       const storageKey = "looooooty_web_cart_v1";
       const activeOrderStorageKey = "looooooty_web_active_order_v1";
@@ -1796,6 +1836,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       let deliveryAutoCloseTimer = null;
       let deliveryAutoCloseRemainingMs = 0;
       let deliveryAutoCloseStartedAt = 0;
+      let flowInputSubmit = null;
 
       function openQtyModal(productId, productTitle) {
         pendingAddProductId = String(productId || "");
@@ -2073,12 +2114,12 @@ function websiteShopHtml(websiteShop, session = {}) {
         const delivered = Boolean(activeOrder.delivered);
         cartFlow.innerHTML =
           '<div class="flow-embed">' +
-          "Paid Order " +
-          escHtml(activeOrder.orderId) +
-          "\\n\\nThis order is now paid, please put your coordinates and IGN below. a ETA would be shared soon by one of our admins as soon as they can get online.\\n\\nIGN: " +
-          escHtml(ign) +
-          "\\n\\nCoordinates: " +
-          escHtml(coords) +
+          "<h4>Paid Order " + escHtml(activeOrder.orderId) + "</h4>" +
+          "<div>This order is now paid, please put your coordinates and IGN below. ETA will be shared soon by one of our admins when they are online.</div>" +
+          '<div class="flow-meta">' +
+          '<div class="flow-meta-row"><span class="flow-meta-label">IGN</span><span class="flow-meta-value">' + escHtml(ign || "-") + "</span></div>" +
+          '<div class="flow-meta-row"><span class="flow-meta-label">Coordinates</span><span class="flow-meta-value">' + escHtml(coords || "-") + "</span></div>" +
+          "</div>" +
           "</div>" +
           (delivered
             ? '<div class="flow-embed">' + escHtml(activeOrder.deliveredMessage || "Hope you enjoyed this delivery, please remember to drop a review!") + "</div>"
@@ -2098,22 +2139,32 @@ function websiteShopHtml(websiteShop, session = {}) {
         const readyBtn = document.getElementById("flow-ready");
         if (ignBtn) {
           ignBtn.addEventListener("click", () => {
-            const next = window.prompt("Enter your IGN", activeOrder.ign || "");
-            if (typeof next === "string") {
-              activeOrder.ign = next.trim().slice(0, 32);
-              saveActiveOrder();
-              renderWebsiteOnlyPaidFlow();
-            }
+            openFlowInputModal({
+              title: "Enter IGN",
+              hint: "Enter your Minecraft IGN.",
+              value: activeOrder.ign || "",
+              maxLen: 32,
+              onSave: (next) => {
+                activeOrder.ign = next.trim().slice(0, 32);
+                saveActiveOrder();
+                renderWebsiteOnlyPaidFlow();
+              }
+            });
           });
         }
         if (coordsBtn) {
           coordsBtn.addEventListener("click", () => {
-            const next = window.prompt("Enter your Coordinates", activeOrder.coordinates || "");
-            if (typeof next === "string") {
-              activeOrder.coordinates = next.trim().slice(0, 120);
-              saveActiveOrder();
-              renderWebsiteOnlyPaidFlow();
-            }
+            openFlowInputModal({
+              title: "Enter Coordinates",
+              hint: "Enter coordinates like X Y Z.",
+              value: activeOrder.coordinates || "",
+              maxLen: 120,
+              onSave: (next) => {
+                activeOrder.coordinates = next.trim().slice(0, 120);
+                saveActiveOrder();
+                renderWebsiteOnlyPaidFlow();
+              }
+            });
           });
         }
         if (readyBtn) {
@@ -2125,6 +2176,53 @@ function websiteShopHtml(websiteShop, session = {}) {
             startOrderStatusPoll();
           });
         }
+      }
+
+      function openFlowInputModal({ title, hint, value, maxLen, onSave }) {
+        if (!flowInputModal || !flowInputValue || !flowInputSave) return;
+        flowInputSubmit = onSave;
+        if (flowInputTitle) flowInputTitle.textContent = String(title || "Enter value");
+        if (flowInputHint) flowInputHint.textContent = String(hint || "");
+        flowInputValue.value = String(value || "");
+        if (maxLen && Number.isInteger(Number(maxLen))) {
+          flowInputValue.maxLength = Number(maxLen);
+        } else {
+          flowInputValue.removeAttribute("maxlength");
+        }
+        if (flowInputError) flowInputError.textContent = "";
+        flowInputModal.classList.add("open");
+        flowInputValue.focus();
+        flowInputValue.select();
+      }
+
+      if (flowInputSave) {
+        flowInputSave.addEventListener("click", () => {
+          const raw = String((flowInputValue && flowInputValue.value) || "");
+          const next = raw.trim();
+          if (!next) {
+            if (flowInputError) flowInputError.textContent = "This field cannot be empty.";
+            return;
+          }
+          if (typeof flowInputSubmit === "function") {
+            flowInputSubmit(next);
+          }
+          flowInputSubmit = null;
+          if (flowInputModal) flowInputModal.classList.remove("open");
+        });
+      }
+      if (flowInputCancel) {
+        flowInputCancel.addEventListener("click", () => {
+          flowInputSubmit = null;
+          if (flowInputModal) flowInputModal.classList.remove("open");
+        });
+      }
+      if (flowInputModal) {
+        flowInputModal.addEventListener("click", (e) => {
+          if (e.target === flowInputModal) {
+            flowInputSubmit = null;
+            flowInputModal.classList.remove("open");
+          }
+        });
       }
 
       function syncCheckoutLabel() {
@@ -2273,7 +2371,7 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (checkoutError) checkoutError.textContent = "";
           if (checkoutResult) checkoutResult.textContent = "Processing checkout...";
 
-          if (!authedDiscordUserId) {
+          if (!authedAccountUserId) {
             if (checkoutError) checkoutError.textContent = "Please login first.";
             if (checkoutResult) checkoutResult.textContent = "";
             return;
@@ -2309,7 +2407,7 @@ function websiteShopHtml(websiteShop, session = {}) {
 
             setActiveOrder({
               orderId: String(payload.orderId || "ORDER-LOCAL"),
-              userId: authedDiscordUserId,
+              userId: authedAccountUserId,
               ign: "",
               coordinates: "",
               ready: false,
