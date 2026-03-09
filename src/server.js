@@ -983,7 +983,6 @@ function homeHtml(session = {}) {
           <a class="btn" href="/shop">Shop</a>
           <a class="btn" href="/apply">Apply</a>
           <a class="btn" href="/auth">${authLabel}</a>
-          <a class="btn" href="/staff">Staff</a>
         </div>
         <div class="foot">Staff panel is code protected.</div>
       </section>
@@ -2782,11 +2781,6 @@ function shopAutomationPanelHtml() {
   const giveaways = Object.values(giveawaysMap || {})
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
     .slice(0, 30);
-  const readyAlerts = loadWebsiteReadyAlerts()
-    .slice()
-    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
-    .slice(0, 20);
-  const unreadReady = readyAlerts.filter((a) => a.delivered !== true).length;
 
   return `<div class="card base-panel" style="margin-top:12px;">
     <h3 style="margin-top:0;">Giveaways + Store Credit</h3>
@@ -2853,8 +2847,19 @@ function shopAutomationPanelHtml() {
         ? creditRows.map((r) => `<div class="app-row"><div class="app-head"><div><b>${esc(r.userId)}</b></div><div>$${r.value.toFixed(2)}</div></div></div>`).join("")
         : '<div class="note">No credits assigned.</div>'}
     </div>
+  </div>`;
+}
 
-    <h4 style="margin:18px 0 6px;">Ready For Delivery Alerts (${unreadReady} unread)</h4>
+function shopDeliveryAlertsPanelHtml() {
+  const readyAlerts = loadWebsiteReadyAlerts()
+    .slice()
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .slice(0, 20);
+  const unreadReady = readyAlerts.filter((a) => a.delivered !== true).length;
+
+  return `<div class="card base-panel" style="margin-top:12px;">
+    <h3 style="margin-top:0;">Ready For Delivery Alerts (${unreadReady} unread)</h3>
+    <div class="note">Website shop delivery queue and fulfillment actions.</div>
     <div class="app-list">
       ${readyAlerts.length
         ? readyAlerts.map((a) => `<div class="app-row">
@@ -2979,7 +2984,7 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
             .join("")
         : '<div class="note">No website products yet.</div>'}
     </div>
-  </div>${shopAutomationPanelHtml()}
+  </div>${shopAutomationPanelHtml()}${shopDeliveryAlertsPanelHtml()}
   <script>
     (function () {
       function fileToDataUrl(file) {
