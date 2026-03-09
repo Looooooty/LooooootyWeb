@@ -35,6 +35,9 @@ const ABOUT_US_TEXT = process.env.ABOUT_US_TEXT || "About us content coming soon
 const DISCORD_OAUTH_CLIENT_ID = process.env.DISCORD_OAUTH_CLIENT_ID || BOT_CLIENT_ID || "";
 const DISCORD_OAUTH_CLIENT_SECRET = process.env.DISCORD_OAUTH_CLIENT_SECRET || "";
 const DISCORD_OAUTH_REDIRECT_URI = process.env.DISCORD_OAUTH_REDIRECT_URI || "";
+const GOOGLE_OAUTH_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID || "";
+const GOOGLE_OAUTH_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET || "";
+const GOOGLE_OAUTH_REDIRECT_URI = process.env.GOOGLE_OAUTH_REDIRECT_URI || "";
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || GUILD_ID || "";
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || "";
 const REQUIRE_GUILD_MEMBERSHIP = String(process.env.REQUIRE_GUILD_MEMBERSHIP || "true").toLowerCase() === "true";
@@ -330,6 +333,7 @@ function decodeWebSessionToken(token) {
 function createWebSession(user) {
   const now = Date.now();
   const session = {
+    provider: String(user.provider || "discord"),
     userId: String(user.userId || ""),
     userTag: String(user.userTag || ""),
     avatarUrl: String(user.avatarUrl || ""),
@@ -352,6 +356,10 @@ function getWebSession(req) {
   }
   if (Number(session.expiresAt || 0) <= Date.now()) {
     return null;
+  }
+  const provider = String(session.provider || "");
+  if (!provider) {
+    session.provider = isSnowflake(session.userId) ? "discord" : "google";
   }
   return { ...session, token };
 }
@@ -415,7 +423,15 @@ async function isDiscordMemberOfGuild(userId) {
   }
 }
 
-async function validateWebUserPolicy(userId) {
+async function validateWebUserPolicy(session) {
+  const provider = String(session && session.provider ? session.provider : "");
+  const userId = String(session && session.userId ? session.userId : "");
+  if (!userId) {
+    return "Login is required.";
+  }
+  if (provider === "google") {
+    return "";
+  }
   if (!isSnowflake(userId)) {
     return "Invalid Discord identity.";
   }
@@ -441,6 +457,10 @@ async function validateWebUserPolicy(userId) {
 
 function oauthReady() {
   return Boolean(DISCORD_OAUTH_CLIENT_ID && DISCORD_OAUTH_CLIENT_SECRET && DISCORD_OAUTH_REDIRECT_URI);
+}
+
+function googleOauthReady() {
+  return Boolean(GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_CLIENT_SECRET && GOOGLE_OAUTH_REDIRECT_URI);
 }
 
 function isStaffAuthed(req) {
@@ -1019,6 +1039,7 @@ function aboutPageHtml(session = {}) {
 function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
   const userId = String(session && session.userId ? session.userId : "");
   const userTag = String(session && session.userTag ? session.userTag : "");
+  const provider = String(session && session.provider ? session.provider : "");
   const nextPath = next && String(next).startsWith("/") ? String(next) : "/";
   return `<!doctype html>
 <html>
@@ -1074,9 +1095,10 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
         ${err ? `<div class="warn">${esc(err)}</div>` : ""}
         ${
           userId
-            ? `<div class="account-meta">
+              ? `<div class="account-meta">
                 Logged in as: <b>${esc(userTag || "User")}</b><br/>
-                Discord ID: <b>${esc(userId)}</b>
+                Provider: <b>${esc(provider || "unknown")}</b><br/>
+                Account ID: <b>${esc(userId)}</b>
               </div>
               <div class="auth-grid">
                 <form method="post" action="/auth/logout?next=${encodeURIComponent(nextPath)}" style="margin:0;">
@@ -1086,7 +1108,7 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
               </div>`
             : `<div class="auth-grid">
                 <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Looooooty Accounts (Soon)</a>
-                <a class="auth-btn disabled" href="#" title="Coming soon">Log in with Google (Soon)</a>
+                <a class="auth-btn" href="/auth/google/start?next=%2Fauth">Log in with Google</a>
                 <a class="auth-btn disabled" href="#" title="Coming soon">Create a Looooooty Account (Soon)</a>
                 <a class="auth-btn" href="/auth/discord/start?next=%2Fauth">Log in with Discord</a>
               </div>`
@@ -1371,6 +1393,7 @@ function websiteShopHtml(websiteShop, session = {}) {
   const state = websiteShop && websiteShop.state === "closed" ? "closed" : "open";
   const userId = String(session && session.userId ? session.userId : "");
   const userTag = String(session && session.userTag ? session.userTag : "");
+  const userProvider = String(session && session.provider ? session.provider : "");
   const authLabel = userId ? "Account" : "Sign Up";
   const categories = Array.from(
     new Set(
@@ -1704,7 +1727,7 @@ function websiteShopHtml(websiteShop, session = {}) {
             <h3 class="modal-title">Checkout</h3>
             <div class="modal-note">Enter your email for payment receipt/invoice.</div>
             <input id="checkout-email" class="modal-input" type="email" placeholder="you@example.com" />
-            <div class="modal-note">Discord identity: <b>${userId ? esc(`${userTag || "User"} (${userId})`) : "Not logged in"}</b></div>
+            <div class="modal-note">Account identity: <b>${userId ? esc(`${userTag || "User"} (${userProvider || "account"}: ${userId})`) : "Not logged in"}</b></div>
             <label class="modal-check">
               <input id="checkout-use-credit" type="checkbox" />
               Use store credit
@@ -2240,7 +2263,7 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (checkoutResult) checkoutResult.textContent = "Processing checkout...";
 
           if (!authedDiscordUserId) {
-            if (checkoutError) checkoutError.textContent = "Please login with Discord first.";
+            if (checkoutError) checkoutError.textContent = "Please login first.";
             if (checkoutResult) checkoutResult.textContent = "";
             return;
           }
@@ -3151,9 +3174,13 @@ app.get("/auth/me", (req, res) => {
   res.json({
     ok: true,
     loggedIn: Boolean(session && session.userId),
+    provider: session ? String(session.provider || "") : "",
     userId: session ? session.userId : "",
     userTag: session ? session.userTag : "",
-    oauthReady: oauthReady(),
+    oauthReady: {
+      discord: oauthReady(),
+      google: googleOauthReady()
+    },
     hasSessionSigningKey: Boolean(WEB_SESSION_SIGNING_KEY && WEB_SESSION_SIGNING_KEY !== "change_me_web_session_key")
   });
 });
@@ -3198,6 +3225,25 @@ app.get("/auth/discord/start", (req, res) => {
     state
   });
   res.redirect(`https://discord.com/oauth2/authorize?${query.toString()}`);
+});
+
+app.get("/auth/google/start", (req, res) => {
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/";
+  if (!googleOauthReady()) {
+    res.redirect(`${next}?err=${encodeURIComponent("Google login is not configured yet.")}`);
+    return;
+  }
+  const state = crypto.randomBytes(24).toString("hex");
+  oauthStateMap.set(state, { next, provider: "google", expiresAt: Date.now() + 10 * 60 * 1000 });
+  const query = new URLSearchParams({
+    client_id: GOOGLE_OAUTH_CLIENT_ID,
+    response_type: "code",
+    redirect_uri: GOOGLE_OAUTH_REDIRECT_URI,
+    scope: "openid email profile",
+    state
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${query.toString()}`);
 });
 
 app.get("/auth/discord/callback", async (req, res) => {
@@ -3246,7 +3292,7 @@ app.get("/auth/discord/callback", async (req, res) => {
       res.redirect(`${rec.next}?err=${encodeURIComponent("Discord identity fetch failed.")}`);
       return;
     }
-    const policyErr = await validateWebUserPolicy(userId);
+    const policyErr = await validateWebUserPolicy({ provider: "discord", userId });
     if (policyErr) {
       res.redirect(`${rec.next}?err=${encodeURIComponent(policyErr)}`);
       return;
@@ -3255,11 +3301,68 @@ app.get("/auth/discord/callback", async (req, res) => {
     const avatarUrl = userJson.avatar
       ? `https://cdn.discordapp.com/avatars/${userId}/${userJson.avatar}.png?size=128`
       : "";
-    const created = createWebSession({ userId, userTag, avatarUrl });
+    const created = createWebSession({ provider: "discord", userId, userTag, avatarUrl });
     setWebSessionCookie(res, created.token);
     res.redirect(`${rec.next}?msg=${encodeURIComponent(`Logged in as ${userTag}`)}`);
   } catch {
     res.redirect(`${rec.next}?err=${encodeURIComponent("Discord login failed.")}`);
+  }
+});
+
+app.get("/auth/google/callback", async (req, res) => {
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const state = typeof req.query.state === "string" ? req.query.state : "";
+  const rec = oauthStateMap.get(state);
+  oauthStateMap.delete(state);
+  if (!rec || rec.expiresAt < Date.now()) {
+    res.redirect("/auth?err=Google%20login%20state%20expired");
+    return;
+  }
+  if (!code || !googleOauthReady()) {
+    res.redirect(`${rec.next}?err=${encodeURIComponent("Google login failed.")}`);
+    return;
+  }
+  try {
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: GOOGLE_OAUTH_CLIENT_ID,
+        client_secret: GOOGLE_OAUTH_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: GOOGLE_OAUTH_REDIRECT_URI
+      }).toString()
+    });
+    const tokenJson = await tokenResponse.json().catch(() => ({}));
+    const accessToken = String(tokenJson && tokenJson.access_token ? tokenJson.access_token : "");
+    if (!tokenResponse.ok || !accessToken) {
+      const details = [
+        "Google token exchange failed.",
+        tokenJson && tokenJson.error ? `error=${String(tokenJson.error)}` : "",
+        tokenJson && tokenJson.error_description ? `description=${String(tokenJson.error_description)}` : "",
+        `status=${tokenResponse.status}`
+      ].filter(Boolean).join(" ");
+      res.redirect(`${rec.next}?err=${encodeURIComponent(details)}`);
+      return;
+    }
+    const userResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const userJson = await userResponse.json().catch(() => ({}));
+    const googleSub = String(userJson && userJson.sub ? userJson.sub : "").trim();
+    if (!userResponse.ok || !googleSub) {
+      res.redirect(`${rec.next}?err=${encodeURIComponent("Google identity fetch failed.")}`);
+      return;
+    }
+    const userId = `google:${googleSub}`;
+    const userTag = String(userJson.name || userJson.email || googleSub).slice(0, 64);
+    const avatarUrl = String(userJson.picture || "");
+    const created = createWebSession({ provider: "google", userId, userTag, avatarUrl });
+    setWebSessionCookie(res, created.token);
+    res.redirect(`${rec.next}?msg=${encodeURIComponent(`Logged in as ${userTag}`)}`);
+  } catch {
+    res.redirect(`${rec.next}?err=${encodeURIComponent("Google login failed.")}`);
   }
 });
 
@@ -3281,18 +3384,18 @@ app.get("/giveaways", (req, res) => {
 });
 
 app.post("/giveaways/session", (req, res) => {
-  res.redirect("/auth/discord/start?next=%2Fgiveaways");
+  res.redirect("/auth?next=%2Fgiveaways");
 });
 
 app.post("/giveaways/:id/enter", async (req, res) => {
   const id = String(req.params.id || "").trim();
   const session = getWebSession(req);
   const userId = String(session && session.userId ? session.userId : "");
-  if (!isSnowflake(userId)) {
-    res.redirect("/auth/discord/start?next=%2Fgiveaways");
+  if (!userId) {
+    res.redirect("/auth?next=%2Fgiveaways");
     return;
   }
-  const policyErr = await validateWebUserPolicy(userId);
+  const policyErr = await validateWebUserPolicy(session);
   if (policyErr) {
     res.redirect(`/giveaways?err=${encodeURIComponent(policyErr)}`);
     return;
@@ -3327,11 +3430,11 @@ app.post("/giveaways/:id/leave", async (req, res) => {
   const id = String(req.params.id || "").trim();
   const session = getWebSession(req);
   const userId = String(session && session.userId ? session.userId : "");
-  if (!isSnowflake(userId)) {
-    res.redirect("/auth/discord/start?next=%2Fgiveaways");
+  if (!userId) {
+    res.redirect("/auth?next=%2Fgiveaways");
     return;
   }
-  const policyErr = await validateWebUserPolicy(userId);
+  const policyErr = await validateWebUserPolicy(session);
   if (policyErr) {
     res.redirect(`/giveaways?err=${encodeURIComponent(policyErr)}`);
     return;
@@ -3376,21 +3479,22 @@ app.get("/shop/web", (req, res) => {
 app.post("/shop/web/checkout", async (req, res) => {
   const email = String(req.body && req.body.email ? req.body.email : "").trim();
   const session = getWebSession(req);
-  const discordUserId = String(session && session.userId ? session.userId : "").trim();
+  const accountUserId = String(session && session.userId ? session.userId : "").trim();
+  const accountProvider = String(session && session.provider ? session.provider : "").trim();
   const useCredit = Boolean(req.body && req.body.useCredit);
   const cartInput = req.body && typeof req.body.cart === "object" && req.body.cart ? req.body.cart : {};
 
-  if (!isSnowflake(discordUserId)) {
-    res.status(401).json({ ok: false, error: "Please login with Discord first." });
+  if (!accountUserId) {
+    res.status(401).json({ ok: false, error: "Please login first." });
     return;
   }
-  const policyErr = await validateWebUserPolicy(discordUserId);
+  const policyErr = await validateWebUserPolicy(session);
   if (policyErr) {
     res.status(403).json({ ok: false, error: policyErr });
     return;
   }
   const ip = clientIp(req);
-  if (!checkRateLimit(`checkout:${discordUserId}:${ip}`, RATE_LIMIT_MAX_CHECKOUT, RATE_LIMIT_WINDOW_MS)) {
+  if (!checkRateLimit(`checkout:${accountUserId}:${ip}`, RATE_LIMIT_MAX_CHECKOUT, RATE_LIMIT_WINDOW_MS)) {
     res.status(429).json({ ok: false, error: "Too many checkout attempts. Try again in 1 minute." });
     return;
   }
@@ -3441,7 +3545,7 @@ app.post("/shop/web/checkout", async (req, res) => {
   const total = money(subtotal + taxFees);
 
   const credits = loadCredits();
-  const currentCredit = money(Number(credits[discordUserId] || 0));
+  const currentCredit = money(Number(credits[accountUserId] || 0));
   let creditUsed = 0;
   let totalDue = money(total);
   if (useCredit) {
@@ -3456,9 +3560,9 @@ app.post("/shop/web/checkout", async (req, res) => {
     totalDue = 0;
     const nextCredit = money(currentCredit - creditUsed);
     if (nextCredit <= 0) {
-      delete credits[discordUserId];
+      delete credits[accountUserId];
     } else {
-      credits[discordUserId] = nextCredit;
+      credits[accountUserId] = nextCredit;
     }
     saveCredits(credits);
   }
@@ -3468,7 +3572,8 @@ app.post("/shop/web/checkout", async (req, res) => {
   const websiteOrders = loadWebsiteOrders();
   websiteOrders.push({
     id: orderId,
-    userId: discordUserId,
+    userId: accountUserId,
+    accountProvider: accountProvider || "unknown",
     email,
     items: normalizedItems,
     subtotal,
@@ -3517,7 +3622,7 @@ app.post("/shop/web/refund", (req, res) => {
     return;
   }
   const creditUsed = money(Number(orders[idx].creditUsed || 0));
-  if (creditUsed > 0 && isSnowflake(userId)) {
+  if (creditUsed > 0 && userId) {
     const credits = loadCredits();
     const existing = money(Number(credits[userId] || 0));
     credits[userId] = money(existing + creditUsed);
@@ -3534,7 +3639,7 @@ app.post("/shop/web/ready", (req, res) => {
   const userId = String(req.body && req.body.userId ? req.body.userId : "").trim();
   const ign = String(req.body && req.body.ign ? req.body.ign : "").trim().slice(0, 32);
   const coordinates = String(req.body && req.body.coordinates ? req.body.coordinates : "").trim().slice(0, 120);
-  if (!orderId || !isSnowflake(userId)) {
+  if (!orderId || !userId) {
     res.status(400).json({ ok: false, error: "Invalid order/user." });
     return;
   }
