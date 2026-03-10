@@ -3,6 +3,12 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
+let nodemailer = null;
+try {
+  nodemailer = require("nodemailer");
+} catch {
+  nodemailer = null;
+}
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -45,9 +51,22 @@ const MIN_DISCORD_ACCOUNT_AGE_DAYS = Math.max(0, Number(process.env.MIN_DISCORD_
 const WEB_SESSION_COOKIE = "web_auth";
 const WEB_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const WEB_SESSION_SIGNING_KEY = process.env.WEB_SESSION_SIGNING_KEY || BOT_INTERNAL_API_SECRET || "change_me_web_session_key";
+const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
+const SMTP_HOST = process.env.SMTP_HOST || "";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_SECURE = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
+const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER || "no-reply@looooooty.local";
+const LOCAL_VERIFY_TTL_MS = 1000 * 60 * 60 * 24;
+const LOCAL_RESET_TTL_MS = 1000 * 60 * 60;
+const LOCAL_LOGIN_MAX_FAILED = Math.max(3, Number(process.env.LOCAL_LOGIN_MAX_FAILED || 5));
+const LOCAL_LOGIN_LOCK_MS = Math.max(60 * 1000, Number(process.env.LOCAL_LOGIN_LOCK_MS || (15 * 60 * 1000)));
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_CHECKOUT = 6;
 const RATE_LIMIT_MAX_GIVEAWAY = 20;
+const RATE_LIMIT_MAX_LOCAL_LOGIN = 20;
+const RATE_LIMIT_MAX_LOCAL_FORGOT = 10;
 
 const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
@@ -258,6 +277,126 @@ function loadLocalAccounts() {
 
 function saveLocalAccounts(accounts) {
   writeJson(LOCAL_ACCOUNTS_FILE, Array.isArray(accounts) ? accounts : []);
+}
+
+function findLocalAccountByUserId(userId) {
+  const uid = String(userId || "").trim();
+  if (!uid) {
+    return null;
+  }
+  const accounts = loadLocalAccounts();
+  const idx = accounts.findIndex((a) => String(a && a.userId || "") === uid);
+  if (idx === -1) {
+    return null;
+  }
+  return { account: accounts[idx], index: idx, accounts };
+}
+
+function maskEmail(email) {
+  const value = String(email || "");
+  const at = value.indexOf("@");
+  if (at <= 1) {
+    return value;
+  }
+  const name = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  return `${name[0]}***${name[name.length - 1]}@${domain}`;
+}
+
+function createAuthToken() {
+  return crypto.randomBytes(24).toString("hex");
+}
+
+function hashAuthToken(token) {
+  return crypto.createHash("sha256").update(String(token || "")).digest("hex");
+}
+
+function makeAppUrl(pathname) {
+  const base = String(APP_BASE_URL || "").replace(/\/+$/, "");
+  const tail = String(pathname || "");
+  if (!base) {
+    return tail || "/";
+  }
+  return `${base}${tail.startsWith("/") ? "" : "/"}${tail}`;
+}
+
+function localMailerReady() {
+  return Boolean(nodemailer && SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS);
+}
+
+async function sendLocalEmail({ to, subject, text, html }) {
+  if (!localMailerReady()) {
+    return false;
+  }
+  try {
+    const transport = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS
+      }
+    });
+    await transport.sendMail({
+      from: SMTP_FROM,
+      to,
+      subject,
+      text,
+      html
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function issueLocalVerification(account) {
+  if (!account || !account.userId || !account.email) {
+    return false;
+  }
+  const token = createAuthToken();
+  const tokenHash = hashAuthToken(token);
+  const expiresAt = new Date(Date.now() + LOCAL_VERIFY_TTL_MS).toISOString();
+  const found = findLocalAccountByUserId(account.userId);
+  if (!found) {
+    return false;
+  }
+  found.accounts[found.index] = {
+    ...found.account,
+    verifyTokenHash: tokenHash,
+    verifyTokenExpiresAt: expiresAt
+  };
+  saveLocalAccounts(found.accounts);
+  const link = makeAppUrl(`/auth/looooooty/verify?uid=${encodeURIComponent(account.userId)}&token=${encodeURIComponent(token)}`);
+  const subject = "Verify your Looooooty account email";
+  const text = `Verify your Looooooty account by opening this link:\n\n${link}\n\nThis link expires in 24 hours.`;
+  const html = `<p>Verify your Looooooty account by clicking below:</p><p><a href="${esc(link)}">${esc(link)}</a></p><p>This link expires in 24 hours.</p>`;
+  return sendLocalEmail({ to: account.email, subject, text, html });
+}
+
+async function issueLocalPasswordReset(account) {
+  if (!account || !account.userId || !account.email) {
+    return false;
+  }
+  const token = createAuthToken();
+  const tokenHash = hashAuthToken(token);
+  const expiresAt = new Date(Date.now() + LOCAL_RESET_TTL_MS).toISOString();
+  const found = findLocalAccountByUserId(account.userId);
+  if (!found) {
+    return false;
+  }
+  found.accounts[found.index] = {
+    ...found.account,
+    resetTokenHash: tokenHash,
+    resetTokenExpiresAt: expiresAt
+  };
+  saveLocalAccounts(found.accounts);
+  const link = makeAppUrl(`/auth/looooooty/reset?uid=${encodeURIComponent(account.userId)}&token=${encodeURIComponent(token)}`);
+  const subject = "Reset your Looooooty account password";
+  const text = `Reset your Looooooty account password:\n\n${link}\n\nThis link expires in 1 hour.`;
+  const html = `<p>Reset your Looooooty account password:</p><p><a href="${esc(link)}">${esc(link)}</a></p><p>This link expires in 1 hour.</p>`;
+  return sendLocalEmail({ to: account.email, subject, text, html });
 }
 
 function normalizeLocalUsername(value) {
@@ -539,7 +678,17 @@ async function validateWebUserPolicy(session) {
   if (!userId) {
     return "Login is required.";
   }
-  if (provider === "google" || provider === "looooooty") {
+  if (provider === "google") {
+    return "";
+  }
+  if (provider === "looooooty") {
+    const found = findLocalAccountByUserId(userId);
+    if (!found || !found.account) {
+      return "Looooooty account not found.";
+    }
+    if (found.account.emailVerified !== true) {
+      return "Please verify your Looooooty account email before using checkout/giveaways.";
+    }
     return "";
   }
   if (provider && provider !== "discord") {
@@ -1162,7 +1311,7 @@ function aboutPageHtml(session = {}) {
 </html>`;
 }
 
-function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
+function authPageHtml({ session = {}, msg = "", err = "", next = "/", localAccount = null }) {
   const userId = String(session && session.userId ? session.userId : "");
   const userTag = String(session && session.userTag ? session.userTag : "");
   const provider = String(session && session.provider ? session.provider : "");
@@ -1224,13 +1373,13 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
               ? `<div class="account-meta">
                 Logged in as: <b>${esc(userTag || "User")}</b><br/>
                 Provider: <b>${esc(provider || "unknown")}</b><br/>
-                Account ID: <b>${esc(userId)}</b>
+                Account ID: <b>${esc(userId)}</b>${provider === "looooooty" ? `<br/>Email: <b>${esc(localAccount && localAccount.email ? localAccount.email : "-")}</b><br/>Email Verified: <b>${localAccount && localAccount.emailVerified ? "Yes" : "No"}</b>` : ""}
               </div>
               <div class="auth-grid">
                 <form method="post" action="/auth/logout?next=${encodeURIComponent(nextPath)}" style="margin:0;">
                   <button class="submit" type="submit">Logout</button>
                 </form>
-                <a class="auth-btn" href="${esc(nextPath)}">Back</a>
+                <a class="auth-btn" href="${provider === "looooooty" ? "/account" : esc(nextPath)}">${provider === "looooooty" ? "Account Settings" : "Back"}</a>
               </div>`
             : `<div class="auth-grid">
                 <a class="auth-btn" href="/auth/looooooty?mode=login&next=${encodeURIComponent(nextPath)}">Log in with Looooooty Accounts</a>
@@ -1247,7 +1396,7 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/" }) {
 }
 
 function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth", session = {} }) {
-  const safeMode = mode === "signup" ? "signup" : "login";
+  const safeMode = mode === "signup" ? "signup" : mode === "forgot" ? "forgot" : "login";
   const nextPath = next && String(next).startsWith("/") ? String(next) : "/auth";
   return `<!doctype html>
 <html>
@@ -1266,8 +1415,7 @@ function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth",
         <h2 style="margin-top:0;">${safeMode === "signup" ? "Create Looooooty Account" : "Log in with Looooooty Account"}</h2>
         ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
         ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        ${
-          safeMode === "signup"
+        ${safeMode === "signup"
             ? `<form method="post" action="/auth/looooooty/signup?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
                 <input type="text" name="username" required maxlength="32" placeholder="Username (3-32 letters/numbers/._-)" />
                 <input type="email" name="email" required maxlength="120" placeholder="Email" />
@@ -1275,18 +1423,101 @@ function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth",
                 <input type="password" name="password_confirm" required minlength="8" maxlength="120" placeholder="Confirm password" />
                 <button class="submit" type="submit">Create Account</button>
               </form>`
-            : `<form method="post" action="/auth/looooooty/login?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
+            : safeMode === "forgot"
+              ? `<form method="post" action="/auth/looooooty/forgot?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
+                  <input type="email" name="email" required maxlength="120" placeholder="Email" />
+                  <button class="submit" type="submit">Send Reset Email</button>
+                </form>`
+              : `<form method="post" action="/auth/looooooty/login?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
                 <input type="text" name="identifier" required maxlength="120" placeholder="Username or Email" />
                 <input type="password" name="password" required maxlength="120" placeholder="Password" />
                 <button class="submit" type="submit">Log In</button>
-              </form>`
-        }
+                </form>`}
         <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
           <a class="btn" href="/auth/looooooty?mode=${safeMode === "signup" ? "login" : "signup"}&next=${encodeURIComponent(nextPath)}">
             ${safeMode === "signup" ? "Already have an account? Log in" : "Need an account? Sign up"}
           </a>
+          ${safeMode === "forgot" ? "" : `<a class="btn" href="/auth/looooooty?mode=forgot&next=${encodeURIComponent(nextPath)}">Forgot Password</a>`}
           <a class="btn" href="/auth?next=${encodeURIComponent(nextPath)}">Back to Login Options</a>
         </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function localResetPasswordPageHtml({ msg = "", err = "", uid = "", token = "", next = "/auth" }) {
+  const nextPath = next && String(next).startsWith("/") ? String(next) : "/auth";
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Reset Password</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml()}</aside>
+    <main class="main">
+      <section class="state-box" style="text-align:left; max-width:620px;">
+        <h2 style="margin-top:0;">Reset Password</h2>
+        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+        <form method="post" action="/auth/looooooty/reset?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
+          <input type="hidden" name="uid" value="${esc(uid)}" />
+          <input type="hidden" name="token" value="${esc(token)}" />
+          <input type="password" name="password" required minlength="8" maxlength="120" placeholder="New password (min 8 chars)" />
+          <input type="password" name="password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
+          <button class="submit" type="submit">Update Password</button>
+        </form>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function accountSettingsPageHtml({ session, account, msg = "", err = "" }) {
+  const userTag = String(session && session.userTag ? session.userTag : "");
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Account Settings</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml(session)}</aside>
+    <main class="main">
+      <section class="state-box" style="text-align:left; max-width:700px;">
+        <h2 style="margin-top:0;">Account Settings</h2>
+        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+        <div class="account-meta">
+          Username: <b>${esc(userTag || account.username || "-")}</b><br/>
+          Email: <b>${esc(account.email || "-")}</b><br/>
+          Verified: <b>${account.emailVerified ? "Yes" : "No"}</b>
+        </div>
+        <form method="post" action="/account/profile" style="margin-top:10px; display:grid; gap:10px;">
+          <h3 style="margin:4px 0;">Profile</h3>
+          <input type="text" name="username" required maxlength="32" value="${esc(account.username || "")}" />
+          <input type="email" name="email" required maxlength="120" value="${esc(account.email || "")}" />
+          <button class="submit" type="submit">Save Profile</button>
+        </form>
+        ${account.emailVerified ? "" : `<form method="post" action="/account/resend-verification" style="margin-top:10px;"><button class="btn" type="submit">Resend Verification Email</button></form>`}
+        <form method="post" action="/account/password" style="margin-top:12px; display:grid; gap:10px;">
+          <h3 style="margin:4px 0;">Change Password</h3>
+          <input type="password" name="current_password" required maxlength="120" placeholder="Current password" />
+          <input type="password" name="new_password" required minlength="8" maxlength="120" placeholder="New password" />
+          <input type="password" name="new_password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
+          <button class="submit" type="submit">Update Password</button>
+        </form>
       </section>
     </main>
   </div>
@@ -2047,6 +2278,12 @@ function websiteShopHtml(websiteShop, session = {}) {
         try {
           const parsed = JSON.parse(localStorage.getItem(activeOrderStorageKey) || "null");
           if (parsed && typeof parsed === "object" && parsed.orderId) {
+            const deliveredCloseAt = Number(parsed.deliveredCloseAt || 0);
+            if (deliveredCloseAt && Date.now() > deliveredCloseAt) {
+              activeOrder = null;
+              localStorage.removeItem(activeOrderStorageKey);
+              return;
+            }
             activeOrder = {
               orderId: String(parsed.orderId || ""),
               userId: String(parsed.userId || ""),
@@ -2054,8 +2291,11 @@ function websiteShopHtml(websiteShop, session = {}) {
               coordinates: String(parsed.coordinates || ""),
               ready: Boolean(parsed.ready),
               delivered: Boolean(parsed.delivered),
+              deliveredAt: String(parsed.deliveredAt || ""),
+              deliveredCloseAt: Number(parsed.deliveredCloseAt || 0),
               deliveredMessage: String(parsed.deliveredMessage || ""),
-              deliveredAutoClosed: Boolean(parsed.deliveredAutoClosed)
+              deliveredAutoClosed: Boolean(parsed.deliveredAutoClosed),
+              paidAt: String(parsed.paidAt || "")
             };
             return;
           }
@@ -2217,6 +2457,10 @@ function websiteShopHtml(websiteShop, session = {}) {
         if (activeOrder.deliveredAutoClosed) return;
         const duration = Math.max(0, Number(ms || 0));
         deliveryAutoCloseRemainingMs = duration;
+        if (activeOrder && duration > 0) {
+          activeOrder.deliveredCloseAt = Date.now() + duration;
+          saveActiveOrder();
+        }
         if (duration <= 0) {
           cart = {};
           saveCart();
@@ -2263,6 +2507,8 @@ function websiteShopHtml(websiteShop, session = {}) {
               activeOrder.delivered = true;
               activeOrder.deliveredMessage = "Hope you enjoyed this delivery, please remember to drop a review!";
               activeOrder.deliveredAutoClosed = false;
+              activeOrder.deliveredAt = new Date().toISOString();
+              activeOrder.deliveredCloseAt = Date.now() + 60000;
               saveActiveOrder();
               renderWebsiteOnlyPaidFlow();
               stopOrderStatusPoll();
@@ -2455,6 +2701,15 @@ function websiteShopHtml(websiteShop, session = {}) {
             return;
           }
           if (!pendingAddProductId) return;
+          if (activeOrder && activeOrder.delivered) {
+            setActiveOrder(null);
+            stopOrderStatusPoll();
+            stopDeliveryAutoCloseTimer();
+            deliveryAutoCloseRemainingMs = 0;
+            deliveryAutoCloseStartedAt = 0;
+            renderWebsiteOnlyPaidFlow();
+            renderPostCheckoutState();
+          }
           cart[pendingAddProductId] = Number(cart[pendingAddProductId] || 0) + qty;
           saveCart();
           renderCart();
@@ -2598,7 +2853,8 @@ function websiteShopHtml(websiteShop, session = {}) {
               coordinates: "",
               ready: false,
               delivered: false,
-              deliveredAutoClosed: false
+              deliveredAutoClosed: false,
+              paidAt: new Date().toISOString()
             });
             stopDeliveryAutoCloseTimer();
             deliveryAutoCloseRemainingMs = 0;
@@ -3546,15 +3802,18 @@ app.get("/bases", (req, res) => {
 
 app.get("/auth", (req, res) => {
   const session = getWebSession(req) || { userId: "", userTag: "" };
+  const localAccount =
+    String(session.provider || "") === "looooooty" ? (findLocalAccountByUserId(session.userId) || {}).account || null : null;
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const err = typeof req.query.err === "string" ? req.query.err : "";
   const next = typeof req.query.next === "string" ? req.query.next : "/";
-  res.send(authPageHtml({ session, msg, err, next }));
+  res.send(authPageHtml({ session, localAccount, msg, err, next }));
 });
 
 app.get("/auth/looooooty", (req, res) => {
   const session = getWebSession(req) || { userId: "", userTag: "" };
-  const mode = String(req.query.mode || "login") === "signup" ? "signup" : "login";
+  const rawMode = String(req.query.mode || "login");
+  const mode = rawMode === "signup" || rawMode === "forgot" ? rawMode : "login";
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const err = typeof req.query.err === "string" ? req.query.err : "";
   const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
@@ -3562,7 +3821,7 @@ app.get("/auth/looooooty", (req, res) => {
   res.send(localAuthPageHtml({ mode, msg, err, next, session }));
 });
 
-app.post("/auth/looooooty/signup", (req, res) => {
+app.post("/auth/looooooty/signup", async (req, res) => {
   const nextRaw = typeof req.query.next === "string" ? req.query.next : "/";
   const next = nextRaw.startsWith("/") ? nextRaw : "/";
   const username = normalizeLocalUsername(req.body && req.body.username);
@@ -3611,22 +3870,38 @@ app.post("/auth/looooooty/signup", (req, res) => {
     email,
     emailLower: emailKey,
     passwordHash: hashLocalPassword(password),
+    emailVerified: false,
+    verifyTokenHash: "",
+    verifyTokenExpiresAt: "",
+    resetTokenHash: "",
+    resetTokenExpiresAt: "",
+    failedLoginCount: 0,
+    lockUntil: "",
     createdAt: now,
     lastLoginAt: now,
     loginCount: 1
   };
   accounts.push(record);
   saveLocalAccounts(accounts);
+  const sent = await issueLocalVerification(record);
 
   const created = createWebSession({ provider: "looooooty", userId, userTag: username, avatarUrl: "" });
   recordWebAccountLogin({ provider: "looooooty", userId, userTag: username });
   setWebSessionCookie(res, created.token);
-  res.redirect(`${next}?msg=${encodeURIComponent(`Logged in as ${username}`)}`);
+  const baseMsg = sent
+    ? `Logged in as ${username}. Check your email to verify your account.`
+    : `Logged in as ${username}. Email is not configured yet, verification email not sent.`;
+  res.redirect(`${next}?msg=${encodeURIComponent(baseMsg)}`);
 });
 
 app.post("/auth/looooooty/login", (req, res) => {
   const nextRaw = typeof req.query.next === "string" ? req.query.next : "/";
   const next = nextRaw.startsWith("/") ? nextRaw : "/";
+  const ip = clientIp(req);
+  if (!checkRateLimit(`local-login-ip:${ip}`, RATE_LIMIT_MAX_LOCAL_LOGIN, RATE_LIMIT_WINDOW_MS)) {
+    res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Too many login attempts. Try again in 1 minute.")}`);
+    return;
+  }
   const identifierRaw = String(req.body && req.body.identifier ? req.body.identifier : "").trim();
   const password = String(req.body && req.body.password ? req.body.password : "");
   const identifier = identifierRaw.toLowerCase();
@@ -3645,13 +3920,31 @@ app.post("/auth/looooooty/login", (req, res) => {
     return;
   }
   const account = accounts[idx] || {};
+  const lockUntilMs = account.lockUntil ? new Date(account.lockUntil).getTime() : 0;
+  if (Number.isFinite(lockUntilMs) && lockUntilMs > Date.now()) {
+    const mins = Math.max(1, Math.ceil((lockUntilMs - Date.now()) / 60000));
+    res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent(`Account locked. Try again in ${mins} minute(s).`)}`);
+    return;
+  }
   if (!verifyLocalPassword(password, account.passwordHash)) {
+    const fails = Number(account.failedLoginCount || 0) + 1;
+    const isLocked = fails >= LOCAL_LOGIN_MAX_FAILED;
+    accounts[idx] = {
+      ...account,
+      failedLoginCount: fails,
+      lastFailedAt: new Date().toISOString(),
+      lockUntil: isLocked ? new Date(Date.now() + LOCAL_LOGIN_LOCK_MS).toISOString() : ""
+    };
+    saveLocalAccounts(accounts);
     res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Invalid credentials.")}`);
     return;
   }
 
   accounts[idx] = {
     ...account,
+    failedLoginCount: 0,
+    lockUntil: "",
+    lastFailedAt: "",
     lastLoginAt: new Date().toISOString(),
     loginCount: Number(account.loginCount || 0) + 1
   };
@@ -3663,6 +3956,122 @@ app.post("/auth/looooooty/login", (req, res) => {
   recordWebAccountLogin({ provider: "looooooty", userId, userTag });
   setWebSessionCookie(res, created.token);
   res.redirect(`${next}?msg=${encodeURIComponent(`Logged in as ${userTag}`)}`);
+});
+
+app.get("/auth/looooooty/verify", (req, res) => {
+  const uid = String(req.query.uid || "").trim();
+  const token = String(req.query.token || "").trim();
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/auth";
+  const found = findLocalAccountByUserId(uid);
+  if (!found || !found.account) {
+    res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Verification link is invalid.")}`);
+    return;
+  }
+  const account = found.account;
+  const expiresMs = account.verifyTokenExpiresAt ? new Date(account.verifyTokenExpiresAt).getTime() : 0;
+  const ok = Boolean(token) &&
+    Boolean(account.verifyTokenHash) &&
+    hashAuthToken(token) === String(account.verifyTokenHash) &&
+    Number.isFinite(expiresMs) &&
+    expiresMs > Date.now();
+  if (!ok) {
+    res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Verification link expired or invalid.")}`);
+    return;
+  }
+  found.accounts[found.index] = {
+    ...account,
+    emailVerified: true,
+    verifyTokenHash: "",
+    verifyTokenExpiresAt: ""
+  };
+  saveLocalAccounts(found.accounts);
+  res.redirect(`${next}?msg=${encodeURIComponent("Email verified successfully.")}`);
+});
+
+app.post("/auth/looooooty/forgot", async (req, res) => {
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/auth";
+  const ip = clientIp(req);
+  if (!checkRateLimit(`local-forgot-ip:${ip}`, RATE_LIMIT_MAX_LOCAL_FORGOT, RATE_LIMIT_WINDOW_MS)) {
+    res.redirect(`/auth/looooooty?mode=forgot&next=${encodeURIComponent(next)}&err=${encodeURIComponent("Too many requests. Try again in 1 minute.")}`);
+    return;
+  }
+  const email = normalizeLocalEmail(req.body && req.body.email);
+  const accounts = loadLocalAccounts();
+  const account = accounts.find((a) => String(a && a.emailLower || "") === email);
+  if (account) {
+    await issueLocalPasswordReset(account);
+  }
+  res.redirect(`/auth/looooooty?mode=forgot&next=${encodeURIComponent(next)}&msg=${encodeURIComponent("If the email exists, a reset link has been sent.")}`);
+});
+
+app.get("/auth/looooooty/reset", (req, res) => {
+  const uid = String(req.query.uid || "").trim();
+  const token = String(req.query.token || "").trim();
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/auth";
+  const found = findLocalAccountByUserId(uid);
+  if (!found || !found.account) {
+    res.send(localResetPasswordPageHtml({ uid, token, next, err: "Reset link is invalid." }));
+    return;
+  }
+  const account = found.account;
+  const expiresMs = account.resetTokenExpiresAt ? new Date(account.resetTokenExpiresAt).getTime() : 0;
+  const ok = Boolean(token) &&
+    Boolean(account.resetTokenHash) &&
+    hashAuthToken(token) === String(account.resetTokenHash) &&
+    Number.isFinite(expiresMs) &&
+    expiresMs > Date.now();
+  if (!ok) {
+    res.send(localResetPasswordPageHtml({ uid, token, next, err: "Reset link expired or invalid." }));
+    return;
+  }
+  res.send(localResetPasswordPageHtml({ uid, token, next }));
+});
+
+app.post("/auth/looooooty/reset", (req, res) => {
+  const nextRaw = typeof req.query.next === "string" ? req.query.next : "/auth";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/auth";
+  const uid = String(req.body && req.body.uid ? req.body.uid : "").trim();
+  const token = String(req.body && req.body.token ? req.body.token : "").trim();
+  const password = String(req.body && req.body.password ? req.body.password : "");
+  const passwordConfirm = String(req.body && req.body.password_confirm ? req.body.password_confirm : "");
+  if (password.length < 8) {
+    res.send(localResetPasswordPageHtml({ uid, token, next, err: "Password must be at least 8 characters." }));
+    return;
+  }
+  if (password !== passwordConfirm) {
+    res.send(localResetPasswordPageHtml({ uid, token, next, err: "Passwords do not match." }));
+    return;
+  }
+  const found = findLocalAccountByUserId(uid);
+  if (!found || !found.account) {
+    res.send(localResetPasswordPageHtml({ uid, token, next, err: "Reset link is invalid." }));
+    return;
+  }
+  const account = found.account;
+  const expiresMs = account.resetTokenExpiresAt ? new Date(account.resetTokenExpiresAt).getTime() : 0;
+  const ok = Boolean(token) &&
+    Boolean(account.resetTokenHash) &&
+    hashAuthToken(token) === String(account.resetTokenHash) &&
+    Number.isFinite(expiresMs) &&
+    expiresMs > Date.now();
+  if (!ok) {
+    res.send(localResetPasswordPageHtml({ uid, token, next, err: "Reset link expired or invalid." }));
+    return;
+  }
+  found.accounts[found.index] = {
+    ...account,
+    passwordHash: hashLocalPassword(password),
+    resetTokenHash: "",
+    resetTokenExpiresAt: "",
+    failedLoginCount: 0,
+    lockUntil: "",
+    lastFailedAt: ""
+  };
+  saveLocalAccounts(found.accounts);
+  res.redirect(`/auth/looooooty?mode=login&next=${encodeURIComponent(next)}&msg=${encodeURIComponent("Password updated. You can now log in.")}`);
 });
 
 app.get("/auth/discord/start", (req, res) => {
@@ -3830,6 +4239,145 @@ app.post("/auth/logout", (req, res) => {
   const next = nextRaw.startsWith("/") ? nextRaw : "/";
   destroyWebSession(req, res);
   res.redirect(`${next}?msg=${encodeURIComponent("Logged out.")}`);
+});
+
+app.get("/account", (req, res) => {
+  const session = getWebSession(req);
+  if (!session || String(session.provider || "") !== "looooooty") {
+    res.redirect("/auth?next=%2Faccount");
+    return;
+  }
+  const found = findLocalAccountByUserId(session.userId);
+  if (!found || !found.account) {
+    destroyWebSession(req, res);
+    res.redirect("/auth?err=Looooooty%20account%20not%20found");
+    return;
+  }
+  const msg = typeof req.query.msg === "string" ? req.query.msg : "";
+  const err = typeof req.query.err === "string" ? req.query.err : "";
+  res.send(accountSettingsPageHtml({ session, account: found.account, msg, err }));
+});
+
+app.post("/account/resend-verification", async (req, res) => {
+  const session = getWebSession(req);
+  if (!session || String(session.provider || "") !== "looooooty") {
+    res.redirect("/auth?next=%2Faccount");
+    return;
+  }
+  const found = findLocalAccountByUserId(session.userId);
+  if (!found || !found.account) {
+    destroyWebSession(req, res);
+    res.redirect("/auth?err=Looooooty%20account%20not%20found");
+    return;
+  }
+  if (found.account.emailVerified === true) {
+    res.redirect("/account?msg=Email%20is%20already%20verified");
+    return;
+  }
+  const sent = await issueLocalVerification(found.account);
+  res.redirect(`/account?${sent ? "msg=Verification%20email%20sent" : "err=Email%20service%20is%20not%20configured"}`);
+});
+
+app.post("/account/profile", async (req, res) => {
+  const session = getWebSession(req);
+  if (!session || String(session.provider || "") !== "looooooty") {
+    res.redirect("/auth?next=%2Faccount");
+    return;
+  }
+  const found = findLocalAccountByUserId(session.userId);
+  if (!found || !found.account) {
+    destroyWebSession(req, res);
+    res.redirect("/auth?err=Looooooty%20account%20not%20found");
+    return;
+  }
+  const username = normalizeLocalUsername(req.body && req.body.username);
+  const email = normalizeLocalEmail(req.body && req.body.email);
+  if (!isValidLocalUsername(username)) {
+    res.redirect("/account?err=Invalid%20username");
+    return;
+  }
+  if (!isValidLocalEmail(email)) {
+    res.redirect("/account?err=Invalid%20email");
+    return;
+  }
+  const accounts = found.accounts;
+  const self = found.account;
+  const usernameKey = username.toLowerCase();
+  const emailKey = email.toLowerCase();
+  const usernameTaken = accounts.some((a, i) => i !== found.index && String(a && a.usernameLower || "") === usernameKey);
+  const emailTaken = accounts.some((a, i) => i !== found.index && String(a && a.emailLower || "") === emailKey);
+  if (usernameTaken) {
+    res.redirect("/account?err=Username%20already%20exists");
+    return;
+  }
+  if (emailTaken) {
+    res.redirect("/account?err=Email%20already%20exists");
+    return;
+  }
+  const emailChanged = String(self.emailLower || "") !== emailKey;
+  accounts[found.index] = {
+    ...self,
+    username,
+    usernameLower: usernameKey,
+    email,
+    emailLower: emailKey,
+    emailVerified: emailChanged ? false : Boolean(self.emailVerified),
+    verifyTokenHash: emailChanged ? "" : String(self.verifyTokenHash || ""),
+    verifyTokenExpiresAt: emailChanged ? "" : String(self.verifyTokenExpiresAt || "")
+  };
+  saveLocalAccounts(accounts);
+  if (emailChanged) {
+    await issueLocalVerification(accounts[found.index]);
+  }
+  const newSession = createWebSession({
+    provider: "looooooty",
+    userId: session.userId,
+    userTag: username,
+    avatarUrl: String(session.avatarUrl || "")
+  });
+  setWebSessionCookie(res, newSession.token);
+  recordWebAccountLogin({ provider: "looooooty", userId: session.userId, userTag: username });
+  res.redirect(`/account?msg=${encodeURIComponent(emailChanged ? "Profile saved. Verify your new email." : "Profile saved.")}`);
+});
+
+app.post("/account/password", (req, res) => {
+  const session = getWebSession(req);
+  if (!session || String(session.provider || "") !== "looooooty") {
+    res.redirect("/auth?next=%2Faccount");
+    return;
+  }
+  const found = findLocalAccountByUserId(session.userId);
+  if (!found || !found.account) {
+    destroyWebSession(req, res);
+    res.redirect("/auth?err=Looooooty%20account%20not%20found");
+    return;
+  }
+  const currentPassword = String(req.body && req.body.current_password ? req.body.current_password : "");
+  const newPassword = String(req.body && req.body.new_password ? req.body.new_password : "");
+  const newPasswordConfirm = String(req.body && req.body.new_password_confirm ? req.body.new_password_confirm : "");
+  if (!verifyLocalPassword(currentPassword, found.account.passwordHash)) {
+    res.redirect("/account?err=Current%20password%20is%20incorrect");
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.redirect("/account?err=New%20password%20must%20be%20at%20least%208%20characters");
+    return;
+  }
+  if (newPassword !== newPasswordConfirm) {
+    res.redirect("/account?err=New%20passwords%20do%20not%20match");
+    return;
+  }
+  found.accounts[found.index] = {
+    ...found.account,
+    passwordHash: hashLocalPassword(newPassword),
+    failedLoginCount: 0,
+    lockUntil: "",
+    lastFailedAt: "",
+    resetTokenHash: "",
+    resetTokenExpiresAt: ""
+  };
+  saveLocalAccounts(found.accounts);
+  res.redirect("/account?msg=Password%20updated");
 });
 
 app.get("/giveaways", (req, res) => {
