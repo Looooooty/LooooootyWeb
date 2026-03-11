@@ -67,6 +67,7 @@ const RATE_LIMIT_MAX_CHECKOUT = 6;
 const RATE_LIMIT_MAX_GIVEAWAY = 20;
 const RATE_LIMIT_MAX_LOCAL_LOGIN = 20;
 const RATE_LIMIT_MAX_LOCAL_FORGOT = 10;
+const RATE_LIMIT_MAX_REVIEW = 6;
 
 const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
@@ -80,6 +81,7 @@ const WEBSITE_ORDERS_FILE = path.join(BOT_DATA_DIR, "website_orders.json");
 const WEBSITE_READY_ALERTS_FILE = path.join(BOT_DATA_DIR, "website_ready_alerts.json");
 const WEB_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_accounts.json");
 const LOCAL_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_local_accounts.json");
+const WEBSITE_REVIEWS_FILE = path.join(BOT_DATA_DIR, "website_reviews.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -215,6 +217,19 @@ function loadWebsiteReadyAlerts() {
 
 function saveWebsiteReadyAlerts(alerts) {
   writeJson(WEBSITE_READY_ALERTS_FILE, Array.isArray(alerts) ? alerts : []);
+}
+
+function loadWebsiteReviews() {
+  const data = readJson(WEBSITE_REVIEWS_FILE, []);
+  if (!Array.isArray(data)) {
+    writeJson(WEBSITE_REVIEWS_FILE, []);
+    return [];
+  }
+  return data;
+}
+
+function saveWebsiteReviews(reviews) {
+  writeJson(WEBSITE_REVIEWS_FILE, Array.isArray(reviews) ? reviews : []);
 }
 
 function loadWebAccounts() {
@@ -1774,6 +1789,24 @@ function shopLandingHtml() {
       }
       .shop-half:last-child { border-bottom: 0; }
     }
+    .shop-reviews {
+      width: min(1100px, 98%);
+      margin-top: 14px;
+      display: grid;
+    }
+    .shop-reviews-btn {
+      display: grid;
+      place-items: center;
+      text-decoration: none;
+      color: var(--txt);
+      font-weight: 800;
+      font-size: clamp(18px, 3vw, 28px);
+      padding: 18px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: linear-gradient(180deg, rgba(44,78,122,0.55), rgba(23,29,41,0.75));
+    }
+    .shop-reviews-btn:hover { border-color: var(--accent); filter: brightness(1.08); }
   </style>
 </head>
 <body>
@@ -1786,6 +1819,9 @@ function shopLandingHtml() {
       <section class="shop-wrap">
         <a class="shop-half" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
         <a class="shop-half" href="/shop/web">Website Shop</a>
+      </section>
+      <section class="shop-reviews">
+        <a class="shop-reviews-btn" href="/shop/reviews">Reviews</a>
       </section>
     </main>
   </div>
@@ -2896,6 +2932,76 @@ function websiteShopHtml(websiteShop, session = {}) {
       applyFilter();
     })();
   </script>
+</body>
+</html>`;
+}
+
+function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
+  const userId = String(session && session.userId ? session.userId : "");
+  const userTag = String(session && session.userTag ? session.userTag : "");
+  const provider = String(session && session.provider ? session.provider : "");
+  const list = Array.isArray(reviews) ? reviews : [];
+  const ordered = list
+    .slice()
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shop Reviews</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .review-shell { width:min(1100px, 95%); }
+    .review-card { border:1px solid rgba(255,255,255,0.14); border-radius:16px; padding:16px; background: rgba(10,14,28,0.62); }
+    .review-form { display:grid; gap:10px; margin-top:10px; }
+    .review-form textarea { min-height:120px; resize:vertical; }
+    .review-list { display:grid; gap:12px; margin-top:14px; }
+    .review-row { border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:12px; background: rgba(5,9,22,0.7); }
+    .review-head { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-weight:800; }
+    .review-meta { color: var(--muted); font-size:12px; margin-top:6px; }
+    .review-text { margin-top:8px; white-space:pre-wrap; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml(session)}</aside>
+    <main class="main">
+      <section class="hero" style="margin-bottom:12px; text-align:left;">
+        <a class="btn" href="/shop">Back to Shop</a>
+      </section>
+      <section class="review-shell">
+        <div class="review-card">
+          <h2 style="margin-top:0;">Reviews</h2>
+          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+          ${
+            userId
+              ? `<div class="note">Posting as <b>${esc(userTag || "User")}</b> (${esc(provider || "unknown")}).</div>
+                 <form class="review-form" method="post" action="/shop/reviews">
+                   <textarea name="review" maxlength="500" required placeholder="Write your review (max 500 characters)"></textarea>
+                   <button class="submit" type="submit">Send Review</button>
+                 </form>`
+              : `<div class="note">You must be logged in to post a review.</div>
+                 <a class="btn" href="/auth?next=%2Fshop%2Freviews">Sign Up / Login</a>`
+          }
+        </div>
+        <div class="review-list">
+          ${ordered.length
+            ? ordered.map((r) => `<div class="review-row">
+                <div class="review-head">
+                  <div>${esc(r.userTag || "User")}</div>
+                  <div class="review-meta">${esc(r.createdAt ? new Date(r.createdAt).toLocaleString("en-US", { hour12: false }) : "")}</div>
+                </div>
+                <div class="review-meta">Provider: ${esc(r.provider || "unknown")} • ID: ${esc(r.userId || "-")}</div>
+                <div class="review-text">${esc(r.text || "")}</div>
+              </div>`).join("")
+            : '<div class="note">No reviews yet.</div>'}
+        </div>
+      </section>
+    </main>
+  </div>
 </body>
 </html>`;
 }
@@ -4481,6 +4587,51 @@ app.get("/shop/web", (req, res) => {
   const websiteShop = loadWebsiteShopData();
   const session = getWebSession(req) || { userId: "", userTag: "" };
   res.send(websiteShopHtml(websiteShop, session));
+});
+
+app.get("/shop/reviews", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  const reviews = loadWebsiteReviews();
+  const msg = typeof req.query.msg === "string" ? req.query.msg : "";
+  const err = typeof req.query.err === "string" ? req.query.err : "";
+  res.send(websiteReviewsHtml({ reviews, session, msg, err }));
+});
+
+app.post("/shop/reviews", async (req, res) => {
+  const session = getWebSession(req);
+  const userId = String(session && session.userId ? session.userId : "").trim();
+  const userTag = String(session && session.userTag ? session.userTag : "").trim();
+  const provider = String(session && session.provider ? session.provider : "").trim();
+  if (!userId) {
+    res.redirect("/auth?next=%2Fshop%2Freviews");
+    return;
+  }
+  const policyErr = await validateWebUserPolicy(session);
+  if (policyErr) {
+    res.redirect(`/shop/reviews?err=${encodeURIComponent(policyErr)}`);
+    return;
+  }
+  const ip = clientIp(req);
+  if (!checkRateLimit(`review:${userId}:${ip}`, RATE_LIMIT_MAX_REVIEW, RATE_LIMIT_WINDOW_MS)) {
+    res.redirect("/shop/reviews?err=Rate%20limit%20exceeded.%20Try%20again%20in%201%20minute.");
+    return;
+  }
+  const text = String(req.body && req.body.review ? req.body.review : "").trim().slice(0, 500);
+  if (text.length < 5) {
+    res.redirect("/shop/reviews?err=Review%20must%20be%20at%20least%205%20characters.");
+    return;
+  }
+  const reviews = loadWebsiteReviews();
+  reviews.push({
+    id: `REV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    userId,
+    userTag: userTag || "User",
+    provider: provider || "unknown",
+    text,
+    createdAt: new Date().toISOString()
+  });
+  saveWebsiteReviews(reviews);
+  res.redirect("/shop/reviews?msg=Review%20posted");
 });
 
 app.post("/shop/web/checkout", async (req, res) => {
