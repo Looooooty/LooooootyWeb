@@ -701,9 +701,6 @@ async function validateWebUserPolicy(session) {
     if (!found || !found.account) {
       return "Looooooty account not found.";
     }
-    if (found.account.emailVerified !== true) {
-      return "Please verify your Looooooty account email before using checkout/giveaways.";
-    }
     return "";
   }
   if (provider && provider !== "discord") {
@@ -1388,7 +1385,7 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/", localAccou
               ? `<div class="account-meta">
                 Logged in as: <b>${esc(userTag || "User")}</b><br/>
                 Provider: <b>${esc(provider || "unknown")}</b><br/>
-                Account ID: <b>${esc(userId)}</b>${provider === "looooooty" ? `<br/>Email: <b>${esc(localAccount && localAccount.email ? localAccount.email : "-")}</b><br/>Email Verified: <b>${localAccount && localAccount.emailVerified ? "Yes" : "No"}</b>` : ""}
+                Account ID: <b>${esc(userId)}</b>${provider === "looooooty" ? `<br/>Email: <b>${esc(localAccount && localAccount.email ? localAccount.email : "-")}</b>` : ""}
               </div>
               <div class="auth-grid">
                 <form method="post" action="/auth/logout?next=${encodeURIComponent(nextPath)}" style="margin:0;">
@@ -1525,7 +1522,7 @@ function accountSettingsPageHtml({ session, account, msg = "", err = "" }) {
           <input type="email" name="email" required maxlength="120" value="${esc(account.email || "")}" />
           <button class="submit" type="submit">Save Profile</button>
         </form>
-        ${account.emailVerified ? "" : `<form method="post" action="/account/resend-verification" style="margin-top:10px;"><button class="btn" type="submit">Resend Verification Email</button></form>`}
+        ${account.emailVerified ? "" : `<div class="note">Email verification is temporarily disabled.</div>`}
         <form method="post" action="/account/password" style="margin-top:12px; display:grid; gap:10px;">
           <h3 style="margin:4px 0;">Change Password</h3>
           <input type="password" name="current_password" required maxlength="120" placeholder="Current password" />
@@ -3989,15 +3986,10 @@ app.post("/auth/looooooty/signup", async (req, res) => {
   };
   accounts.push(record);
   saveLocalAccounts(accounts);
-  const sent = await issueLocalVerification(record);
-
   const created = createWebSession({ provider: "looooooty", userId, userTag: username, avatarUrl: "" });
   recordWebAccountLogin({ provider: "looooooty", userId, userTag: username });
   setWebSessionCookie(res, created.token);
-  const baseMsg = sent
-    ? `Logged in as ${username}. Check your email to verify your account.`
-    : `Logged in as ${username}. Email is not configured yet, verification email not sent.`;
-  res.redirect(`${next}?msg=${encodeURIComponent(baseMsg)}`);
+  res.redirect(`${next}?msg=${encodeURIComponent(`Logged in as ${username}`)}`);
 });
 
 app.post("/auth/looooooty/login", (req, res) => {
@@ -4365,23 +4357,7 @@ app.get("/account", (req, res) => {
 });
 
 app.post("/account/resend-verification", async (req, res) => {
-  const session = getWebSession(req);
-  if (!session || String(session.provider || "") !== "looooooty") {
-    res.redirect("/auth?next=%2Faccount");
-    return;
-  }
-  const found = findLocalAccountByUserId(session.userId);
-  if (!found || !found.account) {
-    destroyWebSession(req, res);
-    res.redirect("/auth?err=Looooooty%20account%20not%20found");
-    return;
-  }
-  if (found.account.emailVerified === true) {
-    res.redirect("/account?msg=Email%20is%20already%20verified");
-    return;
-  }
-  const sent = await issueLocalVerification(found.account);
-  res.redirect(`/account?${sent ? "msg=Verification%20email%20sent" : "err=Email%20service%20is%20not%20configured"}`);
+  res.redirect("/account?msg=Email%20verification%20is%20temporarily%20disabled");
 });
 
 app.post("/account/profile", async (req, res) => {
