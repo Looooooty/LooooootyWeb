@@ -68,6 +68,7 @@ const RATE_LIMIT_MAX_GIVEAWAY = 20;
 const RATE_LIMIT_MAX_LOCAL_LOGIN = 20;
 const RATE_LIMIT_MAX_LOCAL_FORGOT = 10;
 const RATE_LIMIT_MAX_REVIEW = 6;
+const RATE_LIMIT_MAX_COUPON = 10;
 
 const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
@@ -82,6 +83,7 @@ const WEBSITE_READY_ALERTS_FILE = path.join(BOT_DATA_DIR, "website_ready_alerts.
 const WEB_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_accounts.json");
 const LOCAL_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_local_accounts.json");
 const WEBSITE_REVIEWS_FILE = path.join(BOT_DATA_DIR, "website_reviews.json");
+const WEBSITE_COUPONS_FILE = path.join(BOT_DATA_DIR, "website_coupons.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -230,6 +232,35 @@ function loadWebsiteReviews() {
 
 function saveWebsiteReviews(reviews) {
   writeJson(WEBSITE_REVIEWS_FILE, Array.isArray(reviews) ? reviews : []);
+}
+
+function loadWebsiteCoupons() {
+  const data = readJson(WEBSITE_COUPONS_FILE, []);
+  if (!Array.isArray(data)) {
+    writeJson(WEBSITE_COUPONS_FILE, []);
+    return [];
+  }
+  return data;
+}
+
+function saveWebsiteCoupons(coupons) {
+  writeJson(WEBSITE_COUPONS_FILE, Array.isArray(coupons) ? coupons : []);
+}
+
+function normalizeCouponCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function computeCouponDiscount({ subtotal, coupon }) {
+  if (!coupon || coupon.active === false) return 0;
+  const type = String(coupon.type || "").toLowerCase();
+  const amount = Number(coupon.amount || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  if (type === "flat") {
+    return Math.min(subtotal, amount);
+  }
+  const pct = Math.min(100, Math.max(0, amount));
+  return Math.min(subtotal, subtotal * (pct / 100));
 }
 
 function loadWebAccounts() {
@@ -951,7 +982,8 @@ function loadWebsiteShopData() {
         category: String(p && p.category ? p.category : "kits").trim().slice(0, 40),
         image: String(p && p.image ? p.image : "").trim(),
         description: String(p && p.description ? p.description : "").trim().slice(0, 400),
-        inStock: p && p.inStock === false ? false : true
+        inStock: p && p.inStock === false ? false : true,
+        stockQty: Number.isFinite(Number(p && p.stockQty)) ? Number(p.stockQty) : null
       }))
     : [];
   const data = { state, categories, products };
@@ -992,7 +1024,8 @@ function loadWebsiteShopDefaults() {
         category: String(p && p.category ? p.category : "kits").trim().slice(0, 40),
         image: String(p && p.image ? p.image : "").trim(),
         description: String(p && p.description ? p.description : "").trim().slice(0, 400),
-        inStock: p && p.inStock === false ? false : true
+        inStock: p && p.inStock === false ? false : true,
+        stockQty: Number.isFinite(Number(p && p.stockQty)) ? Number(p.stockQty) : null
       }))
     : [];
   const data = { state, categories, products };
@@ -1929,7 +1962,27 @@ function websiteShopHtml(websiteShop, session = {}) {
       padding: 12px;
       display: grid;
       gap: 9px;
+      position: relative;
     }
+    .card-info {
+      position: absolute;
+      inset: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(8,12,28,0.92);
+      padding: 10px;
+      font-size: 13px;
+      color: var(--txt);
+      opacity: 0;
+      pointer-events: none;
+      display: grid;
+      gap: 6px;
+      transition: opacity .15s ease;
+    }
+    .card:hover .card-info,
+    .card:focus-within .card-info { opacity: 1; }
+    .card-info h4 { margin: 0; font-size: 14px; }
+    .card-info .muted { color: var(--muted); font-size: 12px; }
     .card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .price {
       color: #31ff83;
@@ -1996,6 +2049,7 @@ function websiteShopHtml(websiteShop, session = {}) {
     }
     .cart-line { display:flex; justify-content:space-between; gap:10px; margin: 4px 0; }
     .cart-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
+    .cart-actions.single { grid-template-columns: 1fr; }
     .cart-btn {
       border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.18);
@@ -2135,7 +2189,8 @@ function websiteShopHtml(websiteShop, session = {}) {
         <div id="product-grid" class="grid">
           ${(products || [])
             .map((p) => {
-              const inStock = p.inStock !== false && state !== "closed";
+              const stockQty = Number.isFinite(Number(p.stockQty)) ? Number(p.stockQty) : null;
+              const inStock = p.inStock !== false && state !== "closed" && (stockQty === null || stockQty > 0);
               return `<article class="card" data-id="${esc(String(p.id || ""))}" data-name="${esc(
                 String(p.name || "").toLowerCase()
               )}" data-title="${esc(String(p.name || "Unnamed Product"))}" data-price="${Number(p.price || 0)}" data-cat="${esc(
@@ -2147,6 +2202,12 @@ function websiteShopHtml(websiteShop, session = {}) {
                 </div>
                 <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
                 <button class="add" data-add-id="${esc(String(p.id || ""))}" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
+                <div class="card-info">
+                  <h4>${esc(p.name || "Product")}</h4>
+                  <div class="muted">ID: ${esc(p.id || "-")}</div>
+                  <div class="muted">In Stock: ${stockQty === null ? "-" : String(stockQty)}</div>
+                  <div>${esc(p.description || "No description provided.")}</div>
+                </div>
               </article>`;
             })
             .join("")}
@@ -2159,12 +2220,16 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
             <div id="cart-items" class="cart-items">No items yet.</div>
             <div class="cart-line"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
+            <div class="cart-line"><span>Discount</span><b id="cart-discount">$0.00</b></div>
             <div class="cart-line"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
             <div class="cart-line"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
             <div class="cart-line"><span>Total Kits</span><b id="cart-count">0</b></div>
             <div class="cart-actions">
               <button id="cart-checkout" class="cart-btn checkout" type="button">Checkout</button>
               <button id="cart-clear" class="cart-btn close" type="button">Close Cart</button>
+            </div>
+            <div class="cart-actions single">
+              <button id="cart-discount-btn" class="cart-btn" type="button">Discount Code</button>
             </div>
             <div id="cart-flow" class="flow-wrap"></div>
           </aside>
@@ -2199,6 +2264,19 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
           </div>
         </div>
+        <div id="discount-modal" class="modal-overlay">
+          <div class="modal-card">
+            <h3 class="modal-title">Discount Code</h3>
+            <div class="modal-note">Enter a valid coupon code to apply a discount.</div>
+            <input id="discount-code" class="modal-input" type="text" placeholder="COUPON CODE" />
+            <div id="discount-error" class="modal-error"></div>
+            <div id="discount-result" class="modal-ok"></div>
+            <div class="modal-actions">
+              <button id="discount-apply" class="cart-btn checkout" type="button">Apply</button>
+              <button id="discount-close" class="cart-btn close" type="button">Close</button>
+            </div>
+          </div>
+        </div>
         <div id="flow-input-modal" class="modal-overlay">
           <div class="modal-card">
             <h3 id="flow-input-title" class="modal-title">Enter Value</h3>
@@ -2222,6 +2300,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       const cards = Array.from(document.querySelectorAll(".card"));
       const cartItemsEl = document.getElementById("cart-items");
       const cartSubtotalEl = document.getElementById("cart-subtotal");
+      const cartDiscountEl = document.getElementById("cart-discount");
       const cartTaxEl = document.getElementById("cart-tax");
       const cartTotalEl = document.getElementById("cart-total");
       const cartCountEl = document.getElementById("cart-count");
@@ -2244,6 +2323,13 @@ function websiteShopHtml(websiteShop, session = {}) {
       const cartFlow = document.getElementById("cart-flow");
       const checkoutPaypal = document.getElementById("checkout-paypal");
       const checkoutClose = document.getElementById("checkout-close");
+      const discountModal = document.getElementById("discount-modal");
+      const discountCodeInput = document.getElementById("discount-code");
+      const discountError = document.getElementById("discount-error");
+      const discountResult = document.getElementById("discount-result");
+      const discountApply = document.getElementById("discount-apply");
+      const discountClose = document.getElementById("discount-close");
+      const discountBtn = document.getElementById("cart-discount-btn");
       const flowInputModal = document.getElementById("flow-input-modal");
       const flowInputTitle = document.getElementById("flow-input-title");
       const flowInputHint = document.getElementById("flow-input-hint");
@@ -2254,6 +2340,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       const taxRate = 0.06;
       const storageKey = "looooooty_web_cart_v1";
       const activeOrderStorageKey = "looooooty_web_active_order_v1";
+      const couponStorageKey = "looooooty_web_coupon_v1";
       let currentCat = "Recommended";
       let cart = {};
       let pendingAddProductId = "";
@@ -2264,6 +2351,10 @@ function websiteShopHtml(websiteShop, session = {}) {
       let deliveryAutoCloseRemainingMs = 0;
       let deliveryAutoCloseStartedAt = 0;
       let flowInputSubmit = null;
+      let couponCode = "";
+      let couponType = "";
+      let couponAmount = 0;
+      let couponDiscount = 0;
 
       function openQtyModal(productId, productTitle) {
         pendingAddProductId = String(productId || "");
@@ -2288,6 +2379,30 @@ function websiteShopHtml(websiteShop, session = {}) {
 
       function saveCart() {
         localStorage.setItem(storageKey, JSON.stringify(cart));
+      }
+
+      function saveCoupon() {
+        localStorage.setItem(
+          couponStorageKey,
+          JSON.stringify({ code: couponCode, type: couponType, amount: couponAmount, discount: couponDiscount })
+        );
+      }
+
+      function loadCoupon() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(couponStorageKey) || "null");
+          if (parsed && typeof parsed === "object") {
+            couponCode = String(parsed.code || "");
+            couponType = String(parsed.type || "");
+            couponAmount = Number(parsed.amount || 0);
+            couponDiscount = Number(parsed.discount || 0);
+          }
+        } catch {
+          couponCode = "";
+          couponType = "";
+          couponAmount = 0;
+          couponDiscount = 0;
+        }
       }
 
       function saveActiveOrder() {
@@ -2378,8 +2493,16 @@ function websiteShopHtml(websiteShop, session = {}) {
           subtotal += p.price * qty;
           rows.push({ id, qty, name: p.name, lineTotal: p.price * qty });
         });
-        const tax = subtotal * taxRate;
-        const total = subtotal + tax;
+        let discount = 0;
+        if (couponType === "flat") {
+          discount = Math.min(subtotal, Math.max(0, Number(couponAmount || 0)));
+        } else if (couponType === "percent") {
+          const pct = Math.min(100, Math.max(0, Number(couponAmount || 0)));
+          discount = Math.min(subtotal, subtotal * (pct / 100));
+        }
+        const discountedSubtotal = Math.max(0, subtotal - discount);
+        const tax = discountedSubtotal * taxRate;
+        const total = discountedSubtotal + tax;
         if (!rows.length) {
           cartItemsEl.textContent = "No items yet.";
         } else {
@@ -2402,6 +2525,7 @@ function websiteShopHtml(websiteShop, session = {}) {
             .join("");
         }
         cartSubtotalEl.textContent = fmt(subtotal);
+        if (cartDiscountEl) cartDiscountEl.textContent = fmt(discount);
         cartTaxEl.textContent = fmt(tax);
         cartTotalEl.textContent = fmt(total);
         cartCountEl.textContent = String(count);
@@ -2429,9 +2553,17 @@ function websiteShopHtml(websiteShop, session = {}) {
           subtotal += p.price * qty;
           normalized[id] = qty;
         });
-        const tax = subtotal * taxRate;
-        const total = subtotal + tax;
-        return { subtotal, tax, total, count, normalized };
+        let discount = 0;
+        if (couponType === "flat") {
+          discount = Math.min(subtotal, Math.max(0, Number(couponAmount || 0)));
+        } else if (couponType === "percent") {
+          const pct = Math.min(100, Math.max(0, Number(couponAmount || 0)));
+          discount = Math.min(subtotal, subtotal * (pct / 100));
+        }
+        const discountedSubtotal = Math.max(0, subtotal - discount);
+        const tax = discountedSubtotal * taxRate;
+        const total = discountedSubtotal + tax;
+        return { subtotal, tax, total, count, normalized, discount };
       }
 
       function renderPostCheckoutState() {
@@ -2687,6 +2819,43 @@ function websiteShopHtml(websiteShop, session = {}) {
         checkoutPaypal.textContent = useCredit ? "Checkout" : "PayPal";
       }
 
+      async function applyCouponCode(codeRaw) {
+        const code = String(codeRaw || "").trim().toUpperCase();
+        if (!code) {
+          couponCode = "";
+          couponType = "";
+          couponAmount = 0;
+          couponDiscount = 0;
+          saveCoupon();
+          renderCart();
+          return { ok: true, cleared: true };
+        }
+        const summary = cartSummaryForCheckout();
+        if (!summary.count) {
+          return { ok: false, error: "Your cart is empty." };
+        }
+        try {
+          const res = await fetch("/shop/web/coupon/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code, subtotal: summary.subtotal })
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok || !payload || payload.ok !== true) {
+            return { ok: false, error: String((payload && payload.error) || "Invalid coupon.") };
+          }
+          couponCode = String(payload.code || code);
+          couponType = String(payload.type || "");
+          couponAmount = Number(payload.amount || 0);
+          couponDiscount = Number(payload.discount || 0);
+          saveCoupon();
+          renderCart();
+          return { ok: true, discount: couponDiscount };
+        } catch {
+          return { ok: false, error: "Coupon validation failed." };
+        }
+      }
+
       function applyFilter() {
         const q = String(search.value || "").toLowerCase().trim();
         cards.forEach((card) => {
@@ -2760,6 +2929,11 @@ function websiteShopHtml(websiteShop, session = {}) {
         }
         cart = {};
         saveCart();
+        couponCode = "";
+        couponType = "";
+        couponAmount = 0;
+        couponDiscount = 0;
+        saveCoupon();
         setActiveOrder(null);
         stopOrderStatusPoll();
         stopDeliveryAutoCloseTimer();
@@ -2828,6 +3002,34 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (checkoutModal) checkoutModal.classList.remove("open");
         });
       }
+      if (discountBtn) {
+        discountBtn.addEventListener("click", () => {
+          if (discountError) discountError.textContent = "";
+          if (discountResult) discountResult.textContent = "";
+          if (discountCodeInput) discountCodeInput.value = couponCode || "";
+          if (discountModal) discountModal.classList.add("open");
+        });
+      }
+      if (discountClose) {
+        discountClose.addEventListener("click", () => {
+          if (discountModal) discountModal.classList.remove("open");
+        });
+      }
+      if (discountApply) {
+        discountApply.addEventListener("click", async () => {
+          if (discountError) discountError.textContent = "";
+          if (discountResult) discountResult.textContent = "";
+          const code = String((discountCodeInput && discountCodeInput.value) || "").trim();
+          const result = await applyCouponCode(code);
+          if (!result.ok) {
+            if (discountError) discountError.textContent = result.error || "Invalid coupon.";
+            return;
+          }
+          if (discountResult) {
+            discountResult.textContent = result.cleared ? "Discount cleared." : "Discount applied: -" + fmt(couponDiscount);
+          }
+        });
+      }
       if (checkoutPaypal) {
         checkoutPaypal.addEventListener("click", async () => {
           const summary = cartSummaryForCheckout();
@@ -2859,7 +3061,8 @@ function websiteShopHtml(websiteShop, session = {}) {
               body: JSON.stringify({
                 email,
                 useCredit,
-                cart: summary.normalized
+                cart: summary.normalized,
+                couponCode: couponCode
               })
             });
             const payload = await response.json().catch(() => ({}));
@@ -2917,7 +3120,13 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (e.target === checkoutModal) checkoutModal.classList.remove("open");
         });
       }
+      if (discountModal) {
+        discountModal.addEventListener("click", (e) => {
+          if (e.target === discountModal) discountModal.classList.remove("open");
+        });
+      }
       loadCart();
+      loadCoupon();
       loadActiveOrder();
       syncCheckoutLabel();
       renderPostCheckoutState();
@@ -3484,6 +3693,7 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
           ${categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
         </select>
       </div>
+      <input type="text" name="stock_qty" placeholder="Stock quantity (optional, number)" />
       <input type="text" name="image" placeholder="Image URL (https://...)" />
       <input type="file" name="image_file" accept="image/*" />
       <input type="hidden" name="image_data" />
@@ -3492,6 +3702,41 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
     </form>
 
     <h4 style="margin:18px 0 6px;">Products (${products.length})</h4>
+    <h4 style="margin:18px 0 6px;">Website Coupons</h4>
+    <form method="post" action="/staff/webshop/coupon/add" style="display:grid; gap:10px; max-width:520px;">
+      <input type="text" name="code" required maxlength="30" placeholder="Coupon code (e.g. LOOT10)" />
+      <div class="ws-inline">
+        <select name="type" required>
+          <option value="percent">Percent (%)</option>
+          <option value="flat">Flat ($)</option>
+        </select>
+        <input type="text" name="amount" required placeholder="Amount (e.g. 10 or 1.50)" />
+      </div>
+      <button class="save-btn" type="submit">Add Coupon</button>
+    </form>
+    <div class="app-list" style="margin-top:10px;">
+      ${(() => {
+        const coupons = loadWebsiteCoupons();
+        if (!coupons.length) return '<div class="note">No coupons yet.</div>';
+        return coupons
+          .map((c) => `<div class="app-row">
+            <div class="app-head">
+              <div><b>${esc(c.code || "-")}</b></div>
+              <div><span class="tag ${c.active === false ? "rejected" : "approved"}">${c.active === false ? "INACTIVE" : "ACTIVE"}</span></div>
+            </div>
+            <div class="app-meta">Type: <b>${esc(c.type || "-")}</b> • Amount: <b>${esc(String(c.amount || 0))}</b></div>
+            <div class="app-actions">
+              <form method="post" action="/staff/webshop/coupon/${encodeURIComponent(c.code || "")}/toggle" style="margin:0;">
+                <button class="btn" type="submit">${c.active === false ? "Set Active" : "Set Inactive"}</button>
+              </form>
+              <form method="post" action="/staff/webshop/coupon/${encodeURIComponent(c.code || "")}/delete" style="margin:0;" onsubmit="return confirm('Delete this coupon?');">
+                <button class="danger-btn" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>`)
+          .join("");
+      })()}
+    </div>
     <div class="ws-compact-grid">
       ${products.length
         ? products
@@ -3515,6 +3760,7 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
                         ${categories.map((c) => `<option value="${esc(c)}"${String(c) === String(p.category) ? " selected" : ""}>${esc(c)}</option>`).join("")}
                       </select>
                     </div>
+                    <input type="text" name="stock_qty" value="${Number.isFinite(Number(p.stockQty)) ? String(p.stockQty) : ""}" placeholder="Stock quantity (optional, number)" />
                     <input type="text" name="image" value="${esc(p.image || "")}" placeholder="Image URL (https://...)" />
                     <input type="file" name="image_file" accept="image/*" />
                     <input type="hidden" name="image_data" />
@@ -4610,12 +4856,45 @@ app.post("/shop/reviews", async (req, res) => {
   res.redirect("/shop/reviews?msg=Review%20posted");
 });
 
+app.post("/shop/web/coupon/validate", (req, res) => {
+  const code = normalizeCouponCode(req.body && req.body.code);
+  const subtotal = Number(req.body && req.body.subtotal ? req.body.subtotal : 0);
+  const ip = clientIp(req);
+  if (!checkRateLimit(`coupon:${ip}:${code || "-"}`, RATE_LIMIT_MAX_COUPON, RATE_LIMIT_WINDOW_MS)) {
+    res.status(429).json({ ok: false, error: "Rate limit exceeded. Try again in 1 minute." });
+    return;
+  }
+  if (!code) {
+    res.status(400).json({ ok: false, error: "Missing coupon code." });
+    return;
+  }
+  if (!Number.isFinite(subtotal) || subtotal <= 0) {
+    res.status(400).json({ ok: false, error: "Invalid subtotal." });
+    return;
+  }
+  const coupons = loadWebsiteCoupons();
+  const coupon = coupons.find((c) => normalizeCouponCode(c && c.code) === code && c.active !== false);
+  if (!coupon) {
+    res.status(404).json({ ok: false, error: "Coupon not found." });
+    return;
+  }
+  const discount = computeCouponDiscount({ subtotal, coupon });
+  res.json({
+    ok: true,
+    code,
+    type: coupon.type,
+    amount: coupon.amount,
+    discount: money(discount)
+  });
+});
+
 app.post("/shop/web/checkout", async (req, res) => {
   const email = String(req.body && req.body.email ? req.body.email : "").trim();
   const session = getWebSession(req);
   const accountUserId = String(session && session.userId ? session.userId : "").trim();
   const accountProvider = String(session && session.provider ? session.provider : "").trim();
   const useCredit = Boolean(req.body && req.body.useCredit);
+  const couponCode = normalizeCouponCode(req.body && req.body.couponCode);
   const cartInput = req.body && typeof req.body.cart === "object" && req.body.cart ? req.body.cart : {};
 
   if (!accountUserId) {
@@ -4660,6 +4939,13 @@ app.post("/shop/web/checkout", async (req, res) => {
     if (!product || product.inStock === false) {
       continue;
     }
+    if (Number.isFinite(Number(product.stockQty)) && Number(product.stockQty) <= 0) {
+      continue;
+    }
+    if (Number.isFinite(Number(product.stockQty)) && qty > Number(product.stockQty)) {
+      res.status(400).json({ ok: false, error: `Not enough stock for ${String(product.name || "item")}.` });
+      return;
+    }
     itemCount += qty;
     normalizedItems.push({
       productId: id,
@@ -4674,9 +4960,43 @@ app.post("/shop/web/checkout", async (req, res) => {
     return;
   }
 
+  // Decrement stock quantities if tracked.
+  let updatedStock = false;
+  if (Array.isArray(websiteShop.products)) {
+    for (const item of normalizedItems) {
+      const idx = websiteShop.products.findIndex((p) => String(p.id) === String(item.productId));
+      if (idx === -1) continue;
+      const cur = websiteShop.products[idx];
+      if (Number.isFinite(Number(cur.stockQty))) {
+        const nextQty = Math.max(0, Number(cur.stockQty) - Number(item.quantity || 0));
+        websiteShop.products[idx] = {
+          ...cur,
+          stockQty: nextQty,
+          inStock: nextQty <= 0 ? false : cur.inStock !== false
+        };
+        updatedStock = true;
+      }
+    }
+  }
+  if (updatedStock) {
+    saveWebsiteShopData(websiteShop);
+  }
+
   const subtotal = money(normalizedItems.reduce((sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 0), 0));
-  const taxFees = money(subtotal * 0.06);
-  const total = money(subtotal + taxFees);
+  let coupon = null;
+  let couponDiscount = 0;
+  if (couponCode) {
+    const coupons = loadWebsiteCoupons();
+    coupon = coupons.find((c) => normalizeCouponCode(c && c.code) === couponCode && c.active !== false) || null;
+    if (!coupon) {
+      res.status(400).json({ ok: false, error: "Invalid coupon code." });
+      return;
+    }
+    couponDiscount = computeCouponDiscount({ subtotal, coupon });
+  }
+  const discountedSubtotal = money(subtotal - money(couponDiscount));
+  const taxFees = money(discountedSubtotal * 0.06);
+  const total = money(discountedSubtotal + taxFees);
 
   const credits = loadCredits();
   const currentCredit = money(Number(credits[accountUserId] || 0));
@@ -4711,6 +5031,8 @@ app.post("/shop/web/checkout", async (req, res) => {
     email,
     items: normalizedItems,
     subtotal,
+    couponCode: coupon ? couponCode : "",
+    couponDiscount: money(couponDiscount),
     taxFees,
     total,
     creditUsed: money(creditUsed),
@@ -4728,6 +5050,8 @@ app.post("/shop/web/checkout", async (req, res) => {
     ok: true,
     orderId,
     subtotal,
+    couponCode: coupon ? couponCode : "",
+    couponDiscount: money(couponDiscount),
     taxFees,
     total,
     creditUsed: money(creditUsed),
@@ -5044,6 +5368,8 @@ app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
   const name = String(req.body.name || "").trim().slice(0, 80);
   const description = String(req.body.description || "").trim().slice(0, 400);
   const category = String(req.body.category || "").trim().slice(0, 40);
+  const stockQtyRaw = String(req.body.stock_qty || "").trim();
+  const stockQty = stockQtyRaw === "" ? null : Number.parseInt(stockQtyRaw, 10);
   const imageUrl = String(req.body.image || "").trim().slice(0, 500);
   const imageData = String(req.body.image_data || "").trim().slice(0, 10000000);
   const image = imageUrl || imageData;
@@ -5086,7 +5412,8 @@ app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
     category,
     image,
     description,
-    inStock: true
+    inStock: true,
+    stockQty: Number.isFinite(stockQty) ? stockQty : null
   });
   saveWebsiteShopData(data);
   res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20added");
@@ -5104,6 +5431,8 @@ app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
   const name = String(req.body.name || "").trim().slice(0, 80);
   const description = String(req.body.description || "").trim().slice(0, 400);
   const category = String(req.body.category || "").trim().slice(0, 40);
+  const stockQtyRaw = String(req.body.stock_qty || "").trim();
+  const stockQty = stockQtyRaw === "" ? null : Number.parseInt(stockQtyRaw, 10);
   const imageUrl = String(req.body.image || "").trim().slice(0, 500);
   const imageData = String(req.body.image_data || "").trim().slice(0, 10000000);
   const image = imageUrl || imageData || String(data.products[idx].image || "");
@@ -5133,7 +5462,8 @@ app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
     description,
     category,
     image,
-    price: Number(price.toFixed(2))
+    price: Number(price.toFixed(2)),
+    stockQty: Number.isFinite(stockQty) ? stockQty : null
   };
   saveWebsiteShopData(data);
   res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20updated");
@@ -5164,6 +5494,55 @@ app.post("/staff/webshop/product/:id/stock", requireStaff, (req, res) => {
   data.products[idx].inStock = status === "in_stock";
   saveWebsiteShopData(data);
   res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20stock%20updated");
+});
+
+app.post("/staff/webshop/coupon/add", requireStaff, (req, res) => {
+  const codeRaw = String(req.body.code || "").trim().toUpperCase();
+  const typeRaw = String(req.body.type || "").trim().toLowerCase();
+  const amount = Number.parseFloat(String(req.body.amount || "").trim());
+  if (!codeRaw) {
+    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20code%20is%20required");
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20amount%20must%20be%20greater%20than%200");
+    return;
+  }
+  const type = typeRaw === "flat" ? "flat" : "percent";
+  const coupons = loadWebsiteCoupons();
+  const exists = coupons.find((c) => String(c.code || "").toUpperCase() === codeRaw);
+  if (exists) {
+    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20already%20exists");
+    return;
+  }
+  coupons.push({ code: codeRaw, type, amount: Number(amount.toFixed(2)), active: true, createdAt: new Date().toISOString() });
+  saveWebsiteCoupons(coupons);
+  res.redirect("/panel/shop?shop_view=website&msg=Coupon%20added");
+});
+
+app.post("/staff/webshop/coupon/:code/toggle", requireStaff, (req, res) => {
+  const code = String(req.params.code || "").trim().toUpperCase();
+  const coupons = loadWebsiteCoupons();
+  const idx = coupons.findIndex((c) => String(c.code || "").toUpperCase() === code);
+  if (idx === -1) {
+    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20not%20found");
+    return;
+  }
+  coupons[idx].active = coupons[idx].active === false ? true : false;
+  saveWebsiteCoupons(coupons);
+  res.redirect("/panel/shop?shop_view=website&msg=Coupon%20updated");
+});
+
+app.post("/staff/webshop/coupon/:code/delete", requireStaff, (req, res) => {
+  const code = String(req.params.code || "").trim().toUpperCase();
+  const coupons = loadWebsiteCoupons();
+  const next = coupons.filter((c) => String(c.code || "").toUpperCase() !== code);
+  if (next.length === coupons.length) {
+    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20not%20found");
+    return;
+  }
+  saveWebsiteCoupons(next);
+  res.redirect("/panel/shop?shop_view=website&msg=Coupon%20deleted");
 });
 
 app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => {
