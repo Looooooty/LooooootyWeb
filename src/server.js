@@ -1962,8 +1962,14 @@ function websiteShopHtml(websiteShop, session = {}) {
       padding: 12px;
       display: grid;
       gap: 9px;
+      position: relative;
     }
     .card-info {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      margin-top: 8px;
       border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.2);
       background: rgba(8,12,28,0.92);
@@ -1974,10 +1980,15 @@ function websiteShopHtml(websiteShop, session = {}) {
       pointer-events: none;
       display: grid;
       gap: 6px;
-      transition: opacity .15s ease;
+      transform: translateY(-4px);
+      transition: opacity .15s ease, transform .15s ease;
+      z-index: 5;
     }
     .card:hover .card-info,
-    .card:focus-within .card-info { opacity: 1; }
+    .card:focus-within .card-info {
+      opacity: 1;
+      transform: translateY(0);
+    }
     .card-info h4 { margin: 0; font-size: 14px; }
     .card-info .muted { color: var(--muted); font-size: 12px; }
     .card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
