@@ -1962,11 +1962,8 @@ function websiteShopHtml(websiteShop, session = {}) {
       padding: 12px;
       display: grid;
       gap: 9px;
-      position: relative;
     }
     .card-info {
-      position: absolute;
-      inset: 10px;
       border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.2);
       background: rgba(8,12,28,0.92);
@@ -2204,9 +2201,9 @@ function websiteShopHtml(websiteShop, session = {}) {
                 <button class="add" data-add-id="${esc(String(p.id || ""))}" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
                 <div class="card-info">
                   <h4>${esc(p.name || "Product")}</h4>
+                  <div>${esc(p.description || "No description provided.")}</div>
                   <div class="muted">ID: ${esc(p.id || "-")}</div>
                   <div class="muted">In Stock: ${stockQty === null ? "-" : String(stockQty)}</div>
-                  <div>${esc(p.description || "No description provided.")}</div>
                 </div>
               </article>`;
             })
