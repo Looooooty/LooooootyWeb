@@ -2211,6 +2211,7 @@ function websiteShopHtml(websiteShop, session = {}) {
         </div>
         <div class="top-actions">
           <a class="btn" href="/">Back to Home</a>
+          <a class="btn" href="/how-to-order">How to Order</a>
           <button id="top-cart-btn" class="btn" type="button" style="display:none;">Cart (0)</button>
           <a class="btn" href="/auth?next=%2Fshop%2Fweb">${authLabel}</a>
           <a class="btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
