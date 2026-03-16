@@ -128,8 +128,12 @@ function money(v) {
   return Number(Number(v || 0).toFixed(2));
 }
 
+function normalizeMinus(value) {
+  return String(value || "").replace(/[\u2212\u2013\u2014]/g, "-");
+}
+
 function parseDeliveryCoords(input) {
-  const matches = String(input || "").match(/-?\d+(?:\.\d+)?/g);
+  const matches = normalizeMinus(input).match(/-?\d+(?:\.\d+)?/g);
   if (!matches || matches.length < 2) return null;
   const x = Number(matches[0]);
   const z = Number(matches[1]);
@@ -2570,8 +2574,12 @@ function websiteShopHtml(websiteShop, session = {}) {
           .replace(/'/g, "&#39;");
       }
 
+      function normalizeMinus(value) {
+        return String(value || "").replace(/[\u2212\u2013\u2014]/g, "-");
+      }
+
       function parseCoords(value) {
-        const matches = String(value || "").match(/-?\d+(?:\.\d+)?/g);
+        const matches = normalizeMinus(value).match(/-?\d+(?:\.\d+)?/g);
         if (!matches || matches.length < 2) return null;
         const x = Number(matches[0]);
         const z = Number(matches[1]);
