@@ -3221,7 +3221,9 @@ function websiteShopHtml(websiteShop, session = {}) {
           }
           const parsed = parseCoords(value);
           if (!parsed) {
-            if (deliveryError) deliveryError.textContent = "Please enter valid X and Z coordinates.";
+            const nums = normalizeMinus(value).match(/-?\d+(?:\.\d+)?/g) || [];
+            const hint = nums.length ? "Detected numbers: " + nums.join(", ") : "No numbers detected.";
+            if (deliveryError) deliveryError.textContent = "Please enter valid X and Z coordinates. " + hint;
             return;
           }
           deliveryCoords = value;
