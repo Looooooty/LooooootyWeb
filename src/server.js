@@ -133,10 +133,18 @@ function normalizeMinus(value) {
 }
 
 function parseDeliveryCoords(input) {
-  const matches = normalizeMinus(input).match(/-?\d+(?:\.\d+)?/g);
-  if (!matches || matches.length < 2) return null;
-  const x = Number(matches[0]);
-  const z = Number(matches[1]);
+  const normalized = normalizeMinus(input);
+  const matches = normalized.match(/-?\d+(?:\.\d+)?/g) || [];
+  let x = matches.length >= 1 ? Number(matches[0]) : NaN;
+  let z = matches.length >= 2 ? Number(matches[1]) : NaN;
+  if (Number.isFinite(x) && Number.isFinite(z)) {
+    return { x, z };
+  }
+  const cleaned = normalized.replace(/[^0-9.\-]+/g, " ").trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return null;
+  x = Number(parts[0]);
+  z = Number(parts[1]);
   if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
   return { x, z };
 }
@@ -2579,10 +2587,18 @@ function websiteShopHtml(websiteShop, session = {}) {
       }
 
       function parseCoords(value) {
-        const matches = normalizeMinus(value).match(/-?\d+(?:\.\d+)?/g);
-        if (!matches || matches.length < 2) return null;
-        const x = Number(matches[0]);
-        const z = Number(matches[1]);
+        const normalized = normalizeMinus(value);
+        const matches = normalized.match(/-?\d+(?:\.\d+)?/g) || [];
+        let x = matches.length >= 1 ? Number(matches[0]) : NaN;
+        let z = matches.length >= 2 ? Number(matches[1]) : NaN;
+        if (Number.isFinite(x) && Number.isFinite(z)) {
+          return { x, z };
+        }
+        const cleaned = normalized.replace(/[^0-9.\-]+/g, " ").trim();
+        const parts = cleaned.split(/\s+/).filter(Boolean);
+        if (parts.length < 2) return null;
+        x = Number(parts[0]);
+        z = Number(parts[1]);
         if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
         return { x, z };
       }
