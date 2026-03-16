@@ -130,6 +130,7 @@ function money(v) {
 
 function normalizeMinus(value) {
   return String(value || "")
+    .normalize("NFKC")
     .replace(/[\u2212\u2013\u2014]/g, "-")
     .replace(/\u00A0/g, " ")
     .replace(/,/g, "");
@@ -2587,6 +2588,7 @@ function websiteShopHtml(websiteShop, session = {}) {
 
       function normalizeMinus(value) {
         return String(value || "")
+          .normalize("NFKC")
           .replace(/[\u2212\u2013\u2014]/g, "-")
           .replace(/\u00A0/g, " ")
           .replace(/,/g, "");
