@@ -3210,7 +3210,9 @@ function websiteShopHtml(websiteShop, session = {}) {
         deliveryApply.addEventListener("click", () => {
           if (deliveryError) deliveryError.textContent = "";
           if (deliveryResult) deliveryResult.textContent = "";
-          const value = String((deliveryCoordsInput && deliveryCoordsInput.value) || "").trim();
+          const rawValue =
+            (deliveryCoordsInput && typeof deliveryCoordsInput.value === "string" ? deliveryCoordsInput.value : "") || "";
+          const value = String(rawValue || (deliveryCoordsInput && deliveryCoordsInput.getAttribute("value")) || "").trim();
           if (!value) {
             deliveryCoords = "";
             deliveryFee = 0;
@@ -3223,7 +3225,11 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (!parsed) {
             const nums = normalizeMinus(value).match(/-?\d+(?:\.\d+)?/g) || [];
             const hint = nums.length ? "Detected numbers: " + nums.join(", ") : "No numbers detected.";
-            if (deliveryError) deliveryError.textContent = "Please enter valid X and Z coordinates. " + hint;
+            const rawPreview = value ? String(value).slice(0, 80) : "(empty)";
+            if (deliveryError) {
+              deliveryError.textContent =
+                "Please enter valid X and Z coordinates. " + hint + " Raw: " + rawPreview;
+            }
             return;
           }
           deliveryCoords = value;
