@@ -129,7 +129,10 @@ function money(v) {
 }
 
 function normalizeMinus(value) {
-  return String(value || "").replace(/[\u2212\u2013\u2014]/g, "-");
+  return String(value || "")
+    .replace(/[\u2212\u2013\u2014]/g, "-")
+    .replace(/\u00A0/g, " ")
+    .replace(/,/g, "");
 }
 
 function parseDeliveryCoords(input) {
@@ -2354,7 +2357,7 @@ function websiteShopHtml(websiteShop, session = {}) {
         <div id="delivery-modal" class="modal-overlay">
           <div class="modal-card">
             <h3 class="modal-title">Delivery Coordinates</h3>
-            <div class="modal-note">Enter your X and Z coordinates to estimate delivery price. Format: X Z (two numbers).</div>
+            <div class="modal-note">Enter your X and Z coordinates to estimate delivery price. Format: X Z (two numbers). Example: -1500000 200000.</div>
             <input id="delivery-coords" class="modal-input" type="text" placeholder="Example: -1500000 200000" />
             <div class="modal-note">Free within 1,000,000 blocks from spawn. Every 100k after is $0.99.</div>
             <div id="delivery-error" class="modal-error"></div>
@@ -2583,7 +2586,10 @@ function websiteShopHtml(websiteShop, session = {}) {
       }
 
       function normalizeMinus(value) {
-        return String(value || "").replace(/[\u2212\u2013\u2014]/g, "-");
+        return String(value || "")
+          .replace(/[\u2212\u2013\u2014]/g, "-")
+          .replace(/\u00A0/g, " ")
+          .replace(/,/g, "");
       }
 
       function parseCoords(value) {
