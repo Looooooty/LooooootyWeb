@@ -128,6 +128,28 @@ function money(v) {
   return Number(Number(v || 0).toFixed(2));
 }
 
+function parseDeliveryCoords(input) {
+  const matches = String(input || "").match(/-?\d+(?:\.\d+)?/g);
+  if (!matches || matches.length < 2) return null;
+  const x = Number(matches[0]);
+  const z = Number(matches[1]);
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+  return { x, z };
+}
+
+function computeDeliveryFeeFromCoords(coords) {
+  if (!coords) return 0;
+  const x = Number(coords.x || 0);
+  const z = Number(coords.z || 0);
+  const dist = Math.hypot(x, z);
+  if (!Number.isFinite(dist)) return 0;
+  const threshold = 1000000;
+  if (dist <= threshold) return 0;
+  const extra = dist - threshold;
+  const chunks = Math.ceil(extra / 100000);
+  return money(chunks * 0.99);
+}
+
 function isSameUtcDay(isoA, isoB = new Date().toISOString()) {
   if (!isoA) {
     return false;
@@ -2260,6 +2282,7 @@ function websiteShopHtml(websiteShop, session = {}) {
             <div class="cart-line"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
             <div class="cart-line"><span>Discount</span><b id="cart-discount">$0.00</b></div>
             <div class="cart-line"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
+            <div class="cart-line"><span>Delivery Fee</span><b id="cart-delivery">$0.00</b></div>
             <div class="cart-line"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
             <div class="cart-line"><span>Total Kits</span><b id="cart-count">0</b></div>
             <div class="cart-actions">
@@ -2268,6 +2291,7 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
             <div class="cart-actions single">
               <button id="cart-discount-btn" class="cart-btn" type="button">Discount Code</button>
+              <button id="cart-delivery-btn" class="cart-btn" type="button">Delivery Price</button>
             </div>
             <div id="cart-flow" class="flow-wrap"></div>
           </aside>
@@ -2315,6 +2339,20 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
           </div>
         </div>
+        <div id="delivery-modal" class="modal-overlay">
+          <div class="modal-card">
+            <h3 class="modal-title">Delivery Coordinates</h3>
+            <div class="modal-note">Enter your X and Z coordinates to estimate delivery price.</div>
+            <input id="delivery-coords" class="modal-input" type="text" placeholder="e.g. 123456 789012" />
+            <div class="modal-note">Free within 1,000,000 blocks from spawn. Every 100k after is $0.99.</div>
+            <div id="delivery-error" class="modal-error"></div>
+            <div id="delivery-result" class="modal-ok"></div>
+            <div class="modal-actions">
+              <button id="delivery-apply" class="cart-btn checkout" type="button">Apply</button>
+              <button id="delivery-close" class="cart-btn close" type="button">Close</button>
+            </div>
+          </div>
+        </div>
         <div id="flow-input-modal" class="modal-overlay">
           <div class="modal-card">
             <h3 id="flow-input-title" class="modal-title">Enter Value</h3>
@@ -2340,6 +2378,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       const cartSubtotalEl = document.getElementById("cart-subtotal");
       const cartDiscountEl = document.getElementById("cart-discount");
       const cartTaxEl = document.getElementById("cart-tax");
+      const cartDeliveryEl = document.getElementById("cart-delivery");
       const cartTotalEl = document.getElementById("cart-total");
       const cartCountEl = document.getElementById("cart-count");
       const clearBtn = document.getElementById("cart-clear");
@@ -2368,6 +2407,13 @@ function websiteShopHtml(websiteShop, session = {}) {
       const discountApply = document.getElementById("discount-apply");
       const discountClose = document.getElementById("discount-close");
       const discountBtn = document.getElementById("cart-discount-btn");
+      const deliveryModal = document.getElementById("delivery-modal");
+      const deliveryCoordsInput = document.getElementById("delivery-coords");
+      const deliveryError = document.getElementById("delivery-error");
+      const deliveryResult = document.getElementById("delivery-result");
+      const deliveryApply = document.getElementById("delivery-apply");
+      const deliveryClose = document.getElementById("delivery-close");
+      const deliveryBtn = document.getElementById("cart-delivery-btn");
       const flowInputModal = document.getElementById("flow-input-modal");
       const flowInputTitle = document.getElementById("flow-input-title");
       const flowInputHint = document.getElementById("flow-input-hint");
@@ -2379,6 +2425,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       const storageKey = "looooooty_web_cart_v1";
       const activeOrderStorageKey = "looooooty_web_active_order_v1";
       const couponStorageKey = "looooooty_web_coupon_v1";
+      const deliveryStorageKey = "looooooty_web_delivery_v1";
       let currentCat = "Recommended";
       let cart = {};
       let pendingAddProductId = "";
@@ -2393,6 +2440,8 @@ function websiteShopHtml(websiteShop, session = {}) {
       let couponType = "";
       let couponAmount = 0;
       let couponDiscount = 0;
+      let deliveryCoords = "";
+      let deliveryFee = 0;
 
       function openQtyModal(productId, productTitle) {
         pendingAddProductId = String(productId || "");
@@ -2440,6 +2489,23 @@ function websiteShopHtml(websiteShop, session = {}) {
           couponType = "";
           couponAmount = 0;
           couponDiscount = 0;
+        }
+      }
+
+      function saveDelivery() {
+        localStorage.setItem(deliveryStorageKey, JSON.stringify({ coords: deliveryCoords, fee: deliveryFee }));
+      }
+
+      function loadDelivery() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(deliveryStorageKey) || "null");
+          if (parsed && typeof parsed === "object") {
+            deliveryCoords = String(parsed.coords || "");
+            deliveryFee = Number(parsed.fee || 0);
+          }
+        } catch {
+          deliveryCoords = "";
+          deliveryFee = 0;
         }
       }
 
@@ -2504,6 +2570,26 @@ function websiteShopHtml(websiteShop, session = {}) {
           .replace(/'/g, "&#39;");
       }
 
+      function parseCoords(value) {
+        const matches = String(value || "").match(/-?\d+(?:\.\d+)?/g);
+        if (!matches || matches.length < 2) return null;
+        const x = Number(matches[0]);
+        const z = Number(matches[1]);
+        if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+        return { x, z };
+      }
+
+      function computeDeliveryFeeFromCoords(coords) {
+        if (!coords) return 0;
+        const dist = Math.hypot(Number(coords.x || 0), Number(coords.z || 0));
+        if (!Number.isFinite(dist)) return 0;
+        const threshold = 1000000;
+        if (dist <= threshold) return 0;
+        const extra = dist - threshold;
+        const chunks = Math.ceil(extra / 100000);
+        return Number((chunks * 0.99).toFixed(2));
+      }
+
       function getProductMap() {
         const map = {};
         cards.forEach((card) => {
@@ -2540,7 +2626,8 @@ function websiteShopHtml(websiteShop, session = {}) {
         }
         const discountedSubtotal = Math.max(0, subtotal - discount);
         const tax = discountedSubtotal * taxRate;
-        const total = discountedSubtotal + tax;
+        const delivery = count > 0 ? Number(deliveryFee || 0) : 0;
+        const total = discountedSubtotal + tax + delivery;
         if (!rows.length) {
           cartItemsEl.textContent = "No items yet.";
         } else {
@@ -2565,6 +2652,7 @@ function websiteShopHtml(websiteShop, session = {}) {
         cartSubtotalEl.textContent = fmt(subtotal);
         if (cartDiscountEl) cartDiscountEl.textContent = fmt(discount);
         cartTaxEl.textContent = fmt(tax);
+        if (cartDeliveryEl) cartDeliveryEl.textContent = fmt(delivery);
         cartTotalEl.textContent = fmt(total);
         cartCountEl.textContent = String(count);
         if (topCartBtn) {
@@ -2600,8 +2688,9 @@ function websiteShopHtml(websiteShop, session = {}) {
         }
         const discountedSubtotal = Math.max(0, subtotal - discount);
         const tax = discountedSubtotal * taxRate;
-        const total = discountedSubtotal + tax;
-        return { subtotal, tax, total, count, normalized, discount };
+        const delivery = count > 0 ? Number(deliveryFee || 0) : 0;
+        const total = discountedSubtotal + tax + delivery;
+        return { subtotal, tax, total, count, normalized, discount, delivery };
       }
 
       function renderPostCheckoutState() {
@@ -2972,6 +3061,9 @@ function websiteShopHtml(websiteShop, session = {}) {
         couponAmount = 0;
         couponDiscount = 0;
         saveCoupon();
+        deliveryCoords = "";
+        deliveryFee = 0;
+        saveDelivery();
         setActiveOrder(null);
         stopOrderStatusPoll();
         stopDeliveryAutoCloseTimer();
@@ -3022,6 +3114,9 @@ function websiteShopHtml(websiteShop, session = {}) {
           stopDeliveryAutoCloseTimer();
           deliveryAutoCloseRemainingMs = 0;
           deliveryAutoCloseStartedAt = 0;
+          deliveryCoords = "";
+          deliveryFee = 0;
+          saveDelivery();
           renderPostCheckoutState();
           renderWebsiteOnlyPaidFlow();
           if (checkoutResult) checkoutResult.textContent = "Order refunded.";
@@ -3048,9 +3143,22 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (discountModal) discountModal.classList.add("open");
         });
       }
+      if (deliveryBtn) {
+        deliveryBtn.addEventListener("click", () => {
+          if (deliveryError) deliveryError.textContent = "";
+          if (deliveryResult) deliveryResult.textContent = "";
+          if (deliveryCoordsInput) deliveryCoordsInput.value = deliveryCoords || "";
+          if (deliveryModal) deliveryModal.classList.add("open");
+        });
+      }
       if (discountClose) {
         discountClose.addEventListener("click", () => {
           if (discountModal) discountModal.classList.remove("open");
+        });
+      }
+      if (deliveryClose) {
+        deliveryClose.addEventListener("click", () => {
+          if (deliveryModal) deliveryModal.classList.remove("open");
         });
       }
       if (discountApply) {
@@ -3066,6 +3174,31 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (discountResult) {
             discountResult.textContent = result.cleared ? "Discount cleared." : "Discount applied: -" + fmt(couponDiscount);
           }
+        });
+      }
+      if (deliveryApply) {
+        deliveryApply.addEventListener("click", () => {
+          if (deliveryError) deliveryError.textContent = "";
+          if (deliveryResult) deliveryResult.textContent = "";
+          const value = String((deliveryCoordsInput && deliveryCoordsInput.value) || "").trim();
+          if (!value) {
+            deliveryCoords = "";
+            deliveryFee = 0;
+            saveDelivery();
+            renderCart();
+            if (deliveryResult) deliveryResult.textContent = "Delivery cleared.";
+            return;
+          }
+          const parsed = parseCoords(value);
+          if (!parsed) {
+            if (deliveryError) deliveryError.textContent = "Please enter valid X and Z coordinates.";
+            return;
+          }
+          deliveryCoords = value;
+          deliveryFee = computeDeliveryFeeFromCoords(parsed);
+          saveDelivery();
+          renderCart();
+          if (deliveryResult) deliveryResult.textContent = "Delivery fee applied: " + fmt(deliveryFee);
         });
       }
       if (checkoutPaypal) {
@@ -3100,7 +3233,8 @@ function websiteShopHtml(websiteShop, session = {}) {
                 email,
                 useCredit,
                 cart: summary.normalized,
-                couponCode: couponCode
+                couponCode: couponCode,
+                deliveryCoords: deliveryCoords
               })
             });
             const payload = await response.json().catch(() => ({}));
@@ -3163,8 +3297,14 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (e.target === discountModal) discountModal.classList.remove("open");
         });
       }
+      if (deliveryModal) {
+        deliveryModal.addEventListener("click", (e) => {
+          if (e.target === deliveryModal) deliveryModal.classList.remove("open");
+        });
+      }
       loadCart();
       loadCoupon();
+      loadDelivery();
       loadActiveOrder();
       syncCheckoutLabel();
       renderPostCheckoutState();
@@ -4938,6 +5078,7 @@ app.post("/shop/web/checkout", async (req, res) => {
   const accountProvider = String(session && session.provider ? session.provider : "").trim();
   const useCredit = Boolean(req.body && req.body.useCredit);
   const couponCode = normalizeCouponCode(req.body && req.body.couponCode);
+  const deliveryCoordsRaw = String(req.body && req.body.deliveryCoords ? req.body.deliveryCoords : "").trim();
   const cartInput = req.body && typeof req.body.cart === "object" && req.body.cart ? req.body.cart : {};
 
   if (!accountUserId) {
@@ -5039,7 +5180,18 @@ app.post("/shop/web/checkout", async (req, res) => {
   }
   const discountedSubtotal = money(subtotal - money(couponDiscount));
   const taxFees = money(discountedSubtotal * 0.06);
-  const total = money(discountedSubtotal + taxFees);
+  let deliveryCoords = "";
+  let deliveryFee = 0;
+  if (deliveryCoordsRaw) {
+    const parsed = parseDeliveryCoords(deliveryCoordsRaw);
+    if (!parsed) {
+      res.status(400).json({ ok: false, error: "Invalid delivery coordinates." });
+      return;
+    }
+    deliveryCoords = deliveryCoordsRaw;
+    deliveryFee = computeDeliveryFeeFromCoords(parsed);
+  }
+  const total = money(discountedSubtotal + taxFees + deliveryFee);
 
   const credits = loadCredits();
   const currentCredit = money(Number(credits[accountUserId] || 0));
@@ -5077,6 +5229,8 @@ app.post("/shop/web/checkout", async (req, res) => {
     couponCode: coupon ? couponCode : "",
     couponDiscount: money(couponDiscount),
     taxFees,
+    deliveryCoords,
+    deliveryFee: money(deliveryFee),
     total,
     creditUsed: money(creditUsed),
     totalDue: money(totalDue),
@@ -5085,7 +5239,8 @@ app.post("/shop/web/checkout", async (req, res) => {
     createdAt: new Date().toISOString(),
     refundedAt: null,
     ign: "",
-    coordinates: "",
+    coordinates: deliveryCoords,
+    deliveryFee: money(deliveryFee),
     readyForDelivery: false
   });
   saveWebsiteOrders(websiteOrders);
@@ -5096,6 +5251,8 @@ app.post("/shop/web/checkout", async (req, res) => {
     couponCode: coupon ? couponCode : "",
     couponDiscount: money(couponDiscount),
     taxFees,
+    deliveryCoords,
+    deliveryFee: money(deliveryFee),
     total,
     creditUsed: money(creditUsed),
     totalDue: money(totalDue),
