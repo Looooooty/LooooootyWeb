@@ -2342,8 +2342,8 @@ function websiteShopHtml(websiteShop, session = {}) {
         <div id="delivery-modal" class="modal-overlay">
           <div class="modal-card">
             <h3 class="modal-title">Delivery Coordinates</h3>
-            <div class="modal-note">Enter your X and Z coordinates to estimate delivery price.</div>
-            <input id="delivery-coords" class="modal-input" type="text" placeholder="e.g. 123456 789012" />
+            <div class="modal-note">Enter your X and Z coordinates to estimate delivery price. Format: X Z (two numbers).</div>
+            <input id="delivery-coords" class="modal-input" type="text" placeholder="Example: -1500000 200000" />
             <div class="modal-note">Free within 1,000,000 blocks from spawn. Every 100k after is $0.99.</div>
             <div id="delivery-error" class="modal-error"></div>
             <div id="delivery-result" class="modal-ok"></div>
