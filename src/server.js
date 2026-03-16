@@ -38,6 +38,7 @@ const BOT_INTERNAL_API_SECRET = process.env.BOT_INTERNAL_API_SECRET || "";
 const BASE_MEMBER_ROLE_ID = process.env.BASE_MEMBER_ROLE_ID || "";
 const SITE_ICON_URL = process.env.SITE_ICON_URL || "/logo.png";
 const ABOUT_US_TEXT = process.env.ABOUT_US_TEXT || "About us content coming soon.";
+const HOW_TO_ORDER_TEXT = process.env.HOW_TO_ORDER_TEXT || "How to order content coming soon.";
 const DISCORD_OAUTH_CLIENT_ID = process.env.DISCORD_OAUTH_CLIENT_ID || BOT_CLIENT_ID || "";
 const DISCORD_OAUTH_CLIENT_SECRET = process.env.DISCORD_OAUTH_CLIENT_SECRET || "";
 const DISCORD_OAUTH_REDIRECT_URI = process.env.DISCORD_OAUTH_REDIRECT_URI || "";
@@ -1139,6 +1140,7 @@ function sideMenuHtml(session = {}) {
       <a href="/bases">State of bases</a>
       <a href="/giveaways">Giveaways</a>
       <a href="/about">About Us</a>
+      <a href="/how-to-order">How to order</a>
       <a href="/apply">Apply</a>
       <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
       <a href="/shop">LooooootyShop</a>
@@ -1349,6 +1351,33 @@ function aboutPageHtml(session = {}) {
       <section class="state-box" style="display:block; text-align:left;">
         <div class="state-head">About Us</div>
         <div style="white-space:pre-wrap; line-height:1.6;">${esc(ABOUT_US_TEXT)}</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function howToOrderHtml(session = {}) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>How to Order</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml(session)}</aside>
+    <main class="main">
+      <section class="hero" style="margin-bottom:12px; text-align:left;">
+        <a class="btn" href="/shop">Back to Shop</a>
+      </section>
+      <section class="state-box" style="display:block; text-align:left;">
+        <div class="state-head">How to Order</div>
+        <div style="white-space:pre-wrap; line-height:1.6;">${esc(HOW_TO_ORDER_TEXT)}</div>
       </section>
     </main>
   </div>
@@ -4807,6 +4836,11 @@ app.post("/giveaways/:id/leave", async (req, res) => {
 app.get("/about", (_req, res) => {
   const session = getWebSession(_req) || { userId: "", userTag: "" };
   res.send(aboutPageHtml(session));
+});
+
+app.get("/how-to-order", (_req, res) => {
+  const session = getWebSession(_req) || { userId: "", userTag: "" };
+  res.send(howToOrderHtml(session));
 });
 
 app.get("/shop", (_req, res) => {
