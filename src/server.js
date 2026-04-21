@@ -1850,75 +1850,358 @@ function shopLandingHtml() {
   ${faviconLinks()}
   ${sharedHomeStyles()}
   <style>
-    .shop-wrap {
-      width: min(1100px, 98%);
-      height: min(70vh, 700px);
+    .landing-shell {
+      width: min(1320px, 96%);
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0;
-      border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 18px;
+      gap: 22px;
+    }
+    .landing-hero {
+      position: relative;
       overflow: hidden;
-      background: rgba(9,13,20,0.62);
-      backdrop-filter: blur(10px);
+      border-radius: 34px;
+      padding: 28px 28px 34px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background:
+        radial-gradient(circle at top center, rgba(109,140,255,0.20), transparent 34%),
+        radial-gradient(circle at 20% 85%, rgba(52,211,153,0.08), transparent 26%),
+        linear-gradient(180deg, rgba(5,8,18,0.95), rgba(6,10,24,0.98));
+      box-shadow: 0 28px 90px rgba(0,0,0,0.38);
     }
-    .shop-half {
-      display: grid;
-      place-items: center;
+    .landing-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 10% 20%, rgba(255,255,255,0.9) 0 1px, transparent 2px),
+        radial-gradient(circle at 24% 74%, rgba(255,255,255,0.55) 0 1px, transparent 2px),
+        radial-gradient(circle at 70% 24%, rgba(255,255,255,0.8) 0 1px, transparent 2px),
+        radial-gradient(circle at 88% 68%, rgba(255,255,255,0.55) 0 1px, transparent 2px),
+        radial-gradient(circle at 52% 84%, rgba(255,255,255,0.65) 0 1px, transparent 2px),
+        radial-gradient(circle at 64% 46%, rgba(255,255,255,0.4) 0 1px, transparent 2px),
+        radial-gradient(circle at 38% 34%, rgba(255,255,255,0.5) 0 1px, transparent 2px);
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    .landing-topbar {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 38px;
+      flex-wrap: wrap;
+    }
+    .landing-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #f8fafc;
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+    .landing-brand img {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      object-fit: cover;
+      box-shadow: 0 12px 26px rgba(0,0,0,0.34);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+    }
+    .landing-brand .accent {
+      font-style: italic;
+      font-weight: 900;
+    }
+    .landing-nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .landing-nav a {
       text-decoration: none;
-      color: var(--txt);
-      font-weight: 800;
-      font-size: clamp(24px, 4vw, 46px);
-      border-right: 1px solid rgba(255,255,255,0.14);
-      background: linear-gradient(180deg, rgba(49,70,99,0.45), rgba(23,29,41,0.68));
+      color: #f4f7fb;
+      font-weight: 700;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 11px 18px;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(8px);
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
     }
-    .shop-half:last-child { border-right: 0; }
-    .shop-half:hover { border-color: var(--accent); filter: brightness(1.08); }
-    @media (max-width: 860px) {
-      .shop-wrap {
-        grid-template-columns: 1fr;
-        height: auto;
-      }
-      .shop-half {
-        min-height: 180px;
-        border-right: 0;
-        border-bottom: 1px solid rgba(255,255,255,0.14);
-      }
-      .shop-half:last-child { border-bottom: 0; }
+    .landing-nav a:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125,211,252,0.52);
+      background: rgba(125,211,252,0.10);
     }
-    .shop-reviews {
-      width: min(1100px, 98%);
-      margin-top: 14px;
+    .landing-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto 28px;
+      text-align: center;
+    }
+    .landing-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #dbe6ff;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    .landing-title {
+      margin: 0;
+      color: #ffffff;
+      font-size: clamp(52px, 10vw, 108px);
+      line-height: 0.94;
+      letter-spacing: -0.06em;
+      font-weight: 950;
+    }
+    .landing-title span {
+      display: block;
+      font-weight: 300;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(226,232,240,0.8);
+      font-size: 0.42em;
+      margin-top: 10px;
+    }
+    .landing-description {
+      margin: 22px auto 0;
+      max-width: 680px;
+      color: #bac6dc;
+      font-size: clamp(15px, 2vw, 19px);
+      line-height: 1.72;
+    }
+    .landing-cards {
+      position: relative;
+      z-index: 1;
       display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
     }
-    .shop-reviews-btn {
+    .landing-card {
+      position: relative;
+      overflow: hidden;
       display: grid;
-      place-items: center;
+      gap: 14px;
       text-decoration: none;
-      color: var(--txt);
+      color: #f8fafc;
+      min-height: 280px;
+      padding: 24px;
+      border-radius: 26px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background:
+        radial-gradient(circle at top right, rgba(96,165,250,0.22), transparent 28%),
+        linear-gradient(180deg, rgba(9,13,28,0.94), rgba(7,10,22,0.98));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 38px rgba(0,0,0,0.28);
+      transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+    }
+    .landing-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -24% auto;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(96,165,250,0.18), transparent 60%);
+      pointer-events: none;
+    }
+    .landing-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(125,211,252,0.45);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 22px 60px rgba(0,0,0,0.34);
+    }
+    .landing-card.discord {
+      background:
+        radial-gradient(circle at top right, rgba(129,140,248,0.22), transparent 28%),
+        linear-gradient(180deg, rgba(11,16,33,0.94), rgba(8,12,25,0.98));
+    }
+    .landing-card .eyebrow {
+      color: #93c5fd;
+      font-size: 12px;
       font-weight: 800;
-      font-size: clamp(18px, 3vw, 28px);
-      padding: 18px 16px;
-      border-radius: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.10em;
+    }
+    .landing-card h3 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+    .landing-card p {
+      margin: 0;
+      color: #b4c0d5;
+      line-height: 1.7;
+      font-size: 15px;
+      max-width: 38ch;
+    }
+    .landing-points {
+      display: grid;
+      gap: 8px;
+      color: #e5edf9;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .landing-cta {
+      margin-top: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      min-width: 160px;
+      padding: 12px 18px;
+      border-radius: 999px;
       border: 1px solid rgba(255,255,255,0.14);
-      background: linear-gradient(180deg, rgba(44,78,122,0.55), rgba(23,29,41,0.75));
+      background: rgba(255,255,255,0.07);
+      color: #f8fafc;
+      font-weight: 800;
+      letter-spacing: 0.01em;
     }
-    .shop-reviews-btn:hover { border-color: var(--accent); filter: brightness(1.08); }
+    .landing-bottom {
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr;
+      gap: 18px;
+    }
+    .landing-review-strip,
+    .landing-support {
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(6,10,24,0.92);
+      box-shadow: 0 16px 44px rgba(0,0,0,0.24);
+      padding: 22px;
+    }
+    .landing-review-strip h3,
+    .landing-support h3 {
+      margin: 0 0 10px;
+      color: #f8fafc;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+    .landing-review-strip p,
+    .landing-support p {
+      margin: 0;
+      color: #b3c0d8;
+      line-height: 1.7;
+    }
+    .landing-review-actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .landing-review-actions a {
+      text-decoration: none;
+      color: #f8fafc;
+      font-weight: 800;
+      padding: 11px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+    }
+    @media (max-width: 980px) {
+      .landing-cards,
+      .landing-bottom {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 700px) {
+      .landing-shell {
+        width: min(96%, 96%);
+      }
+      .landing-hero {
+        padding: 20px 18px 24px;
+        border-radius: 24px;
+      }
+      .landing-topbar {
+        margin-bottom: 28px;
+      }
+      .landing-brand {
+        font-size: 30px;
+      }
+      .landing-card {
+        min-height: 240px;
+        padding: 18px;
+        border-radius: 20px;
+      }
+      .landing-review-strip,
+      .landing-support {
+        border-radius: 20px;
+        padding: 18px;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="layout">
     <aside class="side">${sideMenuHtml()}</aside>
     <main class="main">
-      <section class="hero" style="margin-bottom:12px; text-align:left;">
-        <a class="btn" href="/">Back Home</a>
-      </section>
-      <section class="shop-wrap">
-        <a class="shop-half" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
-        <a class="shop-half" href="/shop/web">Website Shop</a>
-      </section>
-      <section class="shop-reviews">
-        <a class="shop-reviews-btn" href="/shop/reviews">Reviews</a>
+      <section class="landing-shell">
+        <div class="landing-hero">
+          <div class="landing-topbar">
+            <div class="landing-brand">
+              <img src="${esc(SITE_ICON_URL)}" alt="LooooootyShop logo" />
+              <div><span class="accent">Looooooty</span>Shop</div>
+            </div>
+            <nav class="landing-nav">
+              <a href="/">Back Home</a>
+              <a href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
+              <a href="/shop/reviews">Reviews</a>
+            </nav>
+          </div>
+          <div class="landing-copy">
+            <div class="landing-kicker">Official 2b2t Storefront</div>
+            <h1 class="landing-title">Looooooty<span>Shop</span></h1>
+            <p class="landing-description">Choose the storefront that fits how you want to buy. Use the Discord shop if you want the ticket-based delivery flow, or jump into the website shop for a faster modern catalog with cart, checkout, reviews, and account features.</p>
+          </div>
+          <div class="landing-cards">
+            <a class="landing-card discord" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">
+              <div class="eyebrow">Discord</div>
+              <h3>Discord Shop</h3>
+              <p>Open tickets, talk to staff directly, use the full Discord cart flow, and keep everything inside your server workflow.</p>
+              <div class="landing-points">
+                <div>Direct ticket support</div>
+                <div>Built-in delivery status flow</div>
+                <div>Best for staff-assisted orders</div>
+              </div>
+              <div class="landing-cta">Open Discord Shop</div>
+            </a>
+            <a class="landing-card" href="/shop/web">
+              <div class="eyebrow">Website</div>
+              <h3>Website Shop</h3>
+              <p>Browse a cleaner storefront, filter categories quickly, build your cart, leave reviews, and manage checkout from one modern page.</p>
+              <div class="landing-points">
+                <div>Fast modern product browsing</div>
+                <div>Website checkout and reviews</div>
+                <div>Best for self-serve orders</div>
+              </div>
+              <div class="landing-cta">Enter Website Shop</div>
+            </a>
+          </div>
+        </div>
+        <div class="landing-bottom">
+          <div class="landing-review-strip">
+            <h3>Reviews and trust</h3>
+            <p>Read customer feedback, post your own review after delivery, and keep the public storefront credible. The review flow is part of the shop now, not an afterthought.</p>
+            <div class="landing-review-actions">
+              <a href="/shop/reviews">View Reviews</a>
+              <a href="/shop/web#catalog">Browse Products</a>
+            </div>
+          </div>
+          <div class="landing-support">
+            <h3>How to buy</h3>
+            <p>Need the ticket-based process? Use Discord. Want a cleaner storefront and website checkout? Use the website shop. Both routes feed into the same shop operation.</p>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -2576,7 +2859,7 @@ function websiteShopHtml(websiteShop, session = {}) {
 
     <section class="hero">
       <div class="hero-badge">Official 2b2t Storefront</div>
-      <h2 class="hero-title">Looooooty<span class="dot">.</span></h2>
+      <h2 class="hero-title">Looooooty</h2>
       <div class="hero-sub">Shop</div>
       <p class="hero-copy">A high-trust 2b2t storefront for kits, rares, materials and delivery-ready orders. Browse fast, check out cleanly, and keep the whole flow in one place.</p>
       <div class="hero-stats">
@@ -3617,6 +3900,12 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
   const ordered = list
     .slice()
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const providerCounts = ordered.reduce((acc, review) => {
+    const key = String(review.provider || "unknown");
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const topProvider = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "mixed";
   return `<!doctype html>
 <html>
 <head>
@@ -3626,51 +3915,327 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
   ${faviconLinks()}
   ${sharedHomeStyles()}
   <style>
-    .review-shell { width:min(1100px, 95%); }
-    .review-card { border:1px solid rgba(255,255,255,0.14); border-radius:16px; padding:16px; background: rgba(10,14,28,0.62); }
-    .review-form { display:grid; gap:10px; margin-top:10px; }
-    .review-form textarea { min-height:120px; resize:vertical; }
-    .review-list { display:grid; gap:12px; margin-top:14px; }
-    .review-row { border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:12px; background: rgba(5,9,22,0.7); }
-    .review-head { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-weight:800; }
-    .review-meta { color: var(--muted); font-size:12px; margin-top:6px; }
-    .review-text { margin-top:8px; white-space:pre-wrap; line-height:1.6; }
+    .reviews-shell {
+      width: min(1320px, 96%);
+      display: grid;
+      gap: 22px;
+    }
+    .reviews-hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 32px;
+      padding: 24px 24px 28px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background:
+        radial-gradient(circle at top center, rgba(96,165,250,0.18), transparent 32%),
+        radial-gradient(circle at 80% 18%, rgba(52,211,153,0.10), transparent 24%),
+        linear-gradient(180deg, rgba(5,8,18,0.95), rgba(6,10,24,0.98));
+      box-shadow: 0 26px 72px rgba(0,0,0,0.34);
+    }
+    .reviews-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 14% 22%, rgba(255,255,255,0.88) 0 1px, transparent 2px),
+        radial-gradient(circle at 26% 74%, rgba(255,255,255,0.48) 0 1px, transparent 2px),
+        radial-gradient(circle at 74% 26%, rgba(255,255,255,0.72) 0 1px, transparent 2px),
+        radial-gradient(circle at 86% 62%, rgba(255,255,255,0.42) 0 1px, transparent 2px),
+        radial-gradient(circle at 46% 56%, rgba(255,255,255,0.36) 0 1px, transparent 2px);
+      opacity: 0.42;
+      pointer-events: none;
+    }
+    .reviews-topbar {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .reviews-topbar nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .reviews-topbar a {
+      text-decoration: none;
+      color: #f8fafc;
+      font-weight: 700;
+      padding: 11px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+    }
+    .reviews-copy {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 14px;
+      max-width: 760px;
+    }
+    .reviews-kicker {
+      width: fit-content;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      color: #dce7fb;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+    .reviews-title {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(40px, 6vw, 72px);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+      font-weight: 950;
+    }
+    .reviews-title span {
+      font-style: italic;
+      font-weight: 900;
+    }
+    .reviews-sub {
+      margin: 0;
+      color: #b8c4d9;
+      font-size: clamp(15px, 2vw, 18px);
+      line-height: 1.72;
+      max-width: 64ch;
+    }
+    .reviews-stats {
+      position: relative;
+      z-index: 1;
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      max-width: 760px;
+    }
+    .reviews-stat {
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      padding: 16px 18px;
+      backdrop-filter: blur(8px);
+    }
+    .reviews-stat b {
+      display: block;
+      color: #fff;
+      font-size: clamp(24px, 3vw, 34px);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .reviews-stat span {
+      color: #b9c7de;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .reviews-grid {
+      display: grid;
+      grid-template-columns: 420px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .review-panel,
+    .review-list-shell {
+      border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(7,11,24,0.95);
+      box-shadow: 0 20px 54px rgba(0,0,0,0.28);
+      padding: 22px;
+    }
+    .review-panel h2,
+    .review-list-shell h2 {
+      margin: 0 0 10px;
+      color: #fff;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+    .review-panel .subtle,
+    .review-list-shell .subtle {
+      color: #adbdd7;
+      line-height: 1.7;
+      margin-bottom: 14px;
+    }
+    .review-form {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .review-form textarea {
+      width: 100%;
+      min-height: 160px;
+      resize: vertical;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color: #f8fafc;
+      padding: 16px;
+      font: inherit;
+      line-height: 1.65;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .review-form textarea:focus {
+      border-color: rgba(125,211,252,0.44);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+    .review-submit {
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      color: #fff;
+      font-weight: 900;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 16px 34px rgba(37,99,235,0.24);
+    }
+    .review-login-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 13px 18px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+    }
+    .review-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .review-row {
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background:
+        radial-gradient(circle at top right, rgba(59,130,246,0.10), transparent 24%),
+        linear-gradient(180deg, rgba(10,14,30,0.96), rgba(7,11,22,0.98));
+      padding: 18px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+    .review-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .review-user {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+    .review-time {
+      color: #96a6c3;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.10em;
+      font-weight: 700;
+    }
+    .review-meta {
+      color: #8ea1c3;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .review-text {
+      color: #e7eefb;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      font-size: 15px;
+    }
+    @media (max-width: 1020px) {
+      .reviews-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 760px) {
+      .reviews-shell {
+        width: min(96%, 96%);
+      }
+      .reviews-hero,
+      .review-panel,
+      .review-list-shell {
+        border-radius: 22px;
+        padding: 18px;
+      }
+      .reviews-stats {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="hero" style="margin-bottom:12px; text-align:left;">
-        <a class="btn" href="/shop">Back to Shop</a>
-      </section>
-      <section class="review-shell">
-        <div class="review-card">
-          <h2 style="margin-top:0;">Reviews</h2>
-          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-          ${
-            userId
-              ? `<div class="note">Posting as <b>${esc(userTag || "User")}</b> (${esc(provider || "unknown")}).</div>
-                 <form class="review-form" method="post" action="/shop/reviews">
-                   <textarea name="review" maxlength="500" required placeholder="Write your review (max 500 characters)"></textarea>
-                   <button class="submit" type="submit">Send Review</button>
-                 </form>`
-              : `<div class="note">You must be logged in to post a review.</div>
-                 <a class="btn" href="/auth?next=%2Fshop%2Freviews">Sign Up / Login</a>`
-          }
+      <section class="reviews-shell">
+        <div class="reviews-hero">
+          <div class="reviews-topbar">
+            <nav>
+              <a href="/shop">Shop Options</a>
+              <a href="/shop/web">Website Shop</a>
+              <a href="/">Back Home</a>
+            </nav>
+          </div>
+          <div class="reviews-copy">
+            <div class="reviews-kicker">Customer feedback</div>
+            <h1 class="reviews-title"><span>Looooooty</span> Reviews</h1>
+            <p class="reviews-sub">Public review history for the storefront. Logged-in users can leave a review after buying, and everyone can use this page to gauge trust, consistency, and how the shop is performing over time.</p>
+          </div>
+          <div class="reviews-stats">
+            <div class="reviews-stat"><b>${ordered.length}</b><span>Total Reviews</span></div>
+            <div class="reviews-stat"><b>${new Set(ordered.map((r) => String(r.userId || ""))).size}</b><span>Unique Reviewers</span></div>
+            <div class="reviews-stat"><b>${esc(topProvider)}</b><span>Top Provider</span></div>
+          </div>
         </div>
-        <div class="review-list">
-          ${ordered.length
-            ? ordered.map((r) => `<div class="review-row">
-                <div class="review-head">
-                  <div>${esc(r.userTag || "User")}</div>
-                  <div class="review-meta">${esc(r.createdAt ? new Date(r.createdAt).toLocaleString("en-US", { hour12: false }) : "")}</div>
-                </div>
-                <div class="review-meta">Provider: ${esc(r.provider || "unknown")} • ID: ${esc(r.userId || "-")}</div>
-                <div class="review-text">${esc(r.text || "")}</div>
-              </div>`).join("")
-            : '<div class="note">No reviews yet.</div>'}
+
+        <div class="reviews-grid">
+          <div class="review-panel">
+            <h2>Write a review</h2>
+            <div class="subtle">Post feedback that other buyers can actually use. Keep it specific, short, and relevant to the order, delivery, or communication quality.</div>
+            ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+            ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+            ${
+              userId
+                ? `<div class="note">Posting as <b>${esc(userTag || "User")}</b> via <b>${esc(provider || "unknown")}</b>.</div>
+                   <form class="review-form" method="post" action="/shop/reviews">
+                     <textarea name="review" maxlength="500" required placeholder="Write your review here (max 500 characters)"></textarea>
+                     <button class="review-submit" type="submit">Post Review</button>
+                   </form>`
+                : `<div class="note">You need to be logged in before you can post a public review.</div>
+                   <a class="review-login-btn" href="/auth?next=%2Fshop%2Freviews">Sign Up / Login</a>`
+            }
+          </div>
+
+          <div class="review-list-shell">
+            <h2>Recent reviews</h2>
+            <div class="subtle">Newest reviews are shown first so the page reflects the current state of the shop.</div>
+            <div class="review-list">
+              ${ordered.length
+                ? ordered.map((r) => `<div class="review-row">
+                    <div class="review-head">
+                      <div class="review-user">${esc(r.userTag || "User")}</div>
+                      <div class="review-time">${esc(r.createdAt ? new Date(r.createdAt).toLocaleString("en-US", { hour12: false }) : "")}</div>
+                    </div>
+                    <div class="review-meta">Provider: ${esc(r.provider || "unknown")} • ID: ${esc(r.userId || "-")}</div>
+                    <div class="review-text">${esc(r.text || "")}</div>
+                  </div>`).join("")
+                : '<div class="note">No reviews yet.</div>'}
+            </div>
+          </div>
         </div>
       </section>
     </main>
