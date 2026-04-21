@@ -1933,6 +1933,9 @@ function websiteShopHtml(websiteShop, session = {}) {
   const userTag = String(session && session.userTag ? session.userTag : "");
   const userProvider = String(session && session.provider ? session.provider : "");
   const authLabel = userId ? "Account" : "Sign Up";
+  const reviews = loadWebsiteReviews();
+  const orders = loadWebsiteOrders();
+  const buyerCount = new Set(orders.map((o) => String(o && o.userId ? o.userId : "")).filter(Boolean)).size;
   const categories = Array.from(
     new Set(
       [
@@ -1952,84 +1955,329 @@ function websiteShopHtml(websiteShop, session = {}) {
   <title>LooooootyShop 2b2t</title>
   ${faviconLinks()}
   <style>
-    :root { --txt:#e8f0ff; --muted:#9ba8c3; --accent:#4ea6ff; }
+    :root {
+      --txt: #f4f7ff;
+      --muted: #9ca4bb;
+      --line: rgba(255,255,255,0.12);
+      --panel: rgba(7,10,18,0.78);
+      --panel-2: rgba(10,14,26,0.86);
+      --chip: rgba(255,255,255,0.04);
+      --chip-active: #ffffff;
+      --chip-active-text: #05070d;
+      --green: #1f8f4e;
+      --red: #b03a43;
+      --blue: #4f95ea;
+    }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
       color: var(--txt);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
+      font-family: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
       background:
-        radial-gradient(1200px 700px at 85% 20%, rgba(78,166,255,0.18), transparent 60%),
-        radial-gradient(900px 500px at 20% 80%, rgba(78,166,255,0.12), transparent 60%),
-        linear-gradient(180deg, #060d2c, #050b22 60%, #04081b);
+        radial-gradient(circle at 20% 14%, rgba(111, 79, 255, 0.16), transparent 22%),
+        radial-gradient(circle at 79% 20%, rgba(93, 127, 255, 0.12), transparent 24%),
+        linear-gradient(180deg, #010204 0%, #03050b 45%, #060914 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      background-image:
+        radial-gradient(circle at 7% 10%, rgba(255,255,255,0.62) 0 1.4px, transparent 1.5px),
+        radial-gradient(circle at 18% 77%, rgba(255,255,255,0.52) 0 1.6px, transparent 1.7px),
+        radial-gradient(circle at 31% 29%, rgba(255,255,255,0.36) 0 1.1px, transparent 1.2px),
+        radial-gradient(circle at 46% 64%, rgba(255,255,255,0.48) 0 1.5px, transparent 1.6px),
+        radial-gradient(circle at 58% 18%, rgba(255,255,255,0.38) 0 1.1px, transparent 1.2px),
+        radial-gradient(circle at 71% 46%, rgba(255,255,255,0.56) 0 1.7px, transparent 1.8px),
+        radial-gradient(circle at 83% 82%, rgba(255,255,255,0.4) 0 1.2px, transparent 1.3px),
+        radial-gradient(circle at 94% 31%, rgba(255,255,255,0.54) 0 1.5px, transparent 1.6px);
+      opacity: 0.95;
+    }
+    body::after {
+      background:
+        radial-gradient(640px 180px at 50% 240px, rgba(93, 88, 220, 0.16), transparent 70%),
+        radial-gradient(560px 220px at 50% 310px, rgba(255,255,255,0.05), transparent 75%);
+    }
+    .shop-shell {
+      position: relative;
+      z-index: 1;
       min-height: 100vh;
     }
-    .shell { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
-    .sidebar { border-right: 1px solid rgba(255,255,255,0.12); padding: 20px; background: rgba(7,12,34,0.78); }
-    .search {
-      width: 100%;
-      padding: 12px 13px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(4,8,25,0.8);
-      color: var(--txt);
-      outline: none;
+    .shop-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 20px;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(2,4,8,0.8);
+      backdrop-filter: blur(10px);
     }
-    .cat-list { margin-top: 18px; display: grid; gap: 10px; }
-    .cat {
-      text-align: left;
-      padding: 11px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(14,20,46,0.65);
-      color: var(--txt);
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .cat.active, .cat:hover { border-color: var(--accent); }
-    .main { padding: 18px 22px 30px; }
-    .topbar {
+    .brand-mark {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 14px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(8,13,34,0.72);
-      border-radius: 16px;
-      padding: 12px 14px;
-      margin-bottom: 16px;
+      min-width: 0;
+      text-decoration: none;
+      color: var(--txt);
     }
-    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .brand img { width: 46px; height: 46px; border-radius: 10px; object-fit: cover; border: 1px solid rgba(255,255,255,0.18); }
-    .brand-title {
-      margin: 0;
-      font-size: clamp(22px, 3.2vw, 42px);
+    .brand-mark img {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      object-fit: cover;
+      background: rgba(255,255,255,0.04);
+    }
+    .brand-mark span {
+      font-size: 28px;
       font-style: italic;
+      font-weight: 1000;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
-    .top-actions { display: flex; gap: 10px; }
-    .btn {
+    .shop-nav {
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    .shop-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 16px;
+    }
+    .shop-nav a:hover,
+    .shop-nav a.active {
+      color: var(--txt);
+    }
+    .shop-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .shop-btn,
+    .cat,
+    .add,
+    .cart-btn,
+    .flow-btn {
+      transition: transform .14s ease, border-color .14s ease, background .14s ease, opacity .14s ease;
+    }
+    .shop-btn:hover,
+    .cat:hover,
+    .add:hover,
+    .cart-btn:hover,
+    .flow-btn:hover {
+      transform: translateY(-1px);
+    }
+    .shop-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       text-decoration: none;
       color: var(--txt);
       font-weight: 800;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: linear-gradient(180deg, rgba(56,83,130,0.55), rgba(28,42,68,0.8));
-      border-radius: 10px;
-      padding: 10px 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      border-radius: 999px;
+      padding: 11px 16px;
+      min-height: 44px;
+      cursor: pointer;
     }
-    .btn:hover { border-color: var(--accent); }
-    .section-title { margin: 12px 2px 16px; font-size: 34px; }
-    .grid { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .card {
-      border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 14px;
-      background: rgba(10,16,41,0.72);
-      padding: 12px;
+    .shop-btn.primary {
+      background: rgba(255,255,255,0.08);
+    }
+    .hero {
+      padding: 70px 28px 36px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 26px;
+    }
+    .hero-title {
+      margin: 0;
+      font-size: clamp(80px, 17vw, 196px);
+      line-height: 0.86;
+      font-weight: 1000;
+      letter-spacing: -0.07em;
+      text-transform: uppercase;
+    }
+    .hero-title .dot {
+      color: rgba(255,255,255,0.36);
+    }
+    .hero-sub {
+      margin: 18px auto 0;
+      color: rgba(255,255,255,0.58);
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      padding-left: 0.3em;
+      font-size: clamp(24px, 5vw, 56px);
+    }
+    .hero-copy {
+      max-width: 740px;
+      margin: 18px auto 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.6;
+    }
+    .hero-stats {
+      margin: 36px auto 24px;
+      display: inline-grid;
+      grid-template-columns: repeat(3, minmax(130px, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(6px);
+    }
+    .hero-stat {
+      padding: 18px 30px;
+      border-right: 1px solid var(--line);
+    }
+    .hero-stat:last-child { border-right: 0; }
+    .hero-stat b {
+      display: block;
+      font-size: clamp(32px, 5vw, 50px);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .hero-stat span {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 220px;
+      padding: 16px 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.04);
+      color: var(--txt);
+      text-decoration: none;
+      font-weight: 900;
+      font-size: 18px;
+    }
+    .catalog {
+      padding: 18px 28px 48px;
+    }
+    .catalog-head {
       display: grid;
-      gap: 9px;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+    .catalog-title {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 60px);
+      line-height: 0.95;
+      font-weight: 1000;
+      letter-spacing: -0.04em;
+    }
+    .catalog-sub {
+      margin-top: 10px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 760px;
+    }
+    .catalog-tools {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search {
+      width: min(320px, 100%);
+      padding: 16px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      color: var(--txt);
+      outline: none;
+      font-size: 16px;
+    }
+    .search::placeholder { color: rgba(255,255,255,0.38); }
+    .cat-row {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+      scrollbar-width: none;
+    }
+    .cat-row::-webkit-scrollbar { display: none; }
+    .cat {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--chip);
+      color: var(--txt);
+      padding: 12px 18px;
+      font-weight: 800;
+      white-space: nowrap;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .cat.active {
+      background: var(--chip-active);
+      color: var(--chip-active-text);
+      border-color: var(--chip-active);
+    }
+    .status-banner {
+      margin: 0 0 18px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(138, 30, 30, 0.18);
+      color: #ffd7d7;
+      font-weight: 700;
+    }
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(10,15,27,0.95), rgba(7,10,18,0.92));
+      padding: 16px;
+      display: grid;
+      gap: 12px;
       position: relative;
+      overflow: visible;
+      box-shadow: 0 22px 70px rgba(0,0,0,0.32);
     }
     .card-info {
       position: absolute;
@@ -2037,19 +2285,20 @@ function websiteShopHtml(websiteShop, session = {}) {
       right: 0;
       top: 100%;
       margin-top: 8px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(8,12,28,0.92);
-      padding: 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(8,12,28,0.96);
+      padding: 12px;
       font-size: 13px;
       color: var(--txt);
       opacity: 0;
       pointer-events: none;
       display: grid;
-      gap: 6px;
+      gap: 7px;
       transform: translateY(-4px);
       transition: opacity .15s ease, transform .15s ease;
-      z-index: 5;
+      z-index: 6;
+      box-shadow: 0 18px 46px rgba(0,0,0,0.36);
     }
     .card:hover .card-info,
     .card:focus-within .card-info {
@@ -2058,24 +2307,67 @@ function websiteShopHtml(websiteShop, session = {}) {
     }
     .card-info h4 { margin: 0; font-size: 14px; }
     .card-info .muted { color: var(--muted); font-size: 12px; }
-    .card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .card-top h3 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.04;
+      letter-spacing: -0.03em;
+    }
     .price {
       color: #31ff83;
       font-weight: 900;
-      border: 1px solid rgba(49,255,131,0.35);
+      border: 1px solid rgba(49,255,131,0.28);
       border-radius: 999px;
-      padding: 3px 8px;
+      padding: 5px 10px;
+      background: rgba(10,27,18,0.72);
+      white-space: nowrap;
+      font-size: 15px;
     }
-    .img-wrap { border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.15); background: rgba(5,9,25,0.8); display:grid; place-items:center; }
-    .img-wrap img { width: 100%; height: 170px; object-fit: contain; display: block; background: rgba(5,9,25,0.8); }
-    .shop-content { display:grid; grid-template-columns: 1fr; gap:14px; align-items:start; }
-    .add { justify-self: center; border-radius: 10px; border: 1px solid #5ca8ff; background: #4f95ea; color: white; font-weight: 800; padding: 9px 18px; cursor: pointer; opacity: 0.95; }
-    .add:disabled { cursor: not-allowed; opacity: 0.55; }
+    .img-wrap {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: radial-gradient(circle at 50% 30%, rgba(96,120,190,0.2), rgba(7,10,20,0.96));
+      display: grid;
+      place-items: center;
+      min-height: 196px;
+    }
+    .img-wrap img {
+      width: 100%;
+      height: 196px;
+      object-fit: contain;
+      display: block;
+      background: transparent;
+    }
+    .add {
+      justify-self: center;
+      border-radius: 12px;
+      border: 1px solid rgba(115,177,255,0.45);
+      background: linear-gradient(180deg, #5da8ff, #4388df);
+      color: white;
+      font-weight: 900;
+      padding: 11px 22px;
+      cursor: pointer;
+      min-width: 180px;
+      font-size: 16px;
+    }
+    .add:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.12);
+    }
     .cart-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(2,5,16,0.78);
-      backdrop-filter: blur(4px);
+      background: rgba(2,5,16,0.8);
+      backdrop-filter: blur(6px);
       display: none;
       z-index: 50;
       padding: 20px;
@@ -2083,14 +2375,15 @@ function websiteShopHtml(websiteShop, session = {}) {
     .cart-overlay.open { display: block; }
     .cart-panel {
       border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 14px;
-      background: rgba(10,16,41,0.96);
-      padding: 14px;
+      border-radius: 18px;
+      background: rgba(10,16,41,0.97);
+      padding: 16px;
       max-width: 920px;
       width: 100%;
       max-height: 92vh;
       overflow: auto;
       margin: 0 auto;
+      box-shadow: 0 28px 90px rgba(0,0,0,0.42);
     }
     .cart-top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
     .cart-title { font-size: 28px; margin: 0 0 8px; }
@@ -2107,8 +2400,8 @@ function websiteShopHtml(websiteShop, session = {}) {
     .cart-remove {
       margin-top: 8px;
       border-radius: 8px;
-      border: 1px solid #b03a43;
-      background: #b03a43;
+      border: 1px solid var(--red);
+      background: var(--red);
       color: white;
       font-weight: 700;
       padding: 6px 10px;
@@ -2126,7 +2419,7 @@ function websiteShopHtml(websiteShop, session = {}) {
     .cart-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
     .cart-actions.single { grid-template-columns: 1fr; }
     .cart-btn {
-      border-radius: 10px;
+      border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.18);
       padding: 10px 12px;
       text-align: center;
@@ -2135,8 +2428,8 @@ function websiteShopHtml(websiteShop, session = {}) {
       background: rgba(20,28,58,0.85);
       color: var(--txt);
     }
-    .cart-btn.checkout { background: #1f8f4e; border-color: #1f8f4e; }
-    .cart-btn.close { background: #b03a43; border-color: #b03a43; }
+    .cart-btn.checkout { background: var(--green); border-color: var(--green); }
+    .cart-btn.close { background: var(--red); border-color: var(--red); }
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -2149,7 +2442,7 @@ function websiteShopHtml(websiteShop, session = {}) {
     .modal-overlay.open { display: block; }
     .modal-card {
       border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 14px;
+      border-radius: 18px;
       background: rgba(10,16,41,0.96);
       padding: 14px;
       max-width: 520px;
@@ -2159,8 +2452,8 @@ function websiteShopHtml(websiteShop, session = {}) {
     .modal-title { font-size: 24px; margin: 0 0 8px; }
     .modal-input {
       width: 100%;
-      padding: 11px;
-      border-radius: 10px;
+      padding: 13px;
+      border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.18);
       background: rgba(9,13,20,0.62);
       color: var(--txt);
@@ -2180,15 +2473,8 @@ function websiteShopHtml(websiteShop, session = {}) {
       font-size: 14px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
     }
-    .flow-embed h4 {
-      margin: 0 0 8px;
-      font-size: 16px;
-    }
-    .flow-meta {
-      display: grid;
-      gap: 6px;
-      margin-top: 8px;
-    }
+    .flow-embed h4 { margin: 0 0 8px; font-size: 16px; }
+    .flow-meta { display: grid; gap: 6px; margin-top: 8px; }
     .flow-meta-row {
       display: flex;
       justify-content: space-between;
@@ -2196,10 +2482,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       border-top: 1px solid rgba(255,255,255,0.08);
       padding-top: 6px;
     }
-    .flow-meta-row:first-child {
-      border-top: 0;
-      padding-top: 0;
-    }
+    .flow-meta-row:first-child { border-top: 0; padding-top: 0; }
     .flow-meta-label { color: var(--muted); font-weight: 700; }
     .flow-meta-value { font-weight: 800; }
     .flow-actions { display:flex; gap:8px; flex-wrap: wrap; }
@@ -2212,27 +2495,111 @@ function websiteShopHtml(websiteShop, session = {}) {
       padding: 7px 10px;
       cursor: pointer;
     }
-    .flow-btn.ok { background: #1f8f4e; border-color: #1f8f4e; }
+    .flow-btn.ok { background: var(--green); border-color: var(--green); }
     .modal-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
-    @media (max-width: 1120px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 1120px) {
+      .shop-topbar {
+        grid-template-columns: 1fr;
+        justify-items: start;
+      }
+      .shop-nav, .shop-actions {
+        justify-content: flex-start;
+      }
+      .catalog-head {
+        grid-template-columns: 1fr;
+      }
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
     @media (max-width: 860px) {
-      .shell { grid-template-columns: 1fr; }
-      .sidebar { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.12); }
-      .topbar { flex-direction: column; align-items: stretch; }
-      .top-actions { width: 100%; }
-      .top-actions .btn { flex: 1; text-align: center; }
-      .grid { grid-template-columns: 1fr; }
-      .cart-overlay { padding: 8px; }
-      .cart-panel { max-height: 96vh; }
-      .modal-overlay { padding: 8px; }
+      .hero {
+        padding-top: 48px;
+      }
+      .hero-title {
+        font-size: clamp(64px, 20vw, 120px);
+      }
+      .hero-sub {
+        font-size: clamp(22px, 8vw, 40px);
+        letter-spacing: 0.22em;
+        padding-left: 0.22em;
+      }
+      .hero-copy {
+        font-size: 16px;
+      }
+      .hero-stats {
+        grid-template-columns: 1fr;
+        width: min(320px, 100%);
+      }
+      .hero-stat {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .hero-stat:last-child { border-bottom: 0; }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .catalog, .hero, .shop-topbar {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .cart-overlay, .modal-overlay {
+        padding: 8px;
+      }
+      .cart-panel {
+        max-height: 96vh;
+      }
+      .search {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <aside class="sidebar">
-      <input id="shop-search" class="search" type="text" placeholder="Search items..." />
-      <div class="cat-list">
+  <div class="shop-shell">
+    <header class="shop-topbar">
+      <a class="brand-mark" href="/shop/web">
+        <img src="${SHOP_LOGO_URL}" alt="LooooootyShop logo" />
+        <span>LooooootyShop</span>
+      </a>
+      <nav class="shop-nav">
+        <a class="active" href="/shop/web">Store</a>
+        <a href="/shop/reviews">Reviews</a>
+        <a href="/how-to-order">How to Buy</a>
+      </nav>
+      <div class="shop-actions">
+        <a class="shop-btn" href="/">Back to Home</a>
+        <a class="shop-btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
+        <button id="top-cart-btn" class="shop-btn" type="button" style="display:none;">Cart (0)</button>
+        <a class="shop-btn primary" href="/auth?next=%2Fshop%2Fweb">${authLabel}</a>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-badge">Official 2b2t Storefront</div>
+      <h2 class="hero-title">Looooooty<span class="dot">.</span></h2>
+      <div class="hero-sub">Shop</div>
+      <p class="hero-copy">A high-trust 2b2t storefront for kits, rares, materials and delivery-ready orders. Browse fast, check out cleanly, and keep the whole flow in one place.</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><b>${orders.length}</b><span>Orders</span></div>
+        <div class="hero-stat"><b>${reviews.length}</b><span>Reviews</span></div>
+        <div class="hero-stat"><b>${buyerCount}</b><span>Buyers</span></div>
+      </div>
+      <a class="hero-cta" href="#catalog">Browse Store</a>
+    </section>
+
+    <section id="catalog" class="catalog">
+      <div class="catalog-head">
+        <div>
+          <h2 class="catalog-title">Store</h2>
+          <div class="catalog-sub">Browse by category, search items fast, hover products for details, and check out without leaving the page.</div>
+        </div>
+        <div class="catalog-tools">
+          <input id="shop-search" class="search" type="text" placeholder="Search items..." />
+        </div>
+      </div>
+
+      <div class="cat-row">
         ${orderedCategories
           .map(
             (cat, idx) =>
@@ -2240,150 +2607,39 @@ function websiteShopHtml(websiteShop, session = {}) {
           )
           .join("")}
       </div>
-    </aside>
-    <main class="main">
-      <header class="topbar">
-        <div class="brand">
-          <img src="${SHOP_LOGO_URL}" alt="LooooootyShop logo" />
-          <h1 class="brand-title">LooooootyShop 2b2t</h1>
-        </div>
-        <div class="top-actions">
-          <a class="btn" href="/">Back to Home</a>
-          <a class="btn" href="/how-to-order">How to Order</a>
-          <button id="top-cart-btn" class="btn" type="button" style="display:none;">Cart (0)</button>
-          <a class="btn" href="/auth?next=%2Fshop%2Fweb">${authLabel}</a>
-          <a class="btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
-        </div>
-      </header>
-      <h2 class="section-title">Shop Catalog</h2>
+
       ${
         state === "closed"
-          ? '<div class="warn" style="margin:0 2px 12px;">Website shop is currently CLOSED.</div>'
+          ? '<div class="status-banner">Website shop is currently CLOSED.</div>'
           : ""
       }
-      <section class="shop-content">
-        <div id="product-grid" class="grid">
-          ${(products || [])
-            .map((p) => {
-              const stockQty = Number.isFinite(Number(p.stockQty)) ? Number(p.stockQty) : null;
-              const inStock = p.inStock !== false && state !== "closed" && (stockQty === null || stockQty > 0);
-              return `<article class="card" data-id="${esc(String(p.id || ""))}" data-name="${esc(
-                String(p.name || "").toLowerCase()
-              )}" data-title="${esc(String(p.name || "Unnamed Product"))}" data-price="${Number(p.price || 0)}" data-cat="${esc(
-                String(p.category || "Recommended")
-              )}">
-                <div class="card-top">
-                  <h3 style="margin:0;">${esc(p.name || "Unnamed Product")}</h3>
-                  <span class="price">$${Number(p.price || 0).toFixed(2)}</span>
-                </div>
-                <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
-                <button class="add" data-add-id="${esc(String(p.id || ""))}" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
-                <div class="card-info">
-                  <h4>${esc(p.name || "Product")}</h4>
-                  <div>${esc(p.description || "No description provided.")}</div>
-                  <div class="muted">ID: ${esc(p.id || "-")}</div>
-                  <div class="muted">In Stock: ${stockQty === null ? "-" : String(stockQty)}</div>
-                </div>
-              </article>`;
-            })
-            .join("")}
-        </div>
-        <div id="cart-overlay" class="cart-overlay">
-          <aside class="cart-panel">
-            <div class="cart-top">
-              <h3 class="cart-title">Cart</h3>
-              <button id="cart-hide" class="cart-btn close" type="button">Close</button>
-            </div>
-            <div id="cart-items" class="cart-items">No items yet.</div>
-            <div class="cart-line"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
-            <div class="cart-line"><span>Discount</span><b id="cart-discount">$0.00</b></div>
-            <div class="cart-line"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
-            <div class="cart-line"><span>Delivery Fee</span><b id="cart-delivery">$0.00</b></div>
-            <div class="cart-line"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
-            <div class="cart-line"><span>Total Kits</span><b id="cart-count">0</b></div>
-            <div class="cart-actions">
-              <button id="cart-checkout" class="cart-btn checkout" type="button">Checkout</button>
-              <button id="cart-clear" class="cart-btn close" type="button">Close Cart</button>
-            </div>
-            <div class="cart-actions single">
-              <button id="cart-discount-btn" class="cart-btn" type="button">Discount Code</button>
-              <button id="cart-delivery-btn" class="cart-btn" type="button">Delivery Price</button>
-            </div>
-            <div id="cart-flow" class="flow-wrap"></div>
-          </aside>
-        </div>
-        <div id="qty-modal" class="modal-overlay">
-          <div class="modal-card">
-            <h3 class="modal-title">Add to Cart</h3>
-            <div id="qty-modal-product" class="modal-note"></div>
-            <input id="qty-input" class="modal-input" type="number" min="1" max="999" placeholder="Item Quantity (1-999)" />
-            <div id="qty-error" class="modal-error"></div>
-            <div class="modal-actions">
-              <button id="qty-confirm" class="cart-btn checkout" type="button">Add</button>
-              <button id="qty-cancel" class="cart-btn close" type="button">Cancel</button>
-            </div>
-          </div>
-        </div>
-        <div id="checkout-modal" class="modal-overlay">
-          <div class="modal-card">
-            <h3 class="modal-title">Checkout</h3>
-            <div class="modal-note">Enter your email for payment receipt/invoice.</div>
-            <input id="checkout-email" class="modal-input" type="email" placeholder="you@example.com" />
-            <div class="modal-note">Account identity: <b>${userId ? esc(`${userTag || "User"} (${userProvider || "account"}: ${userId})`) : "Not logged in"}</b></div>
-            <label class="modal-check">
-              <input id="checkout-use-credit" type="checkbox" />
-              Use store credit
-            </label>
-            <div id="checkout-error" class="modal-error"></div>
-            <div id="checkout-result" class="modal-ok"></div>
-            <div class="modal-actions">
-              <button id="checkout-paypal" class="cart-btn checkout" type="button">PayPal</button>
-              <button id="checkout-close" class="cart-btn close" type="button">Close</button>
-            </div>
-          </div>
-        </div>
-        <div id="discount-modal" class="modal-overlay">
-          <div class="modal-card">
-            <h3 class="modal-title">Discount Code</h3>
-            <div class="modal-note">Enter a valid coupon code to apply a discount.</div>
-            <input id="discount-code" class="modal-input" type="text" placeholder="COUPON CODE" />
-            <div id="discount-error" class="modal-error"></div>
-            <div id="discount-result" class="modal-ok"></div>
-            <div class="modal-actions">
-              <button id="discount-apply" class="cart-btn checkout" type="button">Apply</button>
-              <button id="discount-close" class="cart-btn close" type="button">Close</button>
-            </div>
-          </div>
-        </div>
-        <div id="delivery-modal" class="modal-overlay">
-          <div class="modal-card">
-            <h3 class="modal-title">Delivery Coordinates</h3>
-            <div class="modal-note">Enter your X and Z coordinates to estimate delivery price. Format: X Z (two numbers). Example: -1500000 200000.</div>
-            <input id="delivery-coords" class="modal-input" type="text" placeholder="Example: -1500000 200000" />
-            <div class="modal-note">Free within 1,000,000 blocks from spawn. Every 100k after is $0.99.</div>
-            <div id="delivery-error" class="modal-error"></div>
-            <div id="delivery-result" class="modal-ok"></div>
-            <div class="modal-actions">
-              <button id="delivery-apply" class="cart-btn checkout" type="button">Apply</button>
-              <button id="delivery-close" class="cart-btn close" type="button">Close</button>
-            </div>
-          </div>
-        </div>
-        <div id="flow-input-modal" class="modal-overlay">
-          <div class="modal-card">
-            <h3 id="flow-input-title" class="modal-title">Enter Value</h3>
-            <div id="flow-input-hint" class="modal-note"></div>
-            <input id="flow-input-value" class="modal-input" type="text" maxlength="120" />
-            <div id="flow-input-error" class="modal-error"></div>
-            <div class="modal-actions">
-              <button id="flow-input-save" class="cart-btn checkout" type="button">Save</button>
-              <button id="flow-input-cancel" class="cart-btn close" type="button">Cancel</button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
+
+      <div id="product-grid" class="grid">
+        ${(products || [])
+          .map((p) => {
+            const stockQty = Number.isFinite(Number(p.stockQty)) ? Number(p.stockQty) : null;
+            const inStock = p.inStock !== false && state !== "closed" && (stockQty === null || stockQty > 0);
+            return `<article class="card" data-id="${esc(String(p.id || ""))}" data-name="${esc(
+              String(p.name || "").toLowerCase()
+            )}" data-title="${esc(String(p.name || "Unnamed Product"))}" data-price="${Number(p.price || 0)}" data-cat="${esc(
+              String(p.category || "Recommended")
+            )}">
+              <div class="card-top">
+                <h3>${esc(p.name || "Unnamed Product")}</h3>
+                <span class="price">$${Number(p.price || 0).toFixed(2)}</span>
+              </div>
+              <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
+              <button class="add" data-add-id="${esc(String(p.id || ""))}" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
+              <div class="card-info">
+                <h4>${esc(p.name || "Product")}</h4>
+                <div>${esc(p.description || "No description provided.")}</div>
+                <div class="muted">ID: ${esc(p.id || "-")}</div>
+                <div class="muted">In Stock: ${stockQty === null ? "-" : String(stockQty)}</div>
+              </div>
+            </article>`;
+          })
+          .join("")}
+      </div>
   <script>
     (function () {
       const authedAccountUserId = ${JSON.stringify(userId)};
