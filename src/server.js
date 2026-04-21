@@ -2124,12 +2124,11 @@ function websiteShopHtml(websiteShop, session = {}) {
       font-size: clamp(80px, 17vw, 196px);
       line-height: 0.86;
       font-weight: 1000;
+      font-style: italic;
       letter-spacing: -0.07em;
-      text-transform: uppercase;
+      text-transform: none;
     }
-    .hero-title .dot {
-      color: rgba(255,255,255,0.36);
-    }
+    
     .hero-sub {
       margin: 18px auto 0;
       color: rgba(255,255,255,0.58);
@@ -2570,7 +2569,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       <div class="shop-actions">
         <a class="shop-btn" href="/">Back to Home</a>
         <a class="shop-btn" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Discord Shop</a>
-        <button id="top-cart-btn" class="shop-btn" type="button" style="display:none;">Cart (0)</button>
+        <button id="top-cart-btn" class="shop-btn" type="button">Cart (0)</button>
         <a class="shop-btn primary" href="/auth?next=%2Fshop%2Fweb">${authLabel}</a>
       </div>
     </header>
@@ -2917,7 +2916,7 @@ function websiteShopHtml(websiteShop, session = {}) {
         const delivery = count > 0 ? Number(deliveryFee || 0) : 0;
         const total = discountedSubtotal + tax + delivery;
         if (!rows.length) {
-          cartItemsEl.textContent = "No items yet.";
+          cartItemsEl.textContent = "Your cart is empty.";
         } else {
           cartItemsEl.innerHTML = rows
             .map(
@@ -2942,16 +2941,10 @@ function websiteShopHtml(websiteShop, session = {}) {
         cartTaxEl.textContent = fmt(tax);
         if (cartDeliveryEl) cartDeliveryEl.textContent = fmt(delivery);
         cartTotalEl.textContent = fmt(total);
-        cartCountEl.textContent = String(count);
-        if (topCartBtn) {
-          if (count > 0) {
-            topCartBtn.style.display = "inline-block";
-            topCartBtn.textContent = "Cart (" + count + ")";
-          } else {
-            topCartBtn.style.display = "none";
-            topCartBtn.textContent = "Cart (0)";
-          }
-        }
+        cartCountEl.textContent = String(count);      if (topCartBtn) {
+        topCartBtn.style.display = "inline-flex";
+        topCartBtn.textContent = count > 0 ? "Cart (" + count + ")" : "Cart (0)";
+      }
       }
 
       function cartSummaryForCheckout() {
