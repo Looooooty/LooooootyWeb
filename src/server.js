@@ -1211,91 +1211,152 @@ function baseStateEditorHtml(bases) {
 
 function sharedHomeStyles() {
   return `<style>
-    :root { --txt:#f3f6fc; --muted:#a5afbf; --accent:#24c4ff; }
+    :root {
+      --txt: #f6f7fb;
+      --muted: #a8b3cd;
+      --accent: #6ca8ff;
+      --accent-2: #8ad0ff;
+      --line: rgba(133, 157, 255, 0.16);
+      --panel: rgba(11, 16, 36, 0.88);
+      --panel-2: rgba(16, 24, 52, 0.82);
+      --green: #28a654;
+      --red: #c2494b;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      color: var(--txt);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
-      background:
-        linear-gradient(120deg, rgba(5,10,20,0.52), rgba(5,10,20,0.30)),
-        url('${HOME_BG_URL}') center/cover no-repeat fixed;
       min-height: 100vh;
+      color: var(--txt);
+      font-family: "Segoe UI", Inter, system-ui, sans-serif;
+      background:
+        linear-gradient(120deg, rgba(5,10,20,0.62), rgba(5,10,20,0.36)),
+        radial-gradient(circle at 22% 18%, rgba(104, 125, 255, 0.12), transparent 28%),
+        radial-gradient(circle at 78% 22%, rgba(90, 151, 255, 0.10), transparent 24%),
+        url('${HOME_BG_URL}') center/cover no-repeat fixed;
+      overflow-x: hidden;
     }
-    .layout { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
-    .side { padding: 24px 16px; display: flex; align-items: stretch; }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 12% 20%, rgba(255,255,255,0.88) 0 1px, transparent 1.8px),
+        radial-gradient(circle at 26% 74%, rgba(255,255,255,0.48) 0 1px, transparent 2px),
+        radial-gradient(circle at 72% 28%, rgba(255,255,255,0.72) 0 1px, transparent 2px),
+        radial-gradient(circle at 88% 62%, rgba(255,255,255,0.4) 0 1px, transparent 2px),
+        radial-gradient(circle at 48% 56%, rgba(255,255,255,0.34) 0 1px, transparent 2px);
+      opacity: 0.42;
+    }
+    .layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+      gap: 22px;
+      width: min(1480px, calc(100% - 40px));
+      margin: 24px auto;
+    }
+    .side { padding: 0; display: flex; align-items: stretch; }
     .menu-shell {
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(8,12,18,0.58);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: linear-gradient(180deg, rgba(20,27,47,0.94), rgba(11,16,31,0.92));
+      backdrop-filter: blur(18px);
+      border-radius: 28px;
+      padding: 18px;
       width: 100%;
-      max-width: 220px;
+      max-width: none;
       min-height: calc(100vh - 48px);
       display: flex;
       flex-direction: column;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.36);
     }
-    .brand { font-size: 18px; font-weight: 700; margin-bottom: 12px; font-style: italic; }
-    .menu { display: grid; gap: 10px; }
+    .brand {
+      font-size: 24px;
+      font-weight: 900;
+      margin-bottom: 16px;
+      font-style: italic;
+      letter-spacing: -0.03em;
+    }
+    .menu { display: grid; gap: 12px; }
     .menu a {
       color: var(--txt);
       text-decoration: none;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(15,20,30,0.5);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(15,20,30,0.54);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-weight: 700;
+      transition: border-color .16s ease, transform .16s ease;
     }
-    .menu a:hover { border-color: var(--accent); }
-    .main { display: grid; place-items: start center; padding: 24px 28px; }
+    .menu a:hover { border-color: rgba(108,168,255,0.46); transform: translateY(-1px); }
+    .main { display: grid; align-content: start; gap: 18px; padding: 0; }
     .hero, .btn-box, .state-box {
-      width: min(900px, 96%);
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(9,13,20,0.62);
-      backdrop-filter: blur(10px);
-      border-radius: 18px;
-      padding: 20px;
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: linear-gradient(180deg, rgba(10,14,28,0.88), rgba(8,11,24,0.94));
+      backdrop-filter: blur(18px);
+      border-radius: 30px;
+      padding: 26px;
       text-align: center;
+      box-shadow: 0 22px 68px rgba(0,0,0,0.30);
     }
-    .btn-box { margin-top: 26px; }
-    h1 { margin: 0 0 8px 0; font-size: clamp(34px, 6vw, 62px); }
+    .btn-box { margin-top: 0; }
+    h1 { margin: 0 0 10px 0; font-size: clamp(44px, 8vw, 86px); line-height: 0.94; letter-spacing: -0.05em; }
+    h2 { letter-spacing: -0.03em; }
     .title-italic { font-style: italic; }
-    .sub { margin: 0 0 8px 0; color: var(--muted); font-size: 16px; }
-    .btns { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 12px; max-width: 720px; margin: 0 auto; }
-    .btn {
-      display: inline-block;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.14);
+    .sub { margin: 0 auto; max-width: 760px; color: var(--muted); font-size: 17px; line-height: 1.72; }
+    .btns { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 14px; max-width: 860px; margin: 0 auto; }
+    .btn, .submit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 52px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.12);
       color: var(--txt);
       text-decoration: none;
-      font-weight: 700;
+      font-weight: 800;
       padding: 14px 16px;
-      background: linear-gradient(180deg, rgba(49,70,99,0.5), rgba(23,29,41,0.7));
+      background: linear-gradient(180deg, rgba(43,63,102,0.56), rgba(18,26,43,0.78));
+      transition: border-color .16s ease, transform .16s ease, filter .16s ease;
+      cursor: pointer;
     }
-    .btn:hover { border-color: var(--accent); }
-    .foot { margin-top: 18px; font-size: 12px; color: var(--muted); }
-    .state-head { margin-bottom: 10px; color: var(--muted); font-weight: 700; }
-    .base-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.08); }
+    .btn:hover, .submit:hover { border-color: rgba(108,168,255,0.46); transform: translateY(-1px); filter: brightness(1.03); }
+    .submit { width: fit-content; background: linear-gradient(180deg, #28a654, #1f8844); border-color: rgba(64, 255, 142, 0.38); color: #fff; }
+    .foot { margin-top: 18px; font-size: 13px; color: var(--muted); }
+    .state-head { margin-bottom: 12px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; font-size: 12px; }
+    .base-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.08); gap: 14px; }
     .base-row:first-of-type { border-top: 0; }
-    .badge { color: #0d1117; font-weight: 800; font-size: 12px; padding: 5px 10px; border-radius: 999px; }
+    .badge { color: #081019; font-weight: 900; font-size: 12px; padding: 6px 10px; border-radius: 999px; }
     .msg { margin: 0 0 12px 0; color: #7ee787; font-weight: 700; }
     .warn { margin: 0 0 12px 0; color: #ffb86b; font-weight: 700; }
-    .form-grid { display:grid; gap:10px; text-align:left; }
-    .form-grid input, .form-grid textarea, .form-grid select {
+    .form-grid { display:grid; gap:12px; text-align:left; }
+    .form-grid input, .form-grid textarea, .form-grid select,
+    input[type=text], input[type=password], input[type=email], textarea, select {
       width:100%;
-      padding:10px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.18);
-      background: rgba(9,13,20,0.62);
+      padding:14px 16px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.03);
       color: var(--txt);
+      font-size: 15px;
+      outline: none;
     }
-    .form-grid textarea { min-height:110px; resize:vertical; }
-    .submit { width:fit-content; border:1px solid #238636; background:#238636; color:white; border-radius:8px; padding:10px 12px; font-weight:700; cursor:pointer; }
-    @media (max-width: 860px) {
-      .layout { grid-template-columns: 1fr; }
-      .side { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
-      .menu-shell { min-height: auto; max-width: 100%; }
+    .form-grid textarea, textarea { min-height:110px; resize:vertical; }
+    .form-grid input:focus, .form-grid textarea:focus, .form-grid select:focus,
+    input[type=text]:focus, input[type=password]:focus, input[type=email]:focus, textarea:focus, select:focus {
+      border-color: rgba(108,168,255,0.48);
+      box-shadow: 0 0 0 3px rgba(108,168,255,0.12);
+    }
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; width: min(100% - 24px, 1480px); }
+      .menu-shell { min-height: auto; }
+    }
+    @media (max-width: 760px) {
+      .layout { margin: 12px auto 22px; gap: 14px; }
+      .hero, .btn-box, .state-box { border-radius: 24px; padding: 22px 18px; }
       .btns { grid-template-columns: 1fr; }
     }
   </style>`;
@@ -5436,26 +5497,13 @@ function staffAccountsPanelHtml(accounts) {
   </div>`;
 }
 
-function staffShopTabHtml(s, websiteShop, shopView = "discord") {
-  const isWebsite = shopView === "website";
+function staffShopTabHtml(s, websiteShop) {
   const products = Array.isArray(websiteShop && websiteShop.products) ? websiteShop.products : [];
   const categories = Array.isArray(websiteShop && websiteShop.categories) ? websiteShop.categories : [];
-  if (!isWebsite) {
-    return `<div class="card" style="margin-bottom:12px;">
-      <div class="action-row" style="justify-content:flex-start;">
-        <a class="btn" href="/panel/shop?shop_view=discord">DC Shop (Active)</a>
-        <a class="btn" href="/panel/shop?shop_view=website">Website Shop</a>
-      </div>
-    </div>${shopStatsHtml(s)}${shopAutomationPanelHtml()}`;
-  }
 
   return `<div class="card base-panel">
-    <div class="action-row" style="justify-content:flex-start;">
-      <a class="btn" href="/panel/shop?shop_view=discord">DC Shop</a>
-      <a class="btn" href="/panel/shop?shop_view=website">Website Shop (Active)</a>
-    </div>
-    <h3 style="margin:12px 0 8px;">Website Shop Controls</h3>
-    <div class="note">Manage website-only categories/products here.</div>
+    <h3 style="margin:0 0 8px;">Website Shop Controls</h3>
+    <div class="note">This panel now manages website-only products, categories, coupons, reviews and delivery alerts. The Discord shop is managed inside Discord.</div>
 
     <h4 style="margin:14px 0 6px;">Shop State</h4>
     <form method="post" action="/staff/webshop/state" style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -5772,8 +5820,8 @@ function applicationsPanelHtml(applications, forms) {
   </div>`;
 }
 
-function staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, shopView = "discord", msg = "", warn = "", staff, activeTab }) {
-  let tabContent = staffShopTabHtml(s, websiteShop, shopView);
+function staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, msg = "", warn = "", staff, activeTab }) {
+  let tabContent = staffShopTabHtml(s, websiteShop);
   if (activeTab === "bases") {
     tabContent = basesEditorPanelHtml(bases);
   } else if (activeTab === "applications") {
@@ -7156,14 +7204,14 @@ app.post("/staff/webshop/state", requireStaff, (req, res) => {
   const state = String(req.body.state || "").trim().toLowerCase();
   data.state = state === "closed" ? "closed" : "open";
   saveWebsiteShopData(data);
-  res.redirect("/panel/shop?shop_view=website&msg=Website%20shop%20state%20saved");
+  res.redirect("/panel/shop?msg=Website%20shop%20state%20saved");
 });
 
 app.post("/staff/webshop/category/add", requireStaff, (req, res) => {
   const data = loadWebsiteShopData();
   const categoryName = String(req.body.category_name || "").trim().slice(0, 40);
   if (!categoryName) {
-    res.redirect("/panel/shop?shop_view=website&warn=Category%20name%20is%20required");
+    res.redirect("/panel/shop?warn=Category%20name%20is%20required");
     return;
   }
   const exists = data.categories.some((c) => c.toLowerCase() === categoryName.toLowerCase());
@@ -7171,7 +7219,7 @@ app.post("/staff/webshop/category/add", requireStaff, (req, res) => {
     data.categories.push(categoryName);
     saveWebsiteShopData(data);
   }
-  res.redirect("/panel/shop?shop_view=website&msg=Category%20saved");
+  res.redirect("/panel/shop?msg=Category%20saved");
 });
 
 app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
@@ -7186,19 +7234,19 @@ app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
   const image = imageUrl || imageData;
   const price = Number.parseFloat(String(req.body.price || "0").trim());
   if (!name) {
-    res.redirect("/panel/shop?shop_view=website&warn=Product%20name%20is%20required");
+    res.redirect("/panel/shop?warn=Product%20name%20is%20required");
     return;
   }
   if (!Number.isFinite(price) || price <= 0) {
-    res.redirect("/panel/shop?shop_view=website&warn=Price%20must%20be%20greater%20than%200");
+    res.redirect("/panel/shop?warn=Price%20must%20be%20greater%20than%200");
     return;
   }
   if (!category) {
-    res.redirect("/panel/shop?shop_view=website&warn=Category%20is%20required");
+    res.redirect("/panel/shop?warn=Category%20is%20required");
     return;
   }
   if (!image) {
-    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20or%20image%20upload%20is%20required");
+    res.redirect("/panel/shop?warn=Image%20URL%20or%20image%20upload%20is%20required");
     return;
   }
   if (!data.categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
@@ -7227,7 +7275,7 @@ app.post("/staff/webshop/product/add", requireStaff, (req, res) => {
     stockQty: Number.isFinite(stockQty) ? stockQty : null
   });
   saveWebsiteShopData(data);
-  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20added");
+  res.redirect("/panel/shop?msg=Website%20product%20added");
 });
 
 app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
@@ -7235,7 +7283,7 @@ app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
   const id = String(req.params.id || "").trim();
   const idx = data.products.findIndex((p) => String(p.id) === id);
   if (idx === -1) {
-    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    res.redirect("/panel/shop?warn=Website%20product%20not%20found");
     return;
   }
 
@@ -7249,19 +7297,19 @@ app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
   const image = imageUrl || imageData || String(data.products[idx].image || "");
   const price = Number.parseFloat(String(req.body.price || "0").trim());
   if (!name) {
-    res.redirect("/panel/shop?shop_view=website&warn=Product%20name%20is%20required");
+    res.redirect("/panel/shop?warn=Product%20name%20is%20required");
     return;
   }
   if (!Number.isFinite(price) || price <= 0) {
-    res.redirect("/panel/shop?shop_view=website&warn=Price%20must%20be%20greater%20than%200");
+    res.redirect("/panel/shop?warn=Price%20must%20be%20greater%20than%200");
     return;
   }
   if (!category) {
-    res.redirect("/panel/shop?shop_view=website&warn=Category%20is%20required");
+    res.redirect("/panel/shop?warn=Category%20is%20required");
     return;
   }
   if (!image) {
-    res.redirect("/panel/shop?shop_view=website&warn=Image%20URL%20or%20image%20upload%20is%20required");
+    res.redirect("/panel/shop?warn=Image%20URL%20or%20image%20upload%20is%20required");
     return;
   }
   if (!data.categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
@@ -7277,7 +7325,7 @@ app.post("/staff/webshop/product/:id/edit", requireStaff, (req, res) => {
     stockQty: Number.isFinite(stockQty) ? stockQty : null
   };
   saveWebsiteShopData(data);
-  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20updated");
+  res.redirect("/panel/shop?msg=Website%20product%20updated");
 });
 
 app.post("/staff/webshop/product/:id/delete", requireStaff, (req, res) => {
@@ -7286,11 +7334,11 @@ app.post("/staff/webshop/product/:id/delete", requireStaff, (req, res) => {
   const before = data.products.length;
   data.products = data.products.filter((p) => String(p.id) !== id);
   if (data.products.length === before) {
-    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    res.redirect("/panel/shop?warn=Website%20product%20not%20found");
     return;
   }
   saveWebsiteShopData(data);
-  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20deleted");
+  res.redirect("/panel/shop?msg=Website%20product%20deleted");
 });
 
 app.post("/staff/webshop/product/:id/stock", requireStaff, (req, res) => {
@@ -7298,13 +7346,13 @@ app.post("/staff/webshop/product/:id/stock", requireStaff, (req, res) => {
   const id = String(req.params.id || "").trim();
   const idx = data.products.findIndex((p) => String(p.id) === id);
   if (idx === -1) {
-    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    res.redirect("/panel/shop?warn=Website%20product%20not%20found");
     return;
   }
   const status = String(req.body.status || "").trim().toLowerCase();
   data.products[idx].inStock = status === "in_stock";
   saveWebsiteShopData(data);
-  res.redirect("/panel/shop?shop_view=website&msg=Website%20product%20stock%20updated");
+  res.redirect("/panel/shop?msg=Website%20product%20stock%20updated");
 });
 
 app.post("/staff/webshop/coupon/add", requireStaff, (req, res) => {
@@ -7312,23 +7360,23 @@ app.post("/staff/webshop/coupon/add", requireStaff, (req, res) => {
   const typeRaw = String(req.body.type || "").trim().toLowerCase();
   const amount = Number.parseFloat(String(req.body.amount || "").trim());
   if (!codeRaw) {
-    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20code%20is%20required");
+    res.redirect("/panel/shop?warn=Coupon%20code%20is%20required");
     return;
   }
   if (!Number.isFinite(amount) || amount <= 0) {
-    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20amount%20must%20be%20greater%20than%200");
+    res.redirect("/panel/shop?warn=Coupon%20amount%20must%20be%20greater%20than%200");
     return;
   }
   const type = typeRaw === "flat" ? "flat" : "percent";
   const coupons = loadWebsiteCoupons();
   const exists = coupons.find((c) => String(c.code || "").toUpperCase() === codeRaw);
   if (exists) {
-    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20already%20exists");
+    res.redirect("/panel/shop?warn=Coupon%20already%20exists");
     return;
   }
   coupons.push({ code: codeRaw, type, amount: Number(amount.toFixed(2)), active: true, createdAt: new Date().toISOString() });
   saveWebsiteCoupons(coupons);
-  res.redirect("/panel/shop?shop_view=website&msg=Coupon%20added");
+  res.redirect("/panel/shop?msg=Coupon%20added");
 });
 
 app.post("/staff/webshop/coupon/:code/toggle", requireStaff, (req, res) => {
@@ -7336,12 +7384,12 @@ app.post("/staff/webshop/coupon/:code/toggle", requireStaff, (req, res) => {
   const coupons = loadWebsiteCoupons();
   const idx = coupons.findIndex((c) => String(c.code || "").toUpperCase() === code);
   if (idx === -1) {
-    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20not%20found");
+    res.redirect("/panel/shop?warn=Coupon%20not%20found");
     return;
   }
   coupons[idx].active = coupons[idx].active === false ? true : false;
   saveWebsiteCoupons(coupons);
-  res.redirect("/panel/shop?shop_view=website&msg=Coupon%20updated");
+  res.redirect("/panel/shop?msg=Coupon%20updated");
 });
 
 app.post("/staff/webshop/coupon/:code/delete", requireStaff, (req, res) => {
@@ -7349,11 +7397,11 @@ app.post("/staff/webshop/coupon/:code/delete", requireStaff, (req, res) => {
   const coupons = loadWebsiteCoupons();
   const next = coupons.filter((c) => String(c.code || "").toUpperCase() !== code);
   if (next.length === coupons.length) {
-    res.redirect("/panel/shop?shop_view=website&warn=Coupon%20not%20found");
+    res.redirect("/panel/shop?warn=Coupon%20not%20found");
     return;
   }
   saveWebsiteCoupons(next);
-  res.redirect("/panel/shop?shop_view=website&msg=Coupon%20deleted");
+  res.redirect("/panel/shop?msg=Coupon%20deleted");
 });
 
 app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => {
@@ -7362,7 +7410,7 @@ app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => 
   const id = String(req.params.id || "").trim();
   const product = data.products.find((p) => String(p.id) === id);
   if (!product) {
-    res.redirect("/panel/shop?shop_view=website&warn=Website%20product%20not%20found");
+    res.redirect("/panel/shop?warn=Website%20product%20not%20found");
     return;
   }
 
@@ -7382,7 +7430,7 @@ app.post("/staff/webshop/product/:id/save-default", requireStaff, (req, res) => 
       }))
     : [];
   saveWebsiteShopDefaults(defaults);
-  res.redirect("/panel/shop?shop_view=website&msg=Website%20shop%20saved%20to%20defaults");
+  res.redirect("/panel/shop?msg=Website%20shop%20saved%20to%20defaults");
 });
 
 app.post("/staff/credits/update", requireStaff, (req, res) => {
@@ -7776,11 +7824,10 @@ app.get("/panel/shop", requireStaff, (req, res) => {
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
   const webAccounts = loadWebAccounts();
-  const shopView = String(req.query.shop_view || "discord") === "website" ? "website" : "discord";
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, shopView, msg, warn, staff, activeTab: "shop" }));
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, msg, warn, staff, activeTab: "shop" }));
 });
 
 app.get("/panel/bases", requireStaff, (req, res) => {
