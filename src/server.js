@@ -1404,24 +1404,304 @@ function howToOrderHtml(session = {}) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>How to Order</title>
   ${faviconLinks()}
-  ${sharedHomeStyles()}
+  <style>
+    :root {
+      --txt: #f6f7fb;
+      --muted: #9ba8c7;
+      --line: rgba(133, 157, 255, 0.18);
+      --panel: rgba(11, 16, 36, 0.88);
+      --panel-2: rgba(16, 24, 52, 0.82);
+      --blue: #6ca8ff;
+      --blue-2: #8ad0ff;
+      --green: #3cff8f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--txt);
+      font-family: "Segoe UI", Inter, system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(104, 125, 255, 0.12), transparent 26%),
+        radial-gradient(circle at 78% 24%, rgba(90, 151, 255, 0.11), transparent 22%),
+        radial-gradient(circle at 50% 54%, rgba(88, 76, 168, 0.18), transparent 34%),
+        linear-gradient(180deg, #02040a 0%, #070b18 48%, #050814 100%);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 10% 20%, rgba(255,255,255,0.95) 0 1.2px, transparent 1.4px),
+        radial-gradient(circle at 24% 68%, rgba(255,255,255,0.65) 0 1px, transparent 1.2px),
+        radial-gradient(circle at 40% 32%, rgba(255,255,255,0.75) 0 1.3px, transparent 1.5px),
+        radial-gradient(circle at 63% 70%, rgba(255,255,255,0.55) 0 1.1px, transparent 1.3px),
+        radial-gradient(circle at 83% 36%, rgba(255,255,255,0.9) 0 1.4px, transparent 1.6px),
+        radial-gradient(circle at 74% 16%, rgba(255,255,255,0.55) 0 0.9px, transparent 1.1px),
+        radial-gradient(circle at 56% 18%, rgba(255,255,255,0.5) 0 0.9px, transparent 1.1px),
+        radial-gradient(circle at 92% 76%, rgba(255,255,255,0.7) 0 1px, transparent 1.2px),
+        radial-gradient(circle at 18% 84%, rgba(255,255,255,0.7) 0 1px, transparent 1.2px);
+      opacity: 0.82;
+    }
+    .shell {
+      position: relative;
+      z-index: 1;
+      width: min(1480px, calc(100% - 40px));
+      margin: 26px auto;
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      gap: 22px;
+    }
+    .side {
+      align-self: start;
+      position: sticky;
+      top: 22px;
+      padding: 18px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(20,27,47,0.94), rgba(11,16,31,0.92));
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      backdrop-filter: blur(18px);
+    }
+    .content {
+      display: grid;
+      gap: 22px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      background: rgba(9, 14, 28, 0.84);
+      box-shadow: 0 18px 48px rgba(0,0,0,0.32);
+      backdrop-filter: blur(16px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .brand img {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      object-fit: cover;
+      background: rgba(255,255,255,0.04);
+    }
+    .brand span { color: var(--txt); }
+    .nav-links, .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+      color: var(--txt);
+      text-decoration: none;
+      font-weight: 700;
+      transition: 160ms ease;
+    }
+    .pill:hover { border-color: rgba(108,168,255,0.45); transform: translateY(-1px); }
+    .pill.primary {
+      background: linear-gradient(135deg, rgba(69,128,255,0.26), rgba(42,78,181,0.3));
+      border-color: rgba(108,168,255,0.4);
+    }
+    .hero {
+      padding: 54px 52px 42px;
+      border-radius: 34px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background:
+        radial-gradient(circle at 50% 18%, rgba(117,122,255,0.18), transparent 24%),
+        linear-gradient(180deg, rgba(10,14,28,0.88), rgba(8,11,24,0.94));
+      box-shadow: 0 28px 80px rgba(0,0,0,0.34);
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--blue-2);
+      background: rgba(255,255,255,0.03);
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .hero h1 {
+      margin: 18px 0 10px;
+      font-size: clamp(3.5rem, 8vw, 6.4rem);
+      line-height: 0.92;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+    }
+    .hero h1 em { font-style: italic; }
+    .hero-sub {
+      margin: 0 auto;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.75;
+    }
+    .hero-stats {
+      margin-top: 28px;
+      display: inline-grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 0;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      overflow: hidden;
+    }
+    .hero-stat {
+      padding: 18px 26px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    .hero-stat:last-child { border-right: 0; }
+    .hero-stat strong {
+      display: block;
+      font-size: 2rem;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .hero-stat span {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
+      gap: 22px;
+    }
+    .panel {
+      border-radius: 30px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(10,14,29,0.9), rgba(10,15,31,0.82));
+      box-shadow: 0 18px 48px rgba(0,0,0,0.3);
+      padding: 28px;
+    }
+    .panel h2, .panel h3 {
+      margin: 0 0 12px;
+      font-size: 1.55rem;
+      letter-spacing: -0.03em;
+    }
+    .panel p, .panel li { color: var(--muted); line-height: 1.72; }
+    .how-copy {
+      white-space: pre-wrap;
+      color: var(--txt);
+      font-size: 1rem;
+      line-height: 1.85;
+    }
+    .how-copy b, .how-copy strong { color: #fff; }
+    .checklist {
+      display: grid;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .check-item {
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: var(--txt);
+      font-weight: 700;
+    }
+    .check-item small {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-weight: 500;
+      line-height: 1.5;
+    }
+    @media (max-width: 1120px) {
+      .shell { grid-template-columns: 1fr; }
+      .side { position: static; }
+      .grid { grid-template-columns: 1fr; }
+      .topbar { border-radius: 28px; }
+    }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 20px, 1480px); margin: 14px auto 24px; gap: 14px; }
+      .hero { padding: 30px 18px 24px; border-radius: 24px; }
+      .hero-stats { grid-template-columns: 1fr; width: 100%; }
+      .hero-stat { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+      .hero-stat:last-child { border-bottom: 0; }
+      .panel { padding: 20px; border-radius: 24px; }
+      .topbar { padding: 14px; }
+    }
+  </style>
 </head>
 <body>
-  <div class="layout">
+  <div class="shell">
     <aside class="side">${sideMenuHtml(session)}</aside>
-    <main class="main">
-      <section class="hero" style="margin-bottom:12px; text-align:left;">
-        <a class="btn" href="/shop">Back to Shop</a>
+    <main class="content">
+      <section class="topbar">
+        <div class="brand">
+          <img src="${SHOP_LOGO_URL}" alt="Shop logo" />
+          <span>LooooootyShop 2b2t</span>
+        </div>
+        <div class="top-actions">
+          <a class="pill" href="/shop">Shop Options</a>
+          <a class="pill primary" href="/shop/web">Website Shop</a>
+          <a class="pill" href="/shop/reviews">Reviews</a>
+          <a class="pill" href="/">Back Home</a>
+        </div>
       </section>
-      <section class="state-box" style="display:block; text-align:left;">
-        <div class="state-head">How to Order</div>
-        <div style="white-space:pre-wrap; line-height:1.6;">${esc(HOW_TO_ORDER_TEXT)}</div>
+      <section class="hero">
+        <div class="hero-badge">Ordering Guide</div>
+        <h1><em>How to</em> Order</h1>
+        <p class="hero-sub">Everything the customer needs to do, from opening the cart to sending delivery details, laid out in the same visual style as the storefront.</p>
+        <div class="hero-stats">
+          <div class="hero-stat"><strong>1</strong><span>Browse</span></div>
+          <div class="hero-stat"><strong>2</strong><span>Checkout</span></div>
+          <div class="hero-stat"><strong>3</strong><span>Delivery</span></div>
+        </div>
+      </section>
+      <section class="grid">
+        <article class="panel">
+          <h2>Full Ordering Flow</h2>
+          <div class="how-copy">${esc(HOW_TO_ORDER_TEXT)}</div>
+        </article>
+        <aside class="panel">
+          <h3>Quick Checklist</h3>
+          <div class="checklist">
+            <div class="check-item">Pick your products<small>Add the items you want to the cart and confirm quantities before paying.</small></div>
+            <div class="check-item">Choose your payment<small>Use store credit if you have it, or finish the remaining balance with PayPal.</small></div>
+            <div class="check-item">Send IGN and coords<small>After payment, provide delivery information exactly so staff can fulfill the order fast.</small></div>
+            <div class="check-item">Confirm you are ready<small>When staff ask if you are ready, click the ready button so the delivery queue moves.</small></div>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function authPageHtml({ session = {}, msg = "", err = "", next = "/", localAccount = null }) {
   const userId = String(session && session.userId ? session.userId : "");
@@ -4716,20 +4996,21 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
     <div class="note">Current: ${categories.length ? categories.map((c) => `<b>${esc(c)}</b>`).join(", ") : "-"}</div>
 
     <h4 style="margin:18px 0 6px;">Add Product</h4>
+    <datalist id="webshop-category-list">
+      ${categories.map((c) => `<option value="${esc(c)}"></option>`).join("")}
+    </datalist>
     <form method="post" action="/staff/webshop/product/add" class="webshop-product-form" style="display:grid; gap:10px;">
       <input type="text" name="name" maxlength="80" required placeholder="Product name" />
       <input type="text" name="description" maxlength="400" placeholder="Description (optional)" />
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
         <input type="text" name="price" required placeholder="Price (e.g. 0.69)" />
-        <select name="category" required>
-          ${categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
-        </select>
+        <input type="text" name="category" list="webshop-category-list" required placeholder="Category (e.g. kits)" />
       </div>
       <input type="text" name="stock_qty" placeholder="Stock quantity (optional, number)" />
       <input type="text" name="image" placeholder="Image URL (https://...)" />
       <input type="file" name="image_file" accept="image/*" />
       <input type="hidden" name="image_data" />
-      <div class="note">Use either image URL or upload file. URL is used if both are set.</div>
+      <div class="note">Type a category or pick an existing one. Use either image URL or upload file. URL is used if both are set.</div>
       <button class="save-btn" type="submit">Add Product</button>
     </form>
 
@@ -4788,15 +5069,13 @@ function staffShopTabHtml(s, websiteShop, shopView = "discord") {
                     <input type="text" name="description" maxlength="400" value="${esc(p.description || "")}" />
                     <div class="ws-inline">
                       <input type="text" name="price" required value="${Number(p.price || 0).toFixed(2)}" />
-                      <select name="category" required>
-                        ${categories.map((c) => `<option value="${esc(c)}"${String(c) === String(p.category) ? " selected" : ""}>${esc(c)}</option>`).join("")}
-                      </select>
+                      <input type="text" name="category" list="webshop-category-list" required value="${esc(p.category || "")}" placeholder="Category" />
                     </div>
                     <input type="text" name="stock_qty" value="${Number.isFinite(Number(p.stockQty)) ? String(p.stockQty) : ""}" placeholder="Stock quantity (optional, number)" />
                     <input type="text" name="image" value="${esc(p.image || "")}" placeholder="Image URL (https://...)" />
                     <input type="file" name="image_file" accept="image/*" />
                     <input type="hidden" name="image_data" />
-                    <div class="note">Use either image URL or upload file. URL is used if both are set.</div>
+                    <div class="note">Type a category or pick an existing one. Use either image URL or upload file. URL is used if both are set.</div>
                     <button class="save-btn" type="submit">Edit Product</button>
                   </form>
                   <div class="ws-inline">
