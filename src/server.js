@@ -3202,6 +3202,106 @@ function websiteShopHtml(websiteShop, session = {}) {
           })
           .join("")}
       </div>
+    </section>
+  </div>
+
+  <div id="cart-overlay" class="cart-overlay">
+    <div class="cart-panel">
+      <div class="cart-head">
+        <h3>Cart</h3>
+        <button id="cart-hide" class="close" type="button">Close</button>
+      </div>
+      <div id="cart-items" class="cart-items">Your cart is empty.</div>
+      <div class="cart-totals">
+        <div class="row"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
+        <div class="row"><span>Discount</span><b id="cart-discount">$0.00</b></div>
+        <div class="row"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
+        <div class="row"><span>Delivery Fee</span><b id="cart-delivery">$0.00</b></div>
+        <div class="row total"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
+        <div class="row"><span>Total Kits</span><b id="cart-count">0</b></div>
+      </div>
+      <div class="cart-actions tertiary">
+        <button id="cart-discount-btn" class="secondary" type="button">Discount</button>
+        <button id="cart-delivery-btn" class="secondary" type="button">Delivery Price</button>
+      </div>
+      <div class="cart-actions">
+        <button id="cart-checkout" class="checkout" type="button">Checkout</button>
+        <button id="cart-clear" class="close" type="button">Clear Cart</button>
+      </div>
+      <div id="cart-flow" class="cart-flow"></div>
+    </div>
+  </div>
+
+  <div id="qty-modal" class="modal-overlay">
+    <div class="modal-panel">
+      <h3>Item Quantity</h3>
+      <div class="modal-copy">Select how many of <b id="qty-modal-product">this item</b> you want to add.</div>
+      <input id="qty-input" type="text" value="1" inputmode="numeric" />
+      <div id="qty-error" class="modal-error"></div>
+      <div class="modal-actions">
+        <button id="qty-confirm" class="checkout" type="button">Add to Cart</button>
+        <button id="qty-cancel" class="close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="checkout-modal" class="modal-overlay">
+    <div class="modal-panel">
+      <h3>Checkout</h3>
+      <div class="modal-copy">Enter your email for payment receipt/invoice.</div>
+      <input id="checkout-email" type="text" placeholder="you@example.com" />
+      <label class="check-row"><input id="checkout-use-credit" type="checkbox" /> <span>Use store credit</span></label>
+      <div id="checkout-error" class="modal-error"></div>
+      <div id="checkout-result" class="modal-result"></div>
+      <div class="modal-actions">
+        <button id="checkout-paypal" class="checkout" type="button">PayPal</button>
+        <button id="checkout-close" class="close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="discount-modal" class="modal-overlay">
+    <div class="modal-panel">
+      <h3>Discount Code</h3>
+      <div class="modal-copy">Enter your coupon code.</div>
+      <input id="discount-code" type="text" placeholder="e.g. LOOT10" />
+      <div id="discount-error" class="modal-error"></div>
+      <div id="discount-result" class="modal-result"></div>
+      <div class="modal-actions">
+        <button id="discount-apply" class="checkout" type="button">Apply</button>
+        <button id="discount-close" class="close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="delivery-modal" class="modal-overlay">
+    <div class="modal-panel">
+      <h3>Delivery Coordinates</h3>
+      <div class="modal-copy">Enter your X and Z coordinates to estimate delivery price. Format: X Z (two numbers). Example: -1500000 200000.</div>
+      <input id="delivery-coords" type="text" placeholder="-1500000 200000" />
+      <div class="modal-copy muted-copy">Free within 1,000,000 blocks from spawn. Every 100k after is $0.99.</div>
+      <div id="delivery-error" class="modal-error"></div>
+      <div id="delivery-result" class="modal-result"></div>
+      <div class="modal-actions">
+        <button id="delivery-apply" class="checkout" type="button">Apply</button>
+        <button id="delivery-close" class="close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="flow-input-modal" class="modal-overlay">
+    <div class="modal-panel">
+      <h3 id="flow-input-title">Enter value</h3>
+      <div id="flow-input-hint" class="modal-copy"></div>
+      <input id="flow-input-value" type="text" />
+      <div id="flow-input-error" class="modal-error"></div>
+      <div class="modal-actions">
+        <button id="flow-input-save" class="checkout" type="button">Save</button>
+        <button id="flow-input-cancel" class="close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function () {
       const authedAccountUserId = ${JSON.stringify(userId)};
