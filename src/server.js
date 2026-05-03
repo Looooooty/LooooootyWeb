@@ -1174,7 +1174,7 @@ function sideMenuHtml(session = {}) {
   const authLabel = userId ? "Account" : "Sign Up";
   return `<div class="menu-shell">
     <div class="brand-lockup">
-      <div class="brand-mark-sm"><img src="\${SITE_ICON_URL}" alt="Looooooty logo" /></div>
+      <div class="brand-mark-sm"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /></div>
       <div>
         <div class="brand-kicker">Looooooty Network</div>
         <div class="brand">LooooootyBases</div>
@@ -1186,9 +1186,9 @@ function sideMenuHtml(session = {}) {
       <a href="/about">About Us</a>
       <a href="/how-to-order">How to order</a>
       <a href="/apply">Apply</a>
-      <a href="\${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
+      <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
       <a href="/shop">LooooootyShop</a>
-      <a href="/auth">\${authLabel}</a>
+      <a href="/auth">${authLabel}</a>
       <a href="/staff">Staff</a>
     </nav>
   </div>`;
@@ -1954,7 +1954,7 @@ function homeHtml(session = {}) {
       <section class="hero">
         <div class="hero-badge">Official 2b2t Portal</div>
         <h1><span class="title-italic">LooooootyBases</span> | 2b2t</h1>
-        <p class="sub">A central portal for the bases network, the storefront, applications, reviews, and account access. One visual system, one place to manage everything.</p>
+        <p class="sub">The main portal for LooooootyBases, LooooootyShop, applications, account access, and public information.</p>
         <div class="hero-stats">
           <div class="hero-stat"><b>6</b><span>Bases</span></div>
           <div class="hero-stat"><b>300+</b><span>Kits</span></div>
@@ -1968,7 +1968,7 @@ function homeHtml(session = {}) {
           <a class="btn" href="/apply">Applications</a>
           <a class="btn" href="/auth">${authLabel}</a>
         </div>
-        <div class="foot">Staff panel remains code protected. Public pages now match the storefront style more closely.</div>
+        <div class="foot">Use this portal to access the shop, applications, and account features.</div>
       </section>
     </main>
   </div>
@@ -2009,7 +2009,7 @@ function basesPageHtml
       <section class="hero">
         <div class="page-kicker">Operations</div>
         <h1 class="page-title">State of <em>Bases</em></h1>
-        <p class="page-sub">The bases page now follows the storefront structure: strong hero, stat band, operational cards, and clearer hierarchy. Same system, different purpose.</p>
+        <p class="page-sub">Track which bases are open, restricted, or currently less active.</p>
         <div class="page-stats">
           <div class="page-stat"><b>${bases.length}</b><span>Total Bases</span></div>
           <div class="page-stat"><b>${openCount}</b><span>Open</span></div>
@@ -2067,7 +2067,7 @@ function aboutPageHtml(session = {}) {
       <section class="hero">
         <div class="page-kicker">Network Overview</div>
         <h1 class="page-title">About <em>Looooooty</em></h1>
-        <p class="page-sub">This page now uses the same framing as the storefront instead of a generic dark card. It should read like part of one product family.</p>
+        <p class="page-sub">Information about the network, the project, and what Looooooty is building on 2b2t.</p>
       </section>
       <section class="page-grid">
         <article class="page-panel">
@@ -2351,7 +2351,7 @@ function howToOrderHtml(session = {}) {
       <section class="hero">
         <div class="hero-badge">Ordering Guide</div>
         <h1><em>How to</em> Order</h1>
-        <p class="hero-sub">Everything the customer needs to do, from opening the cart to sending delivery details, laid out in the same visual style as the storefront.</p>
+        <p class="hero-sub">Everything you need to know before placing an order, from adding items to delivery.</p>
         <div class="hero-stats">
           <div class="hero-stat"><strong>1</strong><span>Browse</span></div>
           <div class="hero-stat"><strong>2</strong><span>Checkout</span></div>
@@ -2413,7 +2413,7 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/", localAccou
       <section class="hero">
         <div class="page-kicker">Identity & Access</div>
         <h1 class="page-title">${userId ? "Your" : "Access the"} <em>Account</em></h1>
-        <p class="page-sub">Account entry now follows the same storefront structure as the shop. It should feel like a branded gateway, not a utility page.</p>
+        <p class="page-sub">Sign in, manage your account, and access account-linked shop features.</p>
       </section>
       <section class="page-grid">
         <article class="page-panel">
@@ -2486,7 +2486,7 @@ function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth",
       <section class="hero">
         <div class="page-kicker">Local Accounts</div>
         <h1 class="page-title">${safeMode === "signup" ? "Create" : safeMode === "forgot" ? "Reset" : "Login to"} <em>Looooooty</em></h1>
-        <p class="page-sub">The local account flow now uses the same storefront hierarchy as the rest of the site. Same function, much stronger structure.</p>
+        <p class="page-sub">Create a local account, sign in, or reset access to your account.</p>
       </section>
       <section class="page-grid">
         <article class="page-panel">
@@ -2562,7 +2562,7 @@ function localResetPasswordPageHtml({ msg = "", err = "", uid = "", token = "", 
       <section class="hero">
         <div class="page-kicker">Recovery</div>
         <h1 class="page-title">Reset <em>Password</em></h1>
-        <p class="page-sub">Password recovery now follows the same storefront layout as the rest of the account system.</p>
+        <p class="page-sub">Reset your password securely using the email linked to your account.</p>
       </section>
       <section class="page-grid">
         <article class="page-panel">
@@ -2622,7 +2622,7 @@ function accountSettingsPageHtml({ session, account, msg = "", err = "" }) {
       <section class="hero">
         <div class="page-kicker">Account Management</div>
         <h1 class="page-title">Account <em>Settings</em></h1>
-        <p class="page-sub">Profile and password controls now use the same storefront panel structure instead of an older utility layout.</p>
+        <p class="page-sub">Manage your profile details and update your password from one place.</p>
       </section>
       <section class="page-grid">
         <article class="page-panel">
@@ -5477,7 +5477,7 @@ function applyPageHtml(forms, msg = "", err = "", session = {}) {
       <section class="hero">
         <div class="page-kicker">Applications</div>
         <h1 class="page-title">Apply to <em>Looooooty</em></h1>
-        <p class="page-sub">The application flow now uses the same storefront structure: clear intro, focused form, and support card instead of a plain stacked panel.</p>
+        <p class="page-sub">Submit applications for base access and related roles through the website.</p>
       </section>
       <section class="page-grid">
         <article class="page-panel">
@@ -5571,7 +5571,7 @@ function staffLoginHtml(error = "") {
       <section class="hero">
         <div class="page-kicker">Restricted</div>
         <h1 class="page-title">Staff <em>Access</em></h1>
-        <p class="page-sub">The staff entry point now belongs to the same design system as the storefront. It is still gated, but it no longer looks detached from the rest of the product.</p>
+        <p class="page-sub">Enter the staff code to access the protected control panel.</p>
       </section>
       <section class="page-grid">
         <article class="page-panel">
