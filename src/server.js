@@ -1243,30 +1243,7 @@ function sharedHomeStyles() {
       overflow-x: hidden;
     }
     body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::before {
-      background-image:
-        radial-gradient(circle at 7% 10%, rgba(255,255,255,0.62) 0 1.4px, transparent 1.5px),
-        radial-gradient(circle at 18% 77%, rgba(255,255,255,0.52) 0 1.6px, transparent 1.7px),
-        radial-gradient(circle at 31% 29%, rgba(255,255,255,0.36) 0 1.1px, transparent 1.2px),
-        radial-gradient(circle at 46% 64%, rgba(255,255,255,0.48) 0 1.5px, transparent 1.6px),
-        radial-gradient(circle at 58% 18%, rgba(255,255,255,0.38) 0 1.1px, transparent 1.2px),
-        radial-gradient(circle at 71% 46%, rgba(255,255,255,0.56) 0 1.7px, transparent 1.8px),
-        radial-gradient(circle at 83% 82%, rgba(255,255,255,0.4) 0 1.2px, transparent 1.3px),
-        radial-gradient(circle at 94% 31%, rgba(255,255,255,0.54) 0 1.5px, transparent 1.6px);
-      opacity: 0.95;
-    }
-    body::after {
-      background:
-        radial-gradient(640px 180px at 50% 220px, rgba(93, 88, 220, 0.14), transparent 70%),
-        radial-gradient(560px 220px at 50% 280px, rgba(255,255,255,0.04), transparent 75%);
-    }
+    body::after { content: none; }
     .layout {
       position: relative;
       z-index: 1;
@@ -1289,8 +1266,8 @@ function sharedHomeStyles() {
       border-radius: 28px;
       border: 1px solid var(--line);
       background: linear-gradient(180deg, rgba(8,12,24,0.92), rgba(5,8,18,0.96));
-      box-shadow: 0 24px 70px rgba(0,0,0,0.36);
-      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.28);
+      backdrop-filter: none;
     }
     .brand-lockup {
       display: flex;
@@ -1354,7 +1331,7 @@ function sharedHomeStyles() {
     .state-box {
       border: 1px solid var(--line);
       background: linear-gradient(180deg, rgba(10,15,27,0.95), rgba(7,10,18,0.92));
-      box-shadow: 0 22px 70px rgba(0,0,0,0.32);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.24);
     }
     .page-topbar {
       display: grid;
@@ -1363,7 +1340,7 @@ function sharedHomeStyles() {
       gap: 18px;
       padding: 16px 22px;
       border-radius: 24px;
-      backdrop-filter: blur(10px);
+      backdrop-filter: none;
       background: rgba(2,4,8,0.8);
     }
     .page-topbar .mark {
@@ -1490,7 +1467,7 @@ function sharedHomeStyles() {
       border-radius: 18px;
       overflow: hidden;
       background: rgba(255,255,255,0.03);
-      backdrop-filter: blur(6px);
+      backdrop-filter: none;
     }
     .page-stat {
       padding: 16px 24px;
@@ -1737,25 +1714,13 @@ function homeHtml(session = {}) {
       color: var(--txt);
       font-family: "Segoe UI", Inter, system-ui, sans-serif;
       background:
-        linear-gradient(120deg, rgba(5,10,20,0.58), rgba(5,10,20,0.34)),
-        radial-gradient(circle at 22% 18%, rgba(104, 125, 255, 0.12), transparent 28%),
-        radial-gradient(circle at 78% 22%, rgba(90, 151, 255, 0.1), transparent 24%),
-        url('${HOME_BG_URL}') center/cover no-repeat fixed;
+        linear-gradient(120deg, rgba(5,10,20,0.72), rgba(5,10,20,0.54)),
+        radial-gradient(circle at 22% 18%, rgba(104, 125, 255, 0.08), transparent 24%),
+        radial-gradient(circle at 78% 22%, rgba(90, 151, 255, 0.08), transparent 20%),
+        url('${HOME_BG_URL}') center/cover no-repeat;
       overflow-x: hidden;
     }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        radial-gradient(circle at 12% 20%, rgba(255,255,255,0.88) 0 1px, transparent 1.8px),
-        radial-gradient(circle at 26% 74%, rgba(255,255,255,0.48) 0 1px, transparent 2px),
-        radial-gradient(circle at 72% 28%, rgba(255,255,255,0.72) 0 1px, transparent 2px),
-        radial-gradient(circle at 88% 62%, rgba(255,255,255,0.4) 0 1px, transparent 2px),
-        radial-gradient(circle at 48% 56%, rgba(255,255,255,0.34) 0 1px, transparent 2px);
-      opacity: 0.44;
-    }
+    body::before { content: none; }
     .layout {
       position: relative;
       z-index: 1;
@@ -1770,14 +1735,14 @@ function homeHtml(session = {}) {
     .menu-shell {
       border: 1px solid rgba(255,255,255,0.12);
       background: linear-gradient(180deg, rgba(20,27,47,0.94), rgba(11,16,31,0.92));
-      backdrop-filter: blur(18px);
+      backdrop-filter: none;
       border-radius: 28px;
       padding: 18px;
       width: 100%;
       min-height: calc(100vh - 48px);
       display: flex;
       flex-direction: column;
-      box-shadow: 0 24px 70px rgba(0,0,0,0.36);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.28);
     }
     .brand {
       font-size: 24px;
@@ -1813,8 +1778,8 @@ function homeHtml(session = {}) {
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 999px;
       background: rgba(9,14,28,0.84);
-      box-shadow: 0 18px 48px rgba(0,0,0,0.32);
-      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+      backdrop-filter: none;
       flex-wrap: wrap;
     }
     .topbar-brand {
@@ -1866,7 +1831,7 @@ function homeHtml(session = {}) {
       background:
         radial-gradient(circle at 50% 18%, rgba(117,122,255,0.18), transparent 24%),
         linear-gradient(180deg, rgba(10,14,28,0.88), rgba(8,11,24,0.94));
-      box-shadow: 0 28px 80px rgba(0,0,0,0.34);
+      box-shadow: 0 14px 36px rgba(0,0,0,0.24);
     }
     .hero-badge {
       display:inline-flex;
@@ -2013,6 +1978,9 @@ function homeHtml(session = {}) {
 
 function basesPageHtml
 (bases, session = {}) {
+  const authLabel = String(session && session.userId ? "Account" : "Sign Up");
+  const openCount = bases.filter((b) => b.state === "open").length;
+  const closedCount = bases.filter((b) => b.state === "closed").length;
   return `<!doctype html>
 <html>
 <head>
@@ -2026,18 +1994,49 @@ function basesPageHtml
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="hero" style="margin-bottom:12px; text-align:left;">
-        <a class="btn" href="/">Back Home</a>
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a class="active" href="/bases">State of Bases</a>
+          <a href="/shop">Shop</a>
+          <a href="/apply">Apply</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/">Back Home</a>
+          <a class="pill primary" href="/auth">${authLabel}</a>
+        </div>
       </section>
-      <section class="state-box" style="display:block;">
-        <div class="state-head">State of bases</div>
-        ${baseStateListHtml(bases)}
+      <section class="hero">
+        <div class="page-kicker">Operations</div>
+        <h1 class="page-title">State of <em>Bases</em></h1>
+        <p class="page-sub">The bases page now follows the storefront structure: strong hero, stat band, operational cards, and clearer hierarchy. Same system, different purpose.</p>
+        <div class="page-stats">
+          <div class="page-stat"><b>${bases.length}</b><span>Total Bases</span></div>
+          <div class="page-stat"><b>${openCount}</b><span>Open</span></div>
+          <div class="page-stat"><b>${closedCount}</b><span>Closed</span></div>
+        </div>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>Current base access</h2>
+          <div class="panel-copy">This is the public-safe view of which bases are operational, quieter, or restricted.</div>
+          <div style="margin-top:14px;">${baseStateListHtml(bases)}</div>
+        </article>
+        <aside class="page-card">
+          <h3>Status meaning</h3>
+          <div class="subtle">
+            <p><b>Open</b> means normal access.</p>
+            <p><b>Open but less likely to be used</b> means the base exists but is not the current focus.</p>
+            <p><b>Closed</b> means access is restricted for safety or operational reasons.</p>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function aboutPageHtml(session = {}) {
   return `<!doctype html>
@@ -2053,18 +2052,43 @@ function aboutPageHtml(session = {}) {
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="hero" style="margin-bottom:12px; text-align:left;">
-        <a class="btn" href="/">Back Home</a>
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a href="/bases">State of Bases</a>
+          <a href="/shop">Shop</a>
+          <a class="active" href="/about">About</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/">Back Home</a>
+          <a class="pill primary" href="/shop/web">Website Shop</a>
+        </div>
       </section>
-      <section class="state-box" style="display:block; text-align:left;">
-        <div class="state-head">About Us</div>
-        <div style="white-space:pre-wrap; line-height:1.6;">${esc(ABOUT_US_TEXT)}</div>
+      <section class="hero">
+        <div class="page-kicker">Network Overview</div>
+        <h1 class="page-title">About <em>Looooooty</em></h1>
+        <p class="page-sub">This page now uses the same framing as the storefront instead of a generic dark card. It should read like part of one product family.</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>About the project</h2>
+          <div class="page-copy" style="white-space:pre-wrap;">${esc(ABOUT_US_TEXT)}</div>
+        </article>
+        <aside class="page-card">
+          <h3>Core pillars</h3>
+          <div class="subtle">
+            <p><b>Operations:</b> base management and controlled access.</p>
+            <p><b>Commerce:</b> shop infrastructure that supports delivery flows.</p>
+            <p><b>Trust:</b> applications, ranks, reviews, and account identity tied into one system.</p>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function howToOrderHtml(session = {}) {
   return `<!doctype html>
@@ -2098,23 +2122,7 @@ function howToOrderHtml(session = {}) {
         linear-gradient(180deg, #02040a 0%, #070b18 48%, #050814 100%);
       overflow-x: hidden;
     }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        radial-gradient(circle at 10% 20%, rgba(255,255,255,0.95) 0 1.2px, transparent 1.4px),
-        radial-gradient(circle at 24% 68%, rgba(255,255,255,0.65) 0 1px, transparent 1.2px),
-        radial-gradient(circle at 40% 32%, rgba(255,255,255,0.75) 0 1.3px, transparent 1.5px),
-        radial-gradient(circle at 63% 70%, rgba(255,255,255,0.55) 0 1.1px, transparent 1.3px),
-        radial-gradient(circle at 83% 36%, rgba(255,255,255,0.9) 0 1.4px, transparent 1.6px),
-        radial-gradient(circle at 74% 16%, rgba(255,255,255,0.55) 0 0.9px, transparent 1.1px),
-        radial-gradient(circle at 56% 18%, rgba(255,255,255,0.5) 0 0.9px, transparent 1.1px),
-        radial-gradient(circle at 92% 76%, rgba(255,255,255,0.7) 0 1px, transparent 1.2px),
-        radial-gradient(circle at 18% 84%, rgba(255,255,255,0.7) 0 1px, transparent 1.2px);
-      opacity: 0.82;
-    }
+    body::before { content: none; }
     .shell {
       position: relative;
       z-index: 1;
@@ -2132,8 +2140,8 @@ function howToOrderHtml(session = {}) {
       border-radius: 28px;
       background: linear-gradient(180deg, rgba(20,27,47,0.94), rgba(11,16,31,0.92));
       border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-      backdrop-filter: blur(18px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.24);
+      backdrop-filter: none;
     }
     .content {
       display: grid;
@@ -2148,8 +2156,8 @@ function howToOrderHtml(session = {}) {
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 999px;
       background: rgba(9, 14, 28, 0.84);
-      box-shadow: 0 18px 48px rgba(0,0,0,0.32);
-      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+      backdrop-filter: none;
     }
     .brand {
       display: flex;
@@ -2201,7 +2209,7 @@ function howToOrderHtml(session = {}) {
       background:
         radial-gradient(circle at 50% 18%, rgba(117,122,255,0.18), transparent 24%),
         linear-gradient(180deg, rgba(10,14,28,0.88), rgba(8,11,24,0.94));
-      box-shadow: 0 28px 80px rgba(0,0,0,0.34);
+      box-shadow: 0 14px 36px rgba(0,0,0,0.24);
       text-align: center;
       overflow: hidden;
     }
@@ -2386,76 +2394,67 @@ function authPageHtml({ session = {}, msg = "", err = "", next = "/", localAccou
   <title>${userId ? "Account" : "Sign Up / Login"}</title>
   ${faviconLinks()}
   ${sharedHomeStyles()}
-  <style>
-    .auth-grid {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: 1fr 1fr;
-      margin-top: 10px;
-    }
-    .auth-btn {
-      display: inline-block;
-      text-decoration: none;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: linear-gradient(180deg, rgba(56,83,130,0.55), rgba(28,42,68,0.8));
-      color: var(--txt);
-      font-weight: 800;
-      padding: 12px 14px;
-      text-align: center;
-    }
-    .auth-btn:hover { border-color: var(--accent); }
-    .auth-btn.disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-    .account-meta {
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      background: rgba(7,12,28,0.6);
-      padding: 10px 12px;
-      margin-top: 10px;
-      line-height: 1.5;
-    }
-    @media (max-width: 860px) {
-      .auth-grid { grid-template-columns: 1fr; }
-    }
-  </style>
 </head>
 <body>
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="state-box" style="text-align:left;">
-        <h2 style="margin-top:0;">${userId ? "Account" : "Sign Up / Login"}</h2>
-        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        ${
-          userId
-              ? `<div class="account-meta">
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a href="/shop">Shop</a>
+          <a href="/shop/reviews">Reviews</a>
+          <a class="active" href="/auth">Account</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/">Back Home</a>
+          <a class="pill primary" href="/shop/web">Website Shop</a>
+        </div>
+      </section>
+      <section class="hero">
+        <div class="page-kicker">Identity & Access</div>
+        <h1 class="page-title">${userId ? "Your" : "Access the"} <em>Account</em></h1>
+        <p class="page-sub">Account entry now follows the same storefront structure as the shop. It should feel like a branded gateway, not a utility page.</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>${userId ? "Current session" : "Choose a sign-in method"}</h2>
+          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+          ${userId
+            ? `<div class="account-meta">
                 Logged in as: <b>${esc(userTag || "User")}</b><br/>
                 Provider: <b>${esc(provider || "unknown")}</b><br/>
                 Account ID: <b>${esc(userId)}</b>${provider === "looooooty" ? `<br/>Email: <b>${esc(localAccount && localAccount.email ? localAccount.email : "-")}</b>` : ""}
               </div>
-              <div class="auth-grid">
+              <div class="panel-actions">
                 <form method="post" action="/auth/logout?next=${encodeURIComponent(nextPath)}" style="margin:0;">
                   <button class="submit" type="submit">Logout</button>
                 </form>
-                <a class="auth-btn" href="${provider === "looooooty" ? "/account" : esc(nextPath)}">${provider === "looooooty" ? "Account Settings" : "Back"}</a>
+                <a class="btn" href="${provider === "looooooty" ? "/account" : esc(nextPath)}">${provider === "looooooty" ? "Account Settings" : "Back"}</a>
               </div>`
             : `<div class="auth-grid">
                 <a class="auth-btn" href="/auth/looooooty?mode=login&next=${encodeURIComponent(nextPath)}">Log in with Looooooty Accounts</a>
                 <a class="auth-btn" href="/auth/google/start?next=%2Fauth">Log in with Google</a>
                 <a class="auth-btn" href="/auth/looooooty?mode=signup&next=${encodeURIComponent(nextPath)}">Create a Looooooty Account</a>
                 <a class="auth-btn" href="/auth/discord/start?next=%2Fauth">Log in with Discord</a>
-              </div>`
-        }
+              </div>`}
+        </article>
+        <aside class="page-card">
+          <h3>Why accounts matter</h3>
+          <div class="subtle">
+            <p>Accounts connect reviews, giveaway identity, store credit, and future order history.</p>
+            <p>Discord and Google are external providers. Looooooty Accounts are local and support password reset.</p>
+            <p>You can browse without logging in, but account-linked features depend on it.</p>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth", session = {} }) {
   const safeMode = mode === "signup" ? "signup" : mode === "forgot" ? "forgot" : "login";
@@ -2465,7 +2464,7 @@ function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth",
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${safeMode === "signup" ? "Create Looooooty Account" : "Login Looooooty Account"}</title>
+  <title>${safeMode === "signup" ? "Create Looooooty Account" : safeMode === "forgot" ? "Reset Password" : "Login Looooooty Account"}</title>
   ${faviconLinks()}
   ${sharedHomeStyles()}
 </head>
@@ -2473,12 +2472,30 @@ function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth",
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="state-box" style="text-align:left; max-width:620px;">
-        <h2 style="margin-top:0;">${safeMode === "signup" ? "Create Looooooty Account" : "Log in with Looooooty Account"}</h2>
-        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        ${safeMode === "signup"
-            ? `<form method="post" action="/auth/looooooty/signup?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a href="/auth">Account</a>
+          <a href="/shop/web">Store</a>
+          <a href="/shop/reviews">Reviews</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/auth">Back</a>
+          <a class="pill primary" href="/shop/web">Website Shop</a>
+        </div>
+      </section>
+      <section class="hero">
+        <div class="page-kicker">Local Accounts</div>
+        <h1 class="page-title">${safeMode === "signup" ? "Create" : safeMode === "forgot" ? "Reset" : "Login to"} <em>Looooooty</em></h1>
+        <p class="page-sub">The local account flow now uses the same storefront hierarchy as the rest of the site. Same function, much stronger structure.</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>${safeMode === "signup" ? "Create account" : safeMode === "forgot" ? "Forgot password" : "Login"}</h2>
+          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+          ${safeMode === "signup"
+            ? `<form class="form-grid" method="post" action="/auth/looooooty/signup?next=${encodeURIComponent(nextPath)}">
                 <input type="text" name="username" required maxlength="32" placeholder="Username (3-32 letters/numbers/._-)" />
                 <input type="email" name="email" required maxlength="120" placeholder="Email" />
                 <input type="password" name="password" required minlength="8" maxlength="120" placeholder="Password (min 8 chars)" />
@@ -2486,28 +2503,35 @@ function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth",
                 <button class="submit" type="submit">Create Account</button>
               </form>`
             : safeMode === "forgot"
-              ? `<form method="post" action="/auth/looooooty/forgot?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
+              ? `<form class="form-grid" method="post" action="/auth/looooooty/forgot?next=${encodeURIComponent(nextPath)}">
                   <input type="email" name="email" required maxlength="120" placeholder="Email" />
-                  <button class="submit" type="submit">Send Reset Email</button>
+                  <button class="submit" type="submit">Send reset email</button>
                 </form>`
-              : `<form method="post" action="/auth/looooooty/login?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
-                <input type="text" name="identifier" required maxlength="120" placeholder="Username or Email" />
-                <input type="password" name="password" required maxlength="120" placeholder="Password" />
-                <button class="submit" type="submit">Log In</button>
-                </form>`}
-        <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-          <a class="btn" href="/auth/looooooty?mode=${safeMode === "signup" ? "login" : "signup"}&next=${encodeURIComponent(nextPath)}">
-            ${safeMode === "signup" ? "Already have an account? Log in" : "Need an account? Sign up"}
-          </a>
-          ${safeMode === "forgot" ? "" : `<a class="btn" href="/auth/looooooty?mode=forgot&next=${encodeURIComponent(nextPath)}">Forgot Password</a>`}
-          <a class="btn" href="/auth?next=${encodeURIComponent(nextPath)}">Back to Login Options</a>
-        </div>
+              : `<form class="form-grid" method="post" action="/auth/looooooty/login?next=${encodeURIComponent(nextPath)}">
+                  <input type="text" name="login" required maxlength="120" placeholder="Username or email" />
+                  <input type="password" name="password" required maxlength="120" placeholder="Password" />
+                  <button class="submit" type="submit">Login</button>
+                </form>
+                <div class="panel-actions">
+                  <a class="btn" href="/auth/looooooty?mode=signup&next=${encodeURIComponent(nextPath)}">Create account</a>
+                  <a class="btn" href="/auth/looooooty?mode=forgot&next=${encodeURIComponent(nextPath)}">Forgot password?</a>
+                </div>`}
+        </article>
+        <aside class="page-card">
+          <h3>Local account notes</h3>
+          <div class="subtle">
+            <p>Local accounts are the base for email verification and password resets.</p>
+            <p>They stay separate from Discord and Google logins, but still connect into the same storefront account system.</p>
+            <p>If SMTP is configured, forgot-password sends a real reset link.</p>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function localResetPasswordPageHtml({ msg = "", err = "", uid = "", token = "", next = "/auth" }) {
   const nextPath = next && String(next).startsWith("/") ? String(next) : "/auth";
@@ -2524,23 +2548,50 @@ function localResetPasswordPageHtml({ msg = "", err = "", uid = "", token = "", 
   <div class="layout">
     <aside class="side">${sideMenuHtml()}</aside>
     <main class="main">
-      <section class="state-box" style="text-align:left; max-width:620px;">
-        <h2 style="margin-top:0;">Reset Password</h2>
-        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        <form method="post" action="/auth/looooooty/reset?next=${encodeURIComponent(nextPath)}" style="display:grid; gap:10px;">
-          <input type="hidden" name="uid" value="${esc(uid)}" />
-          <input type="hidden" name="token" value="${esc(token)}" />
-          <input type="password" name="password" required minlength="8" maxlength="120" placeholder="New password (min 8 chars)" />
-          <input type="password" name="password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
-          <button class="submit" type="submit">Update Password</button>
-        </form>
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a class="active" href="/auth">Account</a>
+          <a href="/shop/web">Store</a>
+          <a href="/shop/reviews">Reviews</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/auth">Back</a>
+          <a class="pill primary" href="/shop/web">Website Shop</a>
+        </div>
+      </section>
+      <section class="hero">
+        <div class="page-kicker">Recovery</div>
+        <h1 class="page-title">Reset <em>Password</em></h1>
+        <p class="page-sub">Password recovery now follows the same storefront layout as the rest of the account system.</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>Choose a new password</h2>
+          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+          <form class="form-grid" method="post" action="/auth/looooooty/reset?next=${encodeURIComponent(nextPath)}">
+            <input type="hidden" name="uid" value="${esc(uid)}" />
+            <input type="hidden" name="token" value="${esc(token)}" />
+            <input type="password" name="password" required minlength="8" maxlength="120" placeholder="New password (min 8 chars)" />
+            <input type="password" name="password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
+            <button class="submit" type="submit">Update Password</button>
+          </form>
+        </article>
+        <aside class="page-card">
+          <h3>Reset notes</h3>
+          <div class="subtle">
+            <p>Use a password you have not already used for this account.</p>
+            <p>The reset token is time-limited, so expired links need a new reset request.</p>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function accountSettingsPageHtml({ session, account, msg = "", err = "" }) {
   const userTag = String(session && session.userTag ? session.userTag : "");
@@ -2557,35 +2608,62 @@ function accountSettingsPageHtml({ session, account, msg = "", err = "" }) {
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="state-box" style="text-align:left; max-width:700px;">
-        <h2 style="margin-top:0;">Account Settings</h2>
-        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        <div class="account-meta">
-          Username: <b>${esc(userTag || account.username || "-")}</b><br/>
-          Email: <b>${esc(account.email || "-")}</b><br/>
-          Verified: <b>${account.emailVerified ? "Yes" : "No"}</b>
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a class="active" href="/account">Account</a>
+          <a href="/shop/web">Store</a>
+          <a href="/shop/reviews">Reviews</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/auth">Back to Access</a>
+          <a class="pill primary" href="/shop/web">Website Shop</a>
         </div>
-        <form method="post" action="/account/profile" style="margin-top:10px; display:grid; gap:10px;">
-          <h3 style="margin:4px 0;">Profile</h3>
-          <input type="text" name="username" required maxlength="32" value="${esc(account.username || "")}" />
-          <input type="email" name="email" required maxlength="120" value="${esc(account.email || "")}" />
-          <button class="submit" type="submit">Save Profile</button>
-        </form>
-        ${account.emailVerified ? "" : `<div class="note">Email verification is temporarily disabled.</div>`}
-        <form method="post" action="/account/password" style="margin-top:12px; display:grid; gap:10px;">
-          <h3 style="margin:4px 0;">Change Password</h3>
-          <input type="password" name="current_password" required maxlength="120" placeholder="Current password" />
-          <input type="password" name="new_password" required minlength="8" maxlength="120" placeholder="New password" />
-          <input type="password" name="new_password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
-          <button class="submit" type="submit">Update Password</button>
-        </form>
+      </section>
+      <section class="hero">
+        <div class="page-kicker">Account Management</div>
+        <h1 class="page-title">Account <em>Settings</em></h1>
+        <p class="page-sub">Profile and password controls now use the same storefront panel structure instead of an older utility layout.</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>Your account</h2>
+          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+          <div class="account-meta">
+            Username: <b>${esc(userTag || account.username || "-")}</b><br/>
+            Email: <b>${esc(account.email || "-")}</b><br/>
+            Verified: <b>${account.emailVerified ? "Yes" : "No"}</b>
+          </div>
+          <form class="form-grid" method="post" action="/account/profile" style="margin-top:14px;">
+            <h3 style="margin:4px 0;">Profile</h3>
+            <input type="text" name="username" required maxlength="32" value="${esc(account.username || "")}" />
+            <input type="email" name="email" required maxlength="120" value="${esc(account.email || "")}" />
+            <button class="submit" type="submit">Save Profile</button>
+          </form>
+          ${account.emailVerified ? "" : `<div class="note" style="margin-top:12px;">Email verification is temporarily disabled.</div>`}
+          <form class="form-grid" method="post" action="/account/password" style="margin-top:14px;">
+            <h3 style="margin:4px 0;">Change Password</h3>
+            <input type="password" name="current_password" required maxlength="120" placeholder="Current password" />
+            <input type="password" name="new_password" required minlength="8" maxlength="120" placeholder="New password" />
+            <input type="password" name="new_password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
+            <button class="submit" type="submit">Update Password</button>
+          </form>
+        </article>
+        <aside class="page-card">
+          <h3>Security notes</h3>
+          <div class="subtle">
+            <p>Changing email or password affects the local Looooooty account only.</p>
+            <p>Provider logins like Discord or Google remain external authentication methods.</p>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
   const userId = String(session && session.userId ? session.userId : "");
@@ -2653,7 +2731,7 @@ function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
       background: rgba(9,13,20,0.72);
       border-radius: 16px;
       padding: 16px;
-      backdrop-filter: blur(10px);
+      backdrop-filter: none;
     }
     .gw-title-row {
       display: flex;
@@ -3215,38 +3293,14 @@ function websiteShopHtml(websiteShop, session = {}) {
       overflow-x: hidden;
     }
     body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::before {
-      background-image:
-        radial-gradient(circle at 7% 10%, rgba(255,255,255,0.62) 0 1.4px, transparent 1.5px),
-        radial-gradient(circle at 18% 77%, rgba(255,255,255,0.52) 0 1.6px, transparent 1.7px),
-        radial-gradient(circle at 31% 29%, rgba(255,255,255,0.36) 0 1.1px, transparent 1.2px),
-        radial-gradient(circle at 46% 64%, rgba(255,255,255,0.48) 0 1.5px, transparent 1.6px),
-        radial-gradient(circle at 58% 18%, rgba(255,255,255,0.38) 0 1.1px, transparent 1.2px),
-        radial-gradient(circle at 71% 46%, rgba(255,255,255,0.56) 0 1.7px, transparent 1.8px),
-        radial-gradient(circle at 83% 82%, rgba(255,255,255,0.4) 0 1.2px, transparent 1.3px),
-        radial-gradient(circle at 94% 31%, rgba(255,255,255,0.54) 0 1.5px, transparent 1.6px);
-      opacity: 0.95;
-    }
-    body::after {
-      background:
-        radial-gradient(640px 180px at 50% 240px, rgba(93, 88, 220, 0.16), transparent 70%),
-        radial-gradient(560px 220px at 50% 310px, rgba(255,255,255,0.05), transparent 75%);
-    }
+    body::after { content: none; }
     .shop-shell {
       position: relative;
       z-index: 1;
       min-height: 100vh;
     }
     .shop-topbar {
-      position: sticky;
-      top: 0;
+      position: relative;
       z-index: 20;
       display: grid;
       grid-template-columns: auto 1fr auto;
@@ -3255,7 +3309,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       padding: 16px 28px;
       border-bottom: 1px solid var(--line);
       background: rgba(2,4,8,0.8);
-      backdrop-filter: blur(10px);
+      backdrop-filter: none;
     }
     .brand-mark {
       display: flex;
@@ -3385,7 +3439,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       border-radius: 18px;
       overflow: hidden;
       background: rgba(255,255,255,0.03);
-      backdrop-filter: blur(6px);
+      backdrop-filter: none;
     }
     .hero-stat {
       padding: 18px 30px;
@@ -3509,7 +3563,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       gap: 12px;
       position: relative;
       overflow: visible;
-      box-shadow: 0 22px 70px rgba(0,0,0,0.32);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.24);
     }
     .card-info {
       position: absolute;
@@ -3599,7 +3653,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       position: fixed;
       inset: 0;
       background: rgba(2,5,16,0.82);
-      backdrop-filter: blur(10px);
+      backdrop-filter: none;
       display: none;
       z-index: 50;
       padding: 20px;
@@ -3617,7 +3671,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       max-height: 92vh;
       overflow: auto;
       margin: 0 auto;
-      box-shadow: 0 32px 100px rgba(0,0,0,0.48);
+      box-shadow: 0 16px 42px rgba(0,0,0,0.30);
     }
     .cart-head {
       display:flex;
@@ -3750,8 +3804,7 @@ function websiteShopHtml(websiteShop, session = {}) {
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(2,5,16,0.82);
-      backdrop-filter: blur(8px);
+      background: rgba(2,5,16,0.92);
       display: none;
       z-index: 70;
       padding: 20px;
@@ -3767,7 +3820,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       max-width: 560px;
       width: 100%;
       margin: 8vh auto 0;
-      box-shadow: 0 30px 90px rgba(0,0,0,0.46);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.30);
     }
     .modal-panel h3 {
       margin: 0 0 10px;
@@ -5092,21 +5145,9 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
         radial-gradient(circle at top center, rgba(96,165,250,0.18), transparent 32%),
         radial-gradient(circle at 80% 18%, rgba(52,211,153,0.10), transparent 24%),
         linear-gradient(180deg, rgba(5,8,18,0.95), rgba(6,10,24,0.98));
-      box-shadow: 0 26px 72px rgba(0,0,0,0.34);
+      box-shadow: 0 14px 32px rgba(0,0,0,0.24);
     }
-    .reviews-hero::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background-image:
-        radial-gradient(circle at 14% 22%, rgba(255,255,255,0.88) 0 1px, transparent 2px),
-        radial-gradient(circle at 26% 74%, rgba(255,255,255,0.48) 0 1px, transparent 2px),
-        radial-gradient(circle at 74% 26%, rgba(255,255,255,0.72) 0 1px, transparent 2px),
-        radial-gradient(circle at 86% 62%, rgba(255,255,255,0.42) 0 1px, transparent 2px),
-        radial-gradient(circle at 46% 56%, rgba(255,255,255,0.36) 0 1px, transparent 2px);
-      opacity: 0.42;
-      pointer-events: none;
-    }
+    .reviews-hero::before { content: none; }
     .reviews-topbar {
       position: relative;
       z-index: 1;
@@ -5408,6 +5449,7 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
 
 function applyPageHtml(forms, msg = "", err = "", session = {}) {
   const activeForms = (forms || []).filter((f) => f.active !== false);
+  const authLabel = String(session && session.userId ? "Account" : "Sign Up");
   return `<!doctype html>
 <html>
 <head>
@@ -5421,60 +5463,86 @@ function applyPageHtml(forms, msg = "", err = "", session = {}) {
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="state-box" style="text-align:left;">
-        <h2 style="margin-top:0;">Application</h2>
-        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        ${activeForms.length ? "" : '<div class="warn">No application types are available right now.</div>'}
-        <form class="form-grid" method="post" action="/apply">
-          <label>Application Type</label>
-          <select name="form_id" required>
-            ${activeForms
-              .map((f) => `<option value="${esc(f.id)}">${esc(f.name)}${f.guildId ? ` (Guild ${esc(f.guildId)})` : ""}</option>`)
-              .join("")}
-          </select>
-          <label>Discord User ID</label>
-          <input type="text" name="discord_user_id" required maxlength="20" placeholder="123456789012345678" />
-          <label>Discord Username (optional)</label>
-          <input type="text" name="discord_tag" maxlength="64" placeholder="name or name#0001" />
-          <label>Minecraft IGN (optional)</label>
-          <input type="text" name="minecraft_ign" maxlength="32" placeholder="Your IGN" />
-          <label>Why do you want this role? (optional)</label>
-          <textarea name="reason" maxlength="1000" placeholder="Short reason"></textarea>
-          <div id="custom-question-wrap"></div>
-          <button class="submit" type="submit" ${activeForms.length ? "" : "disabled"}>Submit Application</button>
-        </form>
-        <script>
-          (function () {
-            const forms = ${JSON.stringify(activeForms.map((f) => ({ id: f.id, questions: Array.isArray(f.questions) ? f.questions : [] })))};
-            const sel = document.querySelector('select[name=\"form_id\"]');
-            const wrap = document.getElementById('custom-question-wrap');
-            if (!sel || !wrap) return;
-            function escHtml(v) {
-              return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            }
-            function render() {
-              const selected = forms.find((f) => f.id === sel.value);
-              const qs = selected && Array.isArray(selected.questions) ? selected.questions.map((q) => String(q || '').trim()).filter(Boolean) : [];
-              if (!qs.length) {
-                wrap.innerHTML = "";
-                return;
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a href="/bases">State of Bases</a>
+          <a class="active" href="/apply">Apply</a>
+          <a href="/shop">Shop</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/">Back Home</a>
+          <a class="pill primary" href="/auth">${authLabel}</a>
+        </div>
+      </section>
+      <section class="hero">
+        <div class="page-kicker">Applications</div>
+        <h1 class="page-title">Apply to <em>Looooooty</em></h1>
+        <p class="page-sub">The application flow now uses the same storefront structure: clear intro, focused form, and support card instead of a plain stacked panel.</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>Submit an application</h2>
+          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
+          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
+          ${activeForms.length ? "" : '<div class="warn">No application types are available right now.</div>'}
+          <form class="form-grid" method="post" action="/apply">
+            <label>Application Type</label>
+            <select name="form_id" required>
+              ${activeForms.map((f) => `<option value="${esc(f.id)}">${esc(f.name)}${f.guildId ? ` (Guild ${esc(f.guildId)})` : ""}</option>`).join("")}
+            </select>
+            <label>Discord User ID</label>
+            <input type="text" name="discord_user_id" required maxlength="20" placeholder="123456789012345678" />
+            <label>Discord Username (optional)</label>
+            <input type="text" name="discord_tag" maxlength="64" placeholder="name or name#0001" />
+            <label>Minecraft IGN (optional)</label>
+            <input type="text" name="minecraft_ign" maxlength="32" placeholder="Your IGN" />
+            <label>Why do you want this role? (optional)</label>
+            <textarea name="reason" maxlength="1000" placeholder="Short reason"></textarea>
+            <div id="custom-question-wrap"></div>
+            <button class="submit" type="submit" ${activeForms.length ? "" : "disabled"}>Submit Application</button>
+          </form>
+          <script>
+            (function () {
+              const forms = ${JSON.stringify(activeForms.map((f) => ({ id: f.id, questions: Array.isArray(f.questions) ? f.questions : [] })))};
+              const sel = document.querySelector('select[name="form_id"]');
+              const wrap = document.getElementById('custom-question-wrap');
+              if (!sel || !wrap) return;
+              function escHtml(v) {
+                return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
               }
-              wrap.innerHTML = qs.map((q, i) =>
-                '<label>' + escHtml(q) + '</label>' +
-                '<input type=\"text\" name=\"custom_answers\" maxlength=\"500\" placeholder=\"Answer #' + (i + 1) + '\" required />'
-              ).join('');
-            }
-            sel.addEventListener('change', render);
-            render();
-          })();
-        </script>
+              function render() {
+                const selected = forms.find((f) => f.id === sel.value);
+                const qs = selected && Array.isArray(selected.questions) ? selected.questions.map((q) => String(q || '').trim()).filter(Boolean) : [];
+                if (!qs.length) {
+                  wrap.innerHTML = "";
+                  return;
+                }
+                wrap.innerHTML = qs.map((q, i) =>
+                  '<label>' + escHtml(q) + '</label>' +
+                  '<input type="text" name="custom_answers" maxlength="500" placeholder="Answer #' + (i + 1) + '" required />'
+                ).join('');
+              }
+              sel.addEventListener('change', render);
+              render();
+            })();
+          </script>
+        </article>
+        <aside class="page-card">
+          <h3>Before you submit</h3>
+          <div class="subtle">
+            <p>Use the correct Discord user ID. That links the application back to role grant flows.</p>
+            <p>Different application types can surface different custom questions automatically.</p>
+            <p>Short low-effort answers are harder to trust. Be specific.</p>
+          </div>
+        </aside>
       </section>
     </main>
   </div>
 </body>
 </html>`;
 }
+
 
 function staffLoginHtml(error = "") {
   return `<!doctype html>
@@ -5484,28 +5552,52 @@ function staffLoginHtml(error = "") {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Staff Access</title>
   ${faviconLinks()}
-  <style>
-    body { margin:0; min-height:100vh; display:grid; place-items:center; background:#0d1117; color:#e6edf3; font-family: ui-sans-serif,system-ui; }
-    .card { width:min(420px,92vw); background:#161b22; border:1px solid #30363d; border-radius:14px; padding:18px; }
-    .err { color:#ff7b72; margin:8px 0; min-height:20px; }
-    input { width:100%; padding:11px; border-radius:10px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; margin-top:8px; }
-    button { width:100%; margin-top:10px; padding:11px; border:1px solid #238636; background:#238636; color:white; border-radius:10px; font-weight:700; }
-    a { color:#8b949e; }
-  </style>
+  ${sharedHomeStyles()}
 </head>
 <body>
-  <form class="card" method="post" action="/staff/login">
-    <h2 style="margin-top:0">Staff Access</h2>
-    <p>Enter your name and staff code to open the panel.</p>
-    <div class="err">${esc(error)}</div>
-    <input name="user" placeholder="Staff name" required maxlength="32" />
-    <input name="code" placeholder="Staff code" required />
-    <button type="submit">Open Staff Panel</button>
-    <p style="margin:10px 0 0 0"><a href="/">Back Home</a></p>
-  </form>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml({})}</aside>
+    <main class="main">
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/shop">Shop</a>
+          <a class="active" href="/staff">Staff</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/">Back Home</a>
+        </div>
+      </section>
+      <section class="hero">
+        <div class="page-kicker">Restricted</div>
+        <h1 class="page-title">Staff <em>Access</em></h1>
+        <p class="page-sub">The staff entry point now belongs to the same design system as the storefront. It is still gated, but it no longer looks detached from the rest of the product.</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>Enter the panel</h2>
+          ${error ? `<div class="warn">${esc(error)}</div>` : ""}
+          <form class="form-grid" method="post" action="/staff/login">
+            <input name="user" placeholder="Staff name" required maxlength="32" />
+            <input name="code" placeholder="Staff code" required />
+            <button class="submit" type="submit">Open Staff Panel</button>
+          </form>
+        </article>
+        <aside class="page-card">
+          <h3>Operational note</h3>
+          <div class="subtle">
+            <p>This page only unlocks the protected control panel.</p>
+            <p>Shop operations, base management, and application controls stay inside the authenticated staff interface.</p>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
 </body>
 </html>`;
 }
+
 
 function staffPanelStyles() {
   return `<style>
@@ -5525,7 +5617,7 @@ function staffPanelStyles() {
     .menu-shell {
       border: 1px solid rgba(255,255,255,0.14);
       background: rgba(8,12,18,0.58);
-      backdrop-filter: blur(10px);
+      backdrop-filter: none;
       border-radius: 16px;
       padding: 14px;
       width: 100%;
@@ -5556,7 +5648,7 @@ function staffPanelStyles() {
       margin-bottom: 16px;
       border: 1px solid rgba(255,255,255,0.14);
       background: rgba(9,13,20,0.62);
-      backdrop-filter: blur(10px);
+      backdrop-filter: none;
       border-radius: 16px;
       padding: 16px;
     }
@@ -5580,7 +5672,7 @@ function staffPanelStyles() {
     .card {
       border: 1px solid rgba(255,255,255,0.14);
       background: rgba(9,13,20,0.62);
-      backdrop-filter: blur(10px);
+      backdrop-filter: none;
       border-radius: 12px;
       padding: 14px;
     }
