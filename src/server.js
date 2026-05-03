@@ -2134,8 +2134,7 @@ function howToOrderHtml(session = {}) {
     }
     .side {
       align-self: start;
-      position: sticky;
-      top: 22px;
+      position: relative;
       padding: 18px;
       border-radius: 28px;
       background: linear-gradient(180deg, rgba(20,27,47,0.94), rgba(11,16,31,0.92));
@@ -2956,7 +2955,7 @@ function shopLandingHtml() {
       border: 1px solid rgba(255,255,255,0.12);
       padding: 11px 18px;
       background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(8px);
+      backdrop-filter: none;
       transition: transform .18s ease, border-color .18s ease, background .18s ease;
     }
     .landing-nav a:hover {
@@ -5224,7 +5223,7 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
       border: 1px solid rgba(255,255,255,0.10);
       background: rgba(255,255,255,0.04);
       padding: 16px 18px;
-      backdrop-filter: blur(8px);
+      backdrop-filter: none;
     }
     .reviews-stat b {
       display: block;
@@ -5609,7 +5608,7 @@ function staffPanelStyles() {
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
       background:
         linear-gradient(120deg, rgba(5,10,20,0.72), rgba(5,10,20,0.56)),
-        url('${HOME_BG_URL}') center/cover no-repeat fixed;
+        url('${HOME_BG_URL}') center/cover no-repeat;
       min-height: 100vh;
     }
     .layout { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
