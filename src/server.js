@@ -71,6 +71,15 @@ const RATE_LIMIT_MAX_LOCAL_FORGOT = 10;
 const RATE_LIMIT_MAX_REVIEW = 6;
 const RATE_LIMIT_MAX_COUPON = 10;
 
+function isAbsoluteHttpUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+function normalizeBotInternalUrl(value, fallback) {
+  const raw = String(value || "").trim();
+  return isAbsoluteHttpUrl(raw) ? raw : String(fallback || "").trim();
+}
+
 const BASE_STATES_FILE = path.join(BOT_DATA_DIR, "base_states.json");
 const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json");
 const APPLICATION_FORMS_FILE = path.join(BOT_DATA_DIR, "application_forms.json");
@@ -919,6 +928,37 @@ function saveApplications(applications) {
   writeJson(APPLICATIONS_FILE, applications);
 }
 
+function getLatestApplicationForSession(session) {
+  const provider = String(session && session.provider ? session.provider : "").trim();
+  const userId = String(session && session.userId ? session.userId : "").trim();
+  if (!userId || provider !== "discord") {
+    return null;
+  }
+  return loadApplications()
+    .filter((app) => String(app && app.discordUserId ? app.discordUserId : "") === userId)
+    .sort((a, b) => String(b && (b.updatedAt || b.createdAt) ? (b.updatedAt || b.createdAt) : "").localeCompare(String(a && (a.updatedAt || a.createdAt) ? (a.updatedAt || a.createdAt) : "")))[0] || null;
+}
+
+function markLatestApplicationResultSeenForUser(discordUserId) {
+  const target = String(discordUserId || "").trim();
+  if (!target) return null;
+  const applications = loadApplications();
+  const ranked = applications
+    .map((app, index) => ({ app, index }))
+    .filter(({ app }) => String(app && app.discordUserId ? app.discordUserId : "") === target)
+    .sort((a, b) => String(b.app && (b.app.updatedAt || b.app.createdAt) ? (b.app.updatedAt || b.app.createdAt) : "").localeCompare(String(a.app && (a.app.updatedAt || a.app.createdAt) ? (a.app.updatedAt || a.app.createdAt) : "")));
+  const hit = ranked[0];
+  if (!hit || !hit.app || !["APPROVED", "REJECTED"].includes(String(hit.app.status || ""))) {
+    return null;
+  }
+  if (!hit.app.resultSeenAt) {
+    applications[hit.index] = { ...hit.app, resultSeenAt: new Date().toISOString() };
+    saveApplications(applications);
+    return applications[hit.index];
+  }
+  return hit.app;
+}
+
 function createApplicationId() {
   return `APP-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
 }
@@ -1172,6 +1212,9 @@ function stats() {
 function sideMenuHtml(session = {}) {
   const userId = String(session && session.userId ? session.userId : "");
   const authLabel = userId ? "Account" : "Sign Up";
+  const latestApplication = getLatestApplicationForSession(session);
+  const hasApplicationResult = latestApplication && ["APPROVED", "REJECTED"].includes(String(latestApplication.status || ""));
+  const applicationResultUnread = hasApplicationResult && !latestApplication.resultSeenAt;
   return `<div class="menu-shell">
     <div class="brand-lockup">
       <div class="brand-mark-sm"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /></div>
@@ -1186,6 +1229,7 @@ function sideMenuHtml(session = {}) {
       <a href="/about">About Us</a>
       <a href="/how-to-order">How to order</a>
       <a href="/apply">Apply</a>
+      ${hasApplicationResult ? `<a href="/application-result">Application Result${applicationResultUnread ? " • New" : ""}</a>` : ""}
       <a href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Discord</a>
       <a href="/shop">LooooootyShop</a>
       <a href="/auth">${authLabel}</a>
@@ -5486,14 +5530,13 @@ function applyPageHtml(forms, msg = "", err = "", session = {}) {
           ${err ? `<div class="warn">${esc(err)}</div>` : ""}
           ${activeForms.length ? "" : '<div class="warn">No application types are available right now.</div>'}
           <form class="form-grid" method="post" action="/apply">
+            <div class="subtle" style="margin-bottom:12px;">You must be logged in with Discord to submit an application. Your Discord account is used automatically.</div>
             <label>Application Type</label>
             <select name="form_id" required>
               ${activeForms.map((f) => `<option value="${esc(f.id)}">${esc(f.name)}${f.guildId ? ` (Guild ${esc(f.guildId)})` : ""}</option>`).join("")}
             </select>
-            <label>Discord User ID</label>
-            <input type="text" name="discord_user_id" required maxlength="20" placeholder="123456789012345678" />
-            <label>Discord Username (optional)</label>
-            <input type="text" name="discord_tag" maxlength="64" placeholder="name or name#0001" />
+            <input type="hidden" name="discord_user_id" value="${esc(String(session && session.userId ? session.userId : ""))}" />
+            <input type="hidden" name="discord_tag" value="${esc(String(session && session.userTag ? session.userTag : ""))}" />
             <label>Minecraft IGN (optional)</label>
             <input type="text" name="minecraft_ign" maxlength="32" placeholder="Your IGN" />
             <label>Why do you want this role? (optional)</label>
@@ -6299,7 +6342,8 @@ function staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts
 }
 
 async function approveInBot(application) {
-  if (!BOT_APPROVE_URL || !BOT_INTERNAL_API_SECRET) {
+  const approveUrl = normalizeBotInternalUrl(BOT_APPROVE_URL, "http://127.0.0.1:3001/internal/base-member/approve");
+  if (!approveUrl || !BOT_INTERNAL_API_SECRET) {
     return { ok: false, error: "Missing BOT_APPROVE_URL or BOT_INTERNAL_API_SECRET in web .env." };
   }
 
@@ -6318,7 +6362,7 @@ async function approveInBot(application) {
 
   let response;
   try {
-    response = await fetch(BOT_APPROVE_URL, {
+    response = await fetch(approveUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -6345,7 +6389,8 @@ async function approveInBot(application) {
 }
 
 async function notifyDecisionInBot({ application, status, note = "" }) {
-  if (!BOT_NOTIFY_URL || !BOT_INTERNAL_API_SECRET) {
+  const notifyUrl = normalizeBotInternalUrl(BOT_NOTIFY_URL, "http://127.0.0.1:3001/internal/base-member/notify");
+  if (!notifyUrl || !BOT_INTERNAL_API_SECRET) {
     return { ok: false, error: "Missing BOT_NOTIFY_URL or BOT_INTERNAL_API_SECRET in web .env." };
   }
 
@@ -6361,7 +6406,7 @@ async function notifyDecisionInBot({ application, status, note = "" }) {
 
   let response;
   try {
-    response = await fetch(BOT_NOTIFY_URL, {
+    response = await fetch(notifyUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -6386,6 +6431,69 @@ async function notifyDecisionInBot({ application, status, note = "" }) {
 }
 
 app.get("/health", (_req, res) => {
+
+function applicationResultPageHtml({ session = {}, application = null }) {
+  const authLabel = String(session && session.userId ? "Account" : "Sign Up");
+  const status = String(application && application.status ? application.status : "");
+  const titleHtml = status === "APPROVED" ? "Application <em>Accepted</em>" : status === "REJECTED" ? "Application <em>Denied</em>" : "Application <em>Result</em>";
+  const sub = status === "APPROVED"
+    ? "Your application was accepted. Discord role access is handled through the bot."
+    : status === "REJECTED"
+      ? "Your application was reviewed and denied. Contact staff if you need more information."
+      : "You do not have a reviewed application result yet.";
+  const details = application
+    ? `<div class="subtle"><p><b>Application:</b> ${esc(application.formName || "Application")}</p><p><b>Status:</b> ${esc(status || "PENDING")}</p><p><b>Reviewed by:</b> ${esc(application.reviewedBy || "-")}</p><p><b>Updated:</b> ${esc(application.updatedAt || application.createdAt || "-")}</p></div>`
+    : `<div class="subtle"><p>No approved or rejected application result was found for your Discord account.</p></div>`;
+  const nextStep = status === "APPROVED"
+    ? `<p>Watch Discord for any new role access and follow staff instructions.</p>`
+    : status === "REJECTED"
+      ? `<p>If you reapply later, make sure your answers are complete and accurate.</p>`
+      : `<p>Once staff review your submission, the result will appear here automatically.</p>`;
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Application Result</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml(session)}</aside>
+    <main class="main">
+      <section class="page-topbar">
+        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+        <nav>
+          <a href="/apply">Apply</a>
+          <a class="active" href="/application-result">Application Result</a>
+          <a href="/auth">Account</a>
+        </nav>
+        <div class="top-actions">
+          <a class="pill" href="/">Back Home</a>
+          <a class="pill primary" href="/auth">${authLabel}</a>
+        </div>
+      </section>
+      <section class="hero">
+        <div class="page-kicker">Applications</div>
+        <h1 class="page-title">${titleHtml}</h1>
+        <p class="page-sub">${sub}</p>
+      </section>
+      <section class="page-grid">
+        <article class="page-panel">
+          <h2>Current result</h2>
+          ${details}
+        </article>
+        <aside class="page-card">
+          <h3>Next step</h3>
+          <div class="subtle">${nextStep}</div>
+        </aside>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
   res.json({ ok: true, now: new Date().toISOString() });
 });
 
@@ -7077,6 +7185,20 @@ app.get("/how-to-order", (_req, res) => {
   res.send(howToOrderHtml(session));
 });
 
+app.get("/application-result", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "", provider: "" };
+  if (!session.userId) {
+    res.redirect("/auth?next=%2Fapplication-result");
+    return;
+  }
+  if (String(session.provider || "") !== "discord") {
+    res.redirect("/auth?next=%2Fapplication-result&err=Please%20log%20in%20with%20Discord%20to%20view%20application%20results.");
+    return;
+  }
+  const application = markLatestApplicationResultSeenForUser(session.userId);
+  res.send(applicationResultPageHtml({ session, application }));
+});
+
 app.get("/shop", (_req, res) => {
   res.send(shopLandingHtml());
 });
@@ -7443,17 +7565,34 @@ app.get("/shop/web/order-status", (req, res) => {
 });
 
 app.get("/apply", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "", provider: "" };
+  if (!session.userId) {
+    res.redirect("/auth?next=%2Fapply");
+    return;
+  }
+  if (String(session.provider || "") !== "discord") {
+    res.redirect("/auth?next=%2Fapply&err=Please%20log%20in%20with%20Discord%20to%20submit%20applications.");
+    return;
+  }
   const forms = loadApplicationForms().filter((f) => f.active !== false);
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const err = typeof req.query.err === "string" ? req.query.err : "";
-  const session = getWebSession(req) || { userId: "", userTag: "" };
   res.send(applyPageHtml(forms, msg, err, session));
 });
 
 app.post("/apply", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "", provider: "" };
+  if (!session.userId) {
+    res.redirect("/auth?next=%2Fapply");
+    return;
+  }
+  if (String(session.provider || "") !== "discord") {
+    res.redirect("/auth?next=%2Fapply&err=Please%20log%20in%20with%20Discord%20to%20submit%20applications.");
+    return;
+  }
   const formId = String(req.body.form_id || "").trim();
-  const discordUserId = String(req.body.discord_user_id || "").trim();
-  const discordTag = String(req.body.discord_tag || "").trim().slice(0, 64);
+  const discordUserId = String(session.userId || "").trim();
+  const discordTag = String(session.userTag || req.body.discord_tag || "").trim().slice(0, 64);
   const minecraftIgn = String(req.body.minecraft_ign || "").trim().slice(0, 32);
   const reason = String(req.body.reason || "").trim().slice(0, 1000);
   const customAnswers = toStringArray(req.body.custom_answers, 500);
@@ -7506,6 +7645,9 @@ app.post("/apply", (req, res) => {
     customAnswers,
     status: "PENDING",
     source: "web",
+    applicantUserId: discordUserId,
+    applicantProvider: "discord",
+    resultSeenAt: "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     reviewedBy: ""
@@ -8203,9 +8345,16 @@ app.post("/staff/applications/:id/approve", requireStaff, async (req, res) => {
     reviewedBy: staff.user,
     updatedAt: new Date().toISOString(),
     approvedAt: new Date().toISOString(),
-    approvalResult: botResult.body
+    approvalResult: botResult.body,
+    resultSeenAt: ""
   };
   saveApplications(applications);
+
+  await notifyDecisionInBot({
+    application: applications[idx],
+    status: "APPROVED",
+    note: "Your application was accepted."
+  });
 
   res.redirect("/panel/applications?msg=Application%20approved%20and%20role%20granted");
 });
@@ -8230,7 +8379,8 @@ app.post("/staff/applications/:id/reject", requireStaff, async (req, res) => {
     status: "REJECTED",
     reviewedBy: staff.user,
     updatedAt: new Date().toISOString(),
-    rejectedAt: new Date().toISOString()
+    rejectedAt: new Date().toISOString(),
+    resultSeenAt: ""
   };
   saveApplications(applications);
 
