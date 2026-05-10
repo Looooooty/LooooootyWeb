@@ -931,21 +931,36 @@ function saveApplications(applications) {
 function getLatestApplicationForSession(session) {
   const provider = String(session && session.provider ? session.provider : "").trim();
   const userId = String(session && session.userId ? session.userId : "").trim();
-  if (!userId || provider !== "discord") {
+  if (!userId) {
     return null;
   }
   return loadApplications()
-    .filter((app) => String(app && app.discordUserId ? app.discordUserId : "") === userId)
+    .filter((app) => {
+      const applicantProvider = String(app && app.applicantProvider ? app.applicantProvider : "").trim();
+      const applicantUserId = String(app && app.applicantUserId ? app.applicantUserId : "").trim();
+      if (applicantUserId) {
+        return applicantUserId === userId && applicantProvider === provider;
+      }
+      return provider === "discord" && String(app && app.discordUserId ? app.discordUserId : "") === userId;
+    })
     .sort((a, b) => String(b && (b.updatedAt || b.createdAt) ? (b.updatedAt || b.createdAt) : "").localeCompare(String(a && (a.updatedAt || a.createdAt) ? (a.updatedAt || a.createdAt) : "")))[0] || null;
 }
 
-function markLatestApplicationResultSeenForUser(discordUserId) {
-  const target = String(discordUserId || "").trim();
-  if (!target) return null;
+function markLatestApplicationResultSeenForUser(session) {
+  const provider = String(session && session.provider ? session.provider : "").trim();
+  const userId = String(session && session.userId ? session.userId : "").trim();
+  if (!userId) return null;
   const applications = loadApplications();
   const ranked = applications
     .map((app, index) => ({ app, index }))
-    .filter(({ app }) => String(app && app.discordUserId ? app.discordUserId : "") === target)
+    .filter(({ app }) => {
+      const applicantProvider = String(app && app.applicantProvider ? app.applicantProvider : "").trim();
+      const applicantUserId = String(app && app.applicantUserId ? app.applicantUserId : "").trim();
+      if (applicantUserId) {
+        return applicantUserId === userId && applicantProvider === provider;
+      }
+      return provider === "discord" && String(app && app.discordUserId ? app.discordUserId : "") === userId;
+    })
     .sort((a, b) => String(b.app && (b.app.updatedAt || b.app.createdAt) ? (b.app.updatedAt || b.app.createdAt) : "").localeCompare(String(a.app && (a.app.updatedAt || a.app.createdAt) ? (a.app.updatedAt || a.app.createdAt) : "")));
   const hit = ranked[0];
   if (!hit || !hit.app || !["APPROVED", "REJECTED"].includes(String(hit.app.status || ""))) {
@@ -5530,13 +5545,16 @@ function applyPageHtml(forms, msg = "", err = "", session = {}) {
           ${err ? `<div class="warn">${esc(err)}</div>` : ""}
           ${activeForms.length ? "" : '<div class="warn">No application types are available right now.</div>'}
           <form class="form-grid" method="post" action="/apply">
-            <div class="subtle" style="margin-bottom:12px;">You must be logged in with Discord to submit an application. Your Discord account is used automatically.</div>
+            <div class="subtle" style="margin-bottom:12px;">You can apply with any logged-in account. If you are not logged in with Discord, enter the Discord user ID that should receive the role if your application is accepted.</div>
             <label>Application Type</label>
             <select name="form_id" required>
               ${activeForms.map((f) => `<option value="${esc(f.id)}">${esc(f.name)}${f.guildId ? ` (Guild ${esc(f.guildId)})` : ""}</option>`).join("")}
             </select>
-            <input type="hidden" name="discord_user_id" value="${esc(String(session && session.userId ? session.userId : ""))}" />
-            <input type="hidden" name="discord_tag" value="${esc(String(session && session.userTag ? session.userTag : ""))}" />
+            ${String(session && session.provider ? session.provider : "").trim() === "discord" && isSnowflake(String(session && session.userId ? session.userId : "")) ? `<input type="hidden" name="discord_user_id" value="${esc(String(session && session.userId ? session.userId : ""))}" />
+            <input type="hidden" name="discord_tag" value="${esc(String(session && (session.userTag || session.username) ? (session.userTag || session.username) : ""))}" />` : `<label>Discord User ID</label>
+            <input type="text" name="discord_user_id" maxlength="20" placeholder="Discord user ID to grant the role to" required />
+            <label>Discord Username (optional)</label>
+            <input type="text" name="discord_tag" maxlength="64" placeholder="Discord username for staff reference" />`}
             <label>Minecraft IGN (optional)</label>
             <input type="text" name="minecraft_ign" maxlength="32" placeholder="Your IGN" />
             <label>Why do you want this role? (optional)</label>
@@ -5573,8 +5591,8 @@ function applyPageHtml(forms, msg = "", err = "", session = {}) {
         <aside class="page-card">
           <h3>Before you submit</h3>
           <div class="subtle">
-            <p>Use the correct Discord user ID. That links the application back to role grant flows.</p>
-            <p>Different application types can surface different custom questions automatically.</p>
+            <p>Applications are tied to the website account you are logged into, so the result page will show up for that same account later.</p>
+            <p>If you are not signed in with Discord, make sure the Discord user ID you enter is the account that should receive the role.</p>
             <p>Short low-effort answers are harder to trust. Be specific.</p>
           </div>
         </aside>
@@ -7191,11 +7209,7 @@ app.get("/application-result", (req, res) => {
     res.redirect("/auth?next=%2Fapplication-result");
     return;
   }
-  if (String(session.provider || "") !== "discord") {
-    res.redirect("/auth?next=%2Fapplication-result&err=Please%20log%20in%20with%20Discord%20to%20view%20application%20results.");
-    return;
-  }
-  const application = markLatestApplicationResultSeenForUser(session.userId);
+  const application = markLatestApplicationResultSeenForUser(session);
   res.send(applicationResultPageHtml({ session, application }));
 });
 
@@ -7570,10 +7584,6 @@ app.get("/apply", (req, res) => {
     res.redirect("/auth?next=%2Fapply");
     return;
   }
-  if (String(session.provider || "") !== "discord") {
-    res.redirect("/auth?next=%2Fapply&err=Please%20log%20in%20with%20Discord%20to%20submit%20applications.");
-    return;
-  }
   const forms = loadApplicationForms().filter((f) => f.active !== false);
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const err = typeof req.query.err === "string" ? req.query.err : "";
@@ -7586,13 +7596,13 @@ app.post("/apply", (req, res) => {
     res.redirect("/auth?next=%2Fapply");
     return;
   }
-  if (String(session.provider || "") !== "discord") {
-    res.redirect("/auth?next=%2Fapply&err=Please%20log%20in%20with%20Discord%20to%20submit%20applications.");
-    return;
-  }
   const formId = String(req.body.form_id || "").trim();
-  const discordUserId = String(session.userId || "").trim();
-  const discordTag = String(session.userTag || req.body.discord_tag || "").trim().slice(0, 64);
+  const provider = String(session.provider || "").trim();
+  const sessionUserId = String(session.userId || "").trim();
+  const discordUserId = provider === "discord"
+    ? sessionUserId
+    : String(req.body.discord_user_id || "").trim();
+  const discordTag = String(session.userTag || session.username || req.body.discord_tag || "").trim().slice(0, 64);
   const minecraftIgn = String(req.body.minecraft_ign || "").trim().slice(0, 32);
   const reason = String(req.body.reason || "").trim().slice(0, 1000);
   const customAnswers = toStringArray(req.body.custom_answers, 500);
@@ -7645,8 +7655,8 @@ app.post("/apply", (req, res) => {
     customAnswers,
     status: "PENDING",
     source: "web",
-    applicantUserId: discordUserId,
-    applicantProvider: "discord",
+    applicantUserId: sessionUserId,
+    applicantProvider: provider || "local",
     resultSeenAt: "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
