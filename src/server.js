@@ -6449,6 +6449,8 @@ async function notifyDecisionInBot({ application, status, note = "" }) {
 }
 
 app.get("/health", (_req, res) => {
+  res.json({ ok: true, now: new Date().toISOString() });
+});
 
 function applicationResultPageHtml({ session = {}, application = null }) {
   const authLabel = String(session && session.userId ? "Account" : "Sign Up");
@@ -6519,8 +6521,6 @@ function applicationResultPageHtml({ session = {}, application = null }) {
 </body>
 </html>`;
 }
-  res.json({ ok: true, now: new Date().toISOString() });
-});
 
 app.get("/auth/me", (req, res) => {
   const session = getWebSession(req);
