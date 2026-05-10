@@ -134,6 +134,18 @@ function esc(input) {
     .replace(/'/g, "&#39;");
 }
 
+function hexToRgba(hex, alpha = 1) {
+  const raw = String(hex || '').trim().replace('#', '');
+  const normalized = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw;
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return `rgba(255,255,255,${alpha})`;
+  const num = Number.parseInt(normalized, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+
 function money(v) {
   return Number(Number(v || 0).toFixed(2));
 }
