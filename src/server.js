@@ -6453,17 +6453,24 @@ app.get("/health", (_req, res) => {
 function applicationResultPageHtml({ session = {}, application = null }) {
   const authLabel = String(session && session.userId ? "Account" : "Sign Up");
   const status = String(application && application.status ? application.status : "");
+  const roleGrantStatus = String(application && application.roleGrantStatus ? application.roleGrantStatus : "");
+  const roleGrantMessage = String(application && application.roleGrantMessage ? application.roleGrantMessage : "");
+  const roleGrantFailed = status === "APPROVED" && roleGrantStatus === "FAILED";
   const titleHtml = status === "APPROVED" ? "Application <em>Accepted</em>" : status === "REJECTED" ? "Application <em>Denied</em>" : "Application <em>Result</em>";
   const sub = status === "APPROVED"
-    ? "Your application was accepted. Discord role access is handled through the bot."
+    ? (roleGrantFailed
+        ? "Your application was accepted, but the Discord role could not be granted automatically. Ping support so staff can finish it manually."
+        : "Your application was accepted. Discord role access is handled through the bot.")
     : status === "REJECTED"
       ? "Your application was reviewed and denied. Contact staff if you need more information."
       : "You do not have a reviewed application result yet.";
   const details = application
-    ? `<div class="subtle"><p><b>Application:</b> ${esc(application.formName || "Application")}</p><p><b>Status:</b> ${esc(status || "PENDING")}</p><p><b>Reviewed by:</b> ${esc(application.reviewedBy || "-")}</p><p><b>Updated:</b> ${esc(application.updatedAt || application.createdAt || "-")}</p></div>`
-    : `<div class="subtle"><p>No approved or rejected application result was found for your Discord account.</p></div>`;
+    ? `<div class="subtle"><p><b>Application:</b> ${esc(application.formName || "Application")}</p><p><b>Status:</b> ${esc(status || "PENDING")}</p><p><b>Reviewed by:</b> ${esc(application.reviewedBy || "-")}</p><p><b>Updated:</b> ${esc(application.updatedAt || application.createdAt || "-")}</p>${status === "APPROVED" ? `<p><b>Discord Role:</b> ${roleGrantFailed ? "Failed to grant automatically" : "Granted automatically"}</p>` : ""}${roleGrantFailed && roleGrantMessage ? `<p><b>Bot Note:</b> ${esc(roleGrantMessage)}</p>` : ""}</div>`
+    : `<div class="subtle"><p>No approved or rejected application result was found for this account yet.</p></div>`;
   const nextStep = status === "APPROVED"
-    ? `<p>Watch Discord for any new role access and follow staff instructions.</p>`
+    ? (roleGrantFailed
+        ? `<p>Failed to give Discord role, ping Support and tell staff your application was accepted on the website.</p>`
+        : `<p>Watch Discord for any new role access and follow staff instructions.</p>`)
     : status === "REJECTED"
       ? `<p>If you reapply later, make sure your answers are complete and accurate.</p>`
       : `<p>Once staff review your submission, the result will appear here automatically.</p>`;
@@ -8343,10 +8350,8 @@ app.post("/staff/applications/:id/approve", requireStaff, async (req, res) => {
   }
 
   const botResult = await approveInBot(appItem);
-  if (!botResult.ok) {
-    res.redirect(`/panel/applications?warn=${encodeURIComponent(`Role grant failed: ${botResult.error}`)}`);
-    return;
-  }
+  const roleGrantFailed = !botResult.ok;
+  const roleGrantMessage = roleGrantFailed ? String(botResult.error || "Unknown role grant error") : "";
 
   const staff = getStaffSession(req);
   applications[idx] = {
@@ -8355,7 +8360,9 @@ app.post("/staff/applications/:id/approve", requireStaff, async (req, res) => {
     reviewedBy: staff.user,
     updatedAt: new Date().toISOString(),
     approvedAt: new Date().toISOString(),
-    approvalResult: botResult.body,
+    approvalResult: botResult.ok ? botResult.body : null,
+    roleGrantStatus: roleGrantFailed ? "FAILED" : "GRANTED",
+    roleGrantMessage,
     resultSeenAt: ""
   };
   saveApplications(applications);
@@ -8363,8 +8370,15 @@ app.post("/staff/applications/:id/approve", requireStaff, async (req, res) => {
   await notifyDecisionInBot({
     application: applications[idx],
     status: "APPROVED",
-    note: "Your application was accepted."
+    note: roleGrantFailed
+      ? "Your application was accepted, but the Discord role could not be granted automatically. Ping support."
+      : "Your application was accepted."
   });
+
+  if (roleGrantFailed) {
+    res.redirect(`/panel/applications?warn=${encodeURIComponent(`Application approved, but Discord role grant failed: ${roleGrantMessage}`)}`);
+    return;
+  }
 
   res.redirect("/panel/applications?msg=Application%20approved%20and%20role%20granted");
 });
