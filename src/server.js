@@ -2088,6 +2088,256 @@ function galleryPageHtml(session = {}) {
 </html>`;
 }
 
+
+function basesPageHtml(bases, session = {}) {
+  const title = "State of Bases";
+  const subtitle = "Track which Looooooty bases are active, limited, or closed before planning your next move.";
+  const items = Array.isArray(bases) ? bases : [];
+  const counts = items.reduce(
+    (acc, base) => {
+      const state = String(base?.state || "open");
+      if (state === "open") acc.open += 1;
+      else if (state === "open_limited") acc.openLimited += 1;
+      else acc.closed += 1;
+      return acc;
+    },
+    { open: 0, openLimited: 0, closed: 0 }
+  );
+  const total = items.length;
+  const statCards = [
+    { label: "Open", value: counts.open, tone: "#4cff9d" },
+    { label: "Limited", value: counts.openLimited, tone: "#ffd76b" },
+    { label: "Closed", value: counts.closed, tone: "#ff7f96" },
+    { label: "Tracked", value: total, tone: "#9bc2ff" }
+  ];
+  const baseCards = items.length
+    ? items
+        .map((base) => {
+          const state = String(base?.state || "open");
+          const meta = BASE_STATUS_META[state] || BASE_STATUS_META.open;
+          const stateLabel = meta.label || "Open";
+          const stateColor = meta.color || "#4cff9d";
+          const desc = String(base?.description || "").trim();
+          return `
+            <article class="store-card base-state-card">
+              <div class="base-state-head">
+                <div>
+                  <div class="store-card-kicker">Base Status</div>
+                  <h3>${esc(base?.name || "Unnamed Base")}</h3>
+                </div>
+                <span class="status-chip" style="border-color:${stateColor}; color:${stateColor}; background:${hexToRgba(stateColor, 0.14)};">${esc(stateLabel)}</span>
+              </div>
+              <p>${esc(desc || meta.description || "Status is being reviewed by staff.")}</p>
+            </article>
+          `;
+        })
+        .join("")
+    : `
+      <article class="store-card empty-state-card">
+        <h3>No base states yet</h3>
+        <p>Staff has not published any base availability updates yet. Check back soon.</p>
+      </article>
+    `;
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${SITE_NAME} | ${title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  ${faviconLinks()}
+  <style>
+    ${sharedHomeStyles()}
+    .state-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:24px;}
+    .state-stat{padding:20px 22px;border-radius:24px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(13,17,33,.92),rgba(8,10,24,.96));box-shadow:0 28px 70px rgba(0,0,0,.28);}
+    .state-stat .label{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#93a1c6;margin-bottom:8px;}
+    .state-stat .value{font-size:36px;font-weight:900;color:#fff;}
+    .base-state-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:26px;}
+    .base-state-card{padding:24px;}
+    .base-state-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px;}
+    .base-state-head h3{margin:6px 0 0;font-size:28px;line-height:1.02;}
+    .base-state-card p{margin:0;color:#b7c0dd;line-height:1.65;}
+    .empty-state-card{padding:28px;}
+    @media (max-width: 980px){.state-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    @media (max-width: 640px){.state-grid{grid-template-columns:1fr;}.base-state-head{flex-direction:column;align-items:flex-start;}}
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    ${sideMenuHtml(session)}
+    <main class="site-main">
+      ${pageTopbarHtml(session)}
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <div class="hero-kicker">LooooootyBases Intel</div>
+          <h1>${title}</h1>
+          <p>${subtitle}</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="/apply">Apply for Access</a>
+            <a class="btn btn-secondary" href="/gallery">View Gallery</a>
+          </div>
+        </div>
+      </section>
+      <section class="state-grid">
+        ${statCards
+          .map(
+            (card) => `
+              <article class="state-stat">
+                <div class="label">${esc(card.label)}</div>
+                <div class="value" style="color:${card.tone};">${esc(String(card.value))}</div>
+              </article>
+            `
+          )
+          .join("")}
+      </section>
+      <section class="section-block">
+        <div class="section-header-row">
+          <div>
+            <div class="section-kicker">Live Availability</div>
+            <h2>Current base access</h2>
+          </div>
+        </div>
+        <div class="base-state-grid">${baseCards}</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function giveawaysPageHtml({ giveaways, msg = "", err = "", session = {} }) {
+  const title = "Giveaways";
+  const subtitle = "Join active community giveaways, track entries, and check results without leaving the site.";
+  const items = Array.isArray(giveaways) ? giveaways : [];
+  const activeCount = items.filter((g) => !isGiveawayEnded(g)).length;
+  const endedCount = items.length - activeCount;
+  const viewerId = String(session?.userId || "").trim();
+  const cards = items.length
+    ? items
+        .map((giveaway) => {
+          const ended = isGiveawayEnded(giveaway);
+          const participants = Array.isArray(giveaway?.participants) ? giveaway.participants : [];
+          const entered = viewerId ? participants.includes(viewerId) : false;
+          const winners = Array.isArray(giveaway?.winners) ? giveaway.winners : [];
+          const endsAt = giveaway?.endsAt ? new Date(giveaway.endsAt) : null;
+          const whenText = endsAt && !Number.isNaN(endsAt.getTime())
+            ? `${ended ? "Ended" : "Ends"}: ${esc(endsAt.toLocaleString())}`
+            : ended
+              ? "Ended"
+              : "Active";
+          const winnerText = winners.length
+            ? winners.map((w) => `@${esc(w)}`).join(", ")
+            : ended
+              ? "No winner recorded"
+              : "None yet";
+          const action = !viewerId
+            ? `<a class="btn btn-primary" href="/auth?next=${encodeURIComponent('/giveaways')}">Log in to enter</a>`
+            : ended
+              ? `<button class="btn btn-secondary" type="button" disabled>Giveaway Ended</button>`
+              : entered
+                ? `<form method="post" action="/giveaways/${encodeURIComponent(giveaway.id)}/leave"><button class="btn btn-danger" type="submit">Leave Giveaway</button></form>`
+                : `<form method="post" action="/giveaways/${encodeURIComponent(giveaway.id)}/enter"><button class="btn btn-primary" type="submit">Enter Giveaway</button></form>`;
+          return `
+            <article class="store-card giveaway-card${ended ? ' ended' : ''}">
+              <div class="giveaway-card-top">
+                <div>
+                  <div class="store-card-kicker">${ended ? 'Completed Giveaway' : 'Live Giveaway'}</div>
+                  <h3>${esc(giveaway?.prize || 'Untitled Giveaway')}</h3>
+                </div>
+                <span class="status-chip" style="border-color:${ended ? '#8d96b8' : '#6ea8ff'}; color:${ended ? '#d7ddf6' : '#a8ccff'}; background:${ended ? 'rgba(141,150,184,.14)' : 'rgba(110,168,255,.14)'};">${ended ? 'Ended' : 'Open'}</span>
+              </div>
+              <p>${esc(giveaway?.description || 'A new community giveaway is live.')}</p>
+              <div class="giveaway-meta-grid">
+                <div class="meta-box"><span>Hosted By</span><strong>${esc(giveaway?.hostedBy || 'Looooooty')}</strong></div>
+                <div class="meta-box"><span>Entries</span><strong>${esc(String(giveawayEntriesCount(giveaway)))}</strong></div>
+                <div class="meta-box"><span>Winners</span><strong>${esc(String(giveaway?.winnerCount || winners.length || 1))}</strong></div>
+                <div class="meta-box"><span>Status</span><strong>${whenText}</strong></div>
+              </div>
+              <div class="giveaway-footer">
+                <div class="winner-line"><span>Result</span><strong>${winnerText}</strong></div>
+                <div class="giveaway-actions">${action}</div>
+              </div>
+            </article>
+          `;
+        })
+        .join("")
+    : `
+      <article class="store-card empty-state-card">
+        <h3>No giveaways live right now</h3>
+        <p>When the next giveaway goes up, it will appear here with instant entry from your account.</p>
+      </article>
+    `;
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${SITE_NAME} | ${title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  ${faviconLinks()}
+  <style>
+    ${sharedHomeStyles()}
+    .giveaway-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:24px;}
+    .giveaway-stat{padding:20px 22px;border-radius:24px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(13,17,33,.92),rgba(8,10,24,.96));box-shadow:0 28px 70px rgba(0,0,0,.28);}
+    .giveaway-stat .label{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#93a1c6;margin-bottom:8px;}
+    .giveaway-stat .value{font-size:34px;font-weight:900;color:#fff;}
+    .giveaway-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;margin-top:26px;}
+    .giveaway-card{padding:24px;display:flex;flex-direction:column;gap:18px;}
+    .giveaway-card-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;}
+    .giveaway-card h3{margin:6px 0 0;font-size:30px;line-height:1.02;}
+    .giveaway-card p{margin:0;color:#b7c0dd;line-height:1.68;}
+    .giveaway-meta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+    .meta-box{padding:14px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);}
+    .meta-box span,.winner-line span{display:block;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#93a1c6;margin-bottom:8px;}
+    .meta-box strong,.winner-line strong{font-size:16px;color:#fff;line-height:1.4;}
+    .winner-line{padding:16px 18px;border-radius:20px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);}
+    .giveaway-footer{display:flex;flex-direction:column;gap:14px;}
+    .giveaway-actions form{margin:0;}
+    .giveaway-actions .btn,.giveaway-actions form .btn{width:100%;}
+    .alert-stack{display:grid;gap:12px;margin-top:20px;}
+    .alert-card{padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);}
+    .alert-card.ok{background:rgba(76,255,157,.08);border-color:rgba(76,255,157,.22);color:#c9ffe0;}
+    .alert-card.err{background:rgba(255,127,150,.08);border-color:rgba(255,127,150,.22);color:#ffd3dc;}
+    .ended{opacity:.94;}
+    @media (max-width: 980px){.giveaway-stats{grid-template-columns:1fr;}}
+    @media (max-width: 640px){.giveaway-meta-grid{grid-template-columns:1fr;}.giveaway-card-top{flex-direction:column;align-items:flex-start;}}
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    ${sideMenuHtml(session)}
+    <main class="site-main">
+      ${pageTopbarHtml(session)}
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <div class="hero-kicker">Looooooty Community Events</div>
+          <h1>${title}</h1>
+          <p>${subtitle}</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="/shop/web">Browse Store</a>
+            <a class="btn btn-secondary" href="/reviews">Read Reviews</a>
+          </div>
+        </div>
+      </section>
+      ${msg || err ? `<section class="alert-stack">${msg ? `<div class="alert-card ok">${esc(msg)}</div>` : ""}${err ? `<div class="alert-card err">${esc(err)}</div>` : ""}</section>` : ""}
+      <section class="giveaway-stats">
+        <article class="giveaway-stat"><div class="label">Live</div><div class="value" style="color:#6ea8ff;">${esc(String(activeCount))}</div></article>
+        <article class="giveaway-stat"><div class="label">Completed</div><div class="value" style="color:#cdd7ff;">${esc(String(endedCount))}</div></article>
+        <article class="giveaway-stat"><div class="label">Total</div><div class="value" style="color:#4cff9d;">${esc(String(items.length))}</div></article>
+      </section>
+      <section class="section-block">
+        <div class="section-header-row">
+          <div>
+            <div class="section-kicker">Active Drops</div>
+            <h2>Giveaway board</h2>
+          </div>
+        </div>
+        <div class="giveaway-grid">${cards}</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
 function aboutPageHtml(session = {}) {
   return `<!doctype html>
 <html>
