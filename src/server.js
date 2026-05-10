@@ -94,6 +94,7 @@ const WEB_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_accounts.json");
 const LOCAL_ACCOUNTS_FILE = path.join(BOT_DATA_DIR, "web_local_accounts.json");
 const WEBSITE_REVIEWS_FILE = path.join(BOT_DATA_DIR, "website_reviews.json");
 const WEBSITE_COUPONS_FILE = path.join(BOT_DATA_DIR, "website_coupons.json");
+const WEBSITE_GALLERY_FILE = path.join(BOT_DATA_DIR, "website_gallery.json");
 
 const BASE_STATUS_META = {
   open: { label: "Open", color: "#3fb950" },
@@ -1137,6 +1138,44 @@ function saveWebsiteShopDefaults(data) {
   });
 }
 
+function normalizeGalleryItem(item, idx) {
+  return {
+    id: String(item && item.id ? item.id : `gallery-${Date.now()}-${idx}`).trim(),
+    image: String(item && item.image ? item.image : "").trim(),
+    title: String(item && item.title ? item.title : `Gallery Image ${idx + 1}`).trim().slice(0, 120),
+    description: String(item && item.description ? item.description : "").trim().slice(0, 500),
+    createdAt: String(item && item.createdAt ? item.createdAt : new Date().toISOString())
+  };
+}
+
+function defaultWebsiteGallery() {
+  return [
+    {
+      id: 'lb5-original',
+      image: HOME_BG_URL,
+      title: 'Original LB5',
+      description: 'One of the last photos of the original LB5 before it got griefed, one of our biggest bases.',
+      createdAt: new Date().toISOString()
+    }
+  ];
+}
+
+function loadWebsiteGallery() {
+  const raw = readJson(WEBSITE_GALLERY_FILE, null);
+  if (!Array.isArray(raw) || raw.length === 0) {
+    const defaults = defaultWebsiteGallery();
+    writeJson(WEBSITE_GALLERY_FILE, defaults);
+    return defaults;
+  }
+  const normalized = raw.map((item, idx) => normalizeGalleryItem(item, idx)).filter((item) => item.image);
+  writeJson(WEBSITE_GALLERY_FILE, normalized);
+  return normalized;
+}
+
+function saveWebsiteGallery(items) {
+  writeJson(WEBSITE_GALLERY_FILE, Array.isArray(items) ? items.map((item, idx) => normalizeGalleryItem(item, idx)).filter((item) => item.image) : []);
+}
+
 function makeApplicationFormId(name, forms) {
   const root = String(name || "form")
     .toLowerCase()
@@ -1242,6 +1281,7 @@ function sideMenuHtml(session = {}) {
       <a href="/bases">State of bases</a>
       <a href="/giveaways">Giveaways</a>
       <a href="/about">About Us</a>
+      <a href="/gallery">Gallery</a>
       <a href="/how-to-order">How to order</a>
       <a href="/apply">Apply</a>
       ${hasApplicationResult ? `<a href="/application-result">Application Result${applicationResultUnread ? " • New" : ""}</a>` : ""}
@@ -1748,8 +1788,16 @@ function faviconLinks() {
 }
 
 function homeHtml(session = {}) {
-  const userId = String(session && session.userId ? session.userId : "");
-  const authLabel = userId ? "Account" : "Sign Up";
+  const authLabel = String(session && session.userId ? "Account" : "Sign Up");
+  const gallery = loadWebsiteGallery();
+  const heroItem = gallery[0] || null;
+  const heroImage = String(heroItem && heroItem.image ? heroItem.image : HOME_BG_URL);
+  const heroDescription = String(heroItem && heroItem.description
+    ? heroItem.description
+    : "One of the last photos of the original LB5 before it got griefed, one of our biggest bases.");
+  const statsData = stats();
+  const activeBases = loadBaseStates().filter((b) => b.state !== "closed").length;
+  const newestGallery = gallery.slice(0, 3);
   return `<!doctype html>
 <html>
 <head>
@@ -1757,240 +1805,137 @@ function homeHtml(session = {}) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>LooooootyBases 2b2t</title>
   ${faviconLinks()}
+  ${sharedHomeStyles()}
   <style>
-    :root {
-      --txt: #f6f7fb;
-      --muted: #a8b3cd;
-      --line: rgba(133, 157, 255, 0.16);
-      --panel: rgba(11, 16, 36, 0.88);
-      --blue: #6ca8ff;
-      --blue-2: #8ad0ff;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--txt);
-      font-family: "Segoe UI", Inter, system-ui, sans-serif;
+    .home-shell { display:grid; gap:24px; }
+    .hero-home {
+      position: relative;
+      overflow: hidden;
+      border-radius: 32px;
+      min-height: 560px;
+      border: 1px solid rgba(255,255,255,0.1);
       background:
-        linear-gradient(120deg, rgba(5,10,20,0.72), rgba(5,10,20,0.54)),
-        radial-gradient(circle at 22% 18%, rgba(104, 125, 255, 0.08), transparent 24%),
-        radial-gradient(circle at 78% 22%, rgba(90, 151, 255, 0.08), transparent 20%),
-        url('${HOME_BG_URL}') center/cover no-repeat;
-      overflow-x: hidden;
+        linear-gradient(180deg, rgba(2,5,10,0.2), rgba(2,5,10,0.78)),
+        radial-gradient(circle at 50% 12%, rgba(114,131,255,0.22), transparent 30%),
+        url('${esc(heroImage)}') center/cover no-repeat;
+      box-shadow: 0 28px 90px rgba(0,0,0,0.38);
+      display:grid;
+      align-items:end;
+      padding: 36px;
     }
-    body::before { content: none; }
-    .layout {
+    .hero-home::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      background: linear-gradient(180deg, rgba(5,8,18,0.05) 0%, rgba(5,8,18,0.6) 55%, rgba(5,8,18,0.9) 100%);
+      pointer-events:none;
+    }
+    .hero-stack {
       position: relative;
       z-index: 1;
-      display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
-      min-height: 100vh;
-      gap: 22px;
-      width: min(1480px, calc(100% - 40px));
-      margin: 24px auto;
-    }
-    .side { padding: 0; display: flex; align-items: stretch; }
-    .menu-shell {
-      border: 1px solid rgba(255,255,255,0.12);
-      background: linear-gradient(180deg, rgba(20,27,47,0.94), rgba(11,16,31,0.92));
-      backdrop-filter: none;
-      border-radius: 28px;
-      padding: 18px;
-      width: 100%;
-      min-height: calc(100vh - 48px);
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 12px 36px rgba(0,0,0,0.28);
-    }
-    .brand {
-      font-size: 24px;
-      font-weight: 900;
-      margin-bottom: 16px;
-      font-style: italic;
-      letter-spacing: -0.03em;
-    }
-    .menu { display: grid; gap: 12px; }
-    .menu a {
-      color: var(--txt);
-      text-decoration: none;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(15,20,30,0.54);
-      border-radius: 16px;
-      padding: 14px 16px;
-      font-weight: 700;
-      transition: border-color .16s ease, transform .16s ease;
-    }
-    .menu a:hover { border-color: rgba(108,168,255,0.46); transform: translateY(-1px); }
-    .main {
-      display: grid;
-      align-content: start;
-      gap: 22px;
-      padding: 0;
-    }
-    .topbar {
-      display:flex;
-      justify-content: space-between;
-      align-items:center;
-      gap: 14px;
-      padding: 14px 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 999px;
-      background: rgba(9,14,28,0.84);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-      backdrop-filter: none;
-      flex-wrap: wrap;
-    }
-    .topbar-brand {
-      display:flex;
-      align-items:center;
-      gap:12px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .topbar-brand img {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.14);
-      object-fit: cover;
-      background: rgba(255,255,255,0.04);
-    }
-    .topbar-actions {
-      display:flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items:center;
-    }
-    .pill {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-height: 44px;
-      padding: 0 18px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.03);
-      color: var(--txt);
-      text-decoration: none;
-      font-weight: 800;
-      transition: transform .14s ease, border-color .14s ease;
-    }
-    .pill:hover { border-color: rgba(108,168,255,0.45); transform: translateY(-1px); }
-    .pill.primary {
-      background: linear-gradient(135deg, rgba(69,128,255,0.26), rgba(42,78,181,0.3));
-      border-color: rgba(108,168,255,0.4);
-    }
-    .hero {
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 34px;
-      padding: 54px 42px 40px;
+      display:grid;
+      gap: 18px;
+      justify-items: center;
       text-align: center;
-      background:
-        radial-gradient(circle at 50% 18%, rgba(117,122,255,0.18), transparent 24%),
-        linear-gradient(180deg, rgba(10,14,28,0.88), rgba(8,11,24,0.94));
+      width: min(860px, 100%);
+      margin: 0 auto;
+    }
+    .hero-kicker-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+    .hero-pill {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-height: 40px; padding: 0 16px; border-radius: 999px;
+      border:1px solid rgba(255,255,255,0.14); background: rgba(5,8,18,0.66);
+      color:#edf3ff; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; font-size:11px;
+    }
+    .hero-home-title {
+      margin:0;
+      font-size: clamp(64px, 10vw, 124px);
+      line-height: 0.88;
+      letter-spacing: -0.07em;
+      font-weight: 1000;
+    }
+    .hero-home-title em { font-style: italic; }
+    .hero-home-sub {
+      margin:0;
+      max-width: 760px;
+      color: rgba(240,244,255,0.86);
+      font-size: 19px;
+      line-height: 1.72;
+    }
+    .hero-home-caption {
+      margin:0;
+      max-width: 760px;
+      color: rgba(202,213,237,0.74);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+    .hero-home-actions { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+    .hero-primary, .hero-secondary {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width: 180px; min-height: 48px; padding: 0 20px;
+      border-radius: 999px; text-decoration:none; font-weight:900;
+      border:1px solid rgba(255,255,255,0.14);
+    }
+    .hero-primary { background: linear-gradient(135deg, #79b2ff, #8ed9ff); color:#05111f; }
+    .hero-secondary { background: rgba(7,10,18,0.72); color: var(--txt); }
+    .home-stats {
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .home-stat {
+      padding: 20px 22px;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: linear-gradient(180deg, rgba(8,11,22,0.94), rgba(5,8,16,0.98));
       box-shadow: 0 14px 36px rgba(0,0,0,0.24);
     }
-    .hero-badge {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-height: 34px;
-      padding: 0 14px;
-      border-radius: 999px;
+    .home-stat .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 8px; }
+    .home-stat .v { font-size: 40px; line-height: 1; font-weight: 1000; letter-spacing: -0.05em; }
+    .home-columns {
+      display:grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 24px;
+    }
+    .home-panel, .home-side-card, .gallery-strip {
+      border-radius: 28px;
       border: 1px solid rgba(255,255,255,0.1);
-      color: var(--blue-2);
-      background: rgba(255,255,255,0.03);
-      text-transform: uppercase;
-      letter-spacing: 0.22em;
-      font-size: 0.78rem;
-      font-weight: 800;
+      background: linear-gradient(180deg, rgba(8,11,22,0.94), rgba(5,8,16,0.98));
+      box-shadow: 0 14px 36px rgba(0,0,0,0.24);
     }
-    h1 {
-      margin: 18px 0 10px 0;
-      font-size: clamp(54px, 10vw, 120px);
-      line-height: 0.9;
-      font-weight: 1000;
-      letter-spacing: -0.06em;
-    }
-    .title-italic { font-style: italic; }
-    .sub {
-      margin: 0 auto;
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1.08rem;
-      line-height: 1.78;
-    }
-    .hero-stats {
-      margin-top: 28px;
-      display: inline-grid;
-      grid-template-columns: repeat(3, minmax(120px, 1fr));
-      border-radius: 22px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03);
-      overflow: hidden;
-    }
-    .hero-stat {
-      padding: 16px 24px;
-      border-right: 1px solid rgba(255,255,255,0.08);
-    }
-    .hero-stat:last-child { border-right: 0; }
-    .hero-stat b {
-      display: block;
-      font-size: 2rem;
+    .home-panel, .home-side-card { padding: 28px; }
+    .home-panel h2, .home-side-card h2 {
+      margin: 0;
+      font-size: 38px;
       line-height: 1;
-      margin-bottom: 6px;
+      letter-spacing: -0.05em;
     }
-    .hero-stat span {
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      font-size: 0.78rem;
-      font-weight: 700;
+    .home-copy { color: var(--muted); line-height: 1.78; font-size: 16px; margin-top: 14px; }
+    .home-feature-list { display:grid; gap: 14px; margin-top: 18px; }
+    .home-feature {
+      display:grid;
+      grid-template-columns: 12px 1fr;
+      gap: 14px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.08);
     }
-    .btn-box {
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 34px;
-      padding: 28px;
-      background: linear-gradient(180deg, rgba(10,14,28,0.86), rgba(8,12,25,0.88));
-      box-shadow: 0 22px 68px rgba(0,0,0,0.3);
+    .home-feature:first-child { border-top: 0; padding-top: 0; }
+    .home-feature-dot {
+      width: 12px; height: 12px; border-radius: 999px; margin-top: 8px;
+      background: linear-gradient(135deg, #79b2ff, #8ed9ff);
+      box-shadow: 0 0 24px rgba(121,178,255,0.46);
     }
-    .btns {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(220px, 1fr));
-      gap: 16px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 70px;
-      border-radius: 22px;
-      border: 1px solid rgba(255,255,255,0.12);
-      color: var(--txt);
-      text-decoration: none;
-      font-weight: 900;
-      font-size: 1.08rem;
-      padding: 14px 18px;
-      background: linear-gradient(180deg, rgba(43,63,102,0.56), rgba(18,26,43,0.78));
-      transition: transform .16s ease, border-color .16s ease;
-    }
-    .btn:hover { border-color: rgba(108,168,255,0.46); transform: translateY(-1px); }
-    .foot { margin-top: 18px; font-size: 13px; color: var(--muted); text-align:center; }
-    @media (max-width: 1120px) {
-      .layout { grid-template-columns: 1fr; width: min(100% - 24px, 1480px); }
-      .menu-shell { min-height: auto; }
-    }
-    @media (max-width: 760px) {
-      .layout { margin: 12px auto 22px; gap: 14px; }
-      .hero, .btn-box { border-radius: 24px; padding: 28px 18px 22px; }
-      .btns { grid-template-columns: 1fr; }
-      .hero-stats { grid-template-columns: 1fr; width: 100%; }
-      .hero-stat { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
-      .hero-stat:last-child { border-bottom: 0; }
+    .gallery-strip { padding: 18px; display:grid; gap:14px; }
+    .gallery-strip-head { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+    .gallery-strip-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .gallery-mini { border-radius: 20px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); }
+    .gallery-mini img { display:block; width:100%; height:160px; object-fit:cover; }
+    .gallery-mini-copy { padding: 12px; }
+    .gallery-mini-copy b { display:block; margin-bottom:6px; }
+    .gallery-mini-copy span { color: var(--muted); font-size: 13px; line-height: 1.55; }
+    @media (max-width: 1100px) {
+      .home-stats, .home-columns, .gallery-strip-grid { grid-template-columns: 1fr; }
+      .hero-home { min-height: 480px; padding: 26px; }
     }
   </style>
 </head>
@@ -1998,104 +1943,150 @@ function homeHtml(session = {}) {
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="topbar">
-        <div class="topbar-brand">
-          <img src="${SITE_ICON_URL}" alt="Looooooty logo" />
-          <span>Looooooty Network</span>
-        </div>
-        <div class="topbar-actions">
-          <a class="pill" href="/bases">State of bases</a>
-          <a class="pill" href="/shop">Shop</a>
-          <a class="pill" href="/apply">Apply</a>
-          <a class="pill primary" href="/auth">${authLabel}</a>
-        </div>
-      </section>
-      <section class="hero">
-        <div class="hero-badge">Official 2b2t Portal</div>
-        <h1><span class="title-italic">LooooootyBases</span> | 2b2t</h1>
-        <p class="sub">The main portal for LooooootyBases, LooooootyShop, applications, account access, and public information.</p>
-        <div class="hero-stats">
-          <div class="hero-stat"><b>6</b><span>Bases</span></div>
-          <div class="hero-stat"><b>300+</b><span>Kits</span></div>
-          <div class="hero-stat"><b>24/7</b><span>Growth</span></div>
-        </div>
-      </section>
-      <section class="btn-box">
-        <div class="btns">
-          <a class="btn" href="${DISCORD_INVITE_URL}" target="_blank" rel="noreferrer">Join Discord</a>
-          <a class="btn" href="/shop">Open Shop</a>
-          <a class="btn" href="/apply">Applications</a>
-          <a class="btn" href="/auth">${authLabel}</a>
-        </div>
-        <div class="foot">Use this portal to access the shop, applications, and account features.</div>
-      </section>
+      <div class="home-shell">
+        <section class="page-topbar">
+          <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+          <nav>
+            <a class="active" href="/">Home</a>
+            <a href="/gallery">Gallery</a>
+            <a href="/about">About Us</a>
+            <a href="/shop">Shop</a>
+          </nav>
+          <div class="top-actions">
+            <a class="pill" href="/apply">Apply</a>
+            <a class="pill primary" href="/auth">${authLabel}</a>
+          </div>
+        </section>
+
+        <section class="hero-home">
+          <div class="hero-stack">
+            <div class="hero-kicker-row">
+              <span class="hero-pill">2b2t Network</span>
+              <span class="hero-pill">Private Base Project</span>
+            </div>
+            <h1 class="hero-home-title"><em>LooooootyBases</em></h1>
+            <p class="hero-home-sub">A long-term 2b2t base network built around trust, progression, controlled access, and serious infrastructure that lasts longer than one wipe cycle of hype.</p>
+            <p class="hero-home-caption">${esc(heroDescription)}</p>
+            <div class="hero-home-actions">
+              <a class="hero-primary" href="/apply">Apply for Access</a>
+              <a class="hero-secondary" href="/gallery">View Gallery</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="home-stats">
+          <div class="home-stat"><div class="k">Orders Completed</div><div class="v">${statsData.ordersPaid}</div></div>
+          <div class="home-stat"><div class="k">Live Giveaways</div><div class="v">${statsData.giveawaysActive}</div></div>
+          <div class="home-stat"><div class="k">Accessible Bases</div><div class="v">${activeBases}</div></div>
+          <div class="home-stat"><div class="k">Shop State</div><div class="v">${esc(statsData.shopState)}</div></div>
+        </section>
+
+        <section class="home-columns">
+          <article class="home-panel">
+            <div class="page-kicker">Built For Longevity</div>
+            <h2>One network, one system, one real progression path.</h2>
+            <p class="home-copy">The project is built around base security, clear rank progression, member accountability, and a storefront that ties directly into the way the network actually operates. Access is earned over time and managed deliberately.</p>
+            <div class="home-feature-list">
+              <div class="home-feature"><span class="home-feature-dot"></span><div><b>Ranked trust progression</b><br/><span class="subtle">Members move from application review to trusted access instead of getting everything instantly.</span></div></div>
+              <div class="home-feature"><span class="home-feature-dot"></span><div><b>Protected multi-base structure</b><br/><span class="subtle">Base state, role access, and visibility are all handled in one controlled system.</span></div></div>
+              <div class="home-feature"><span class="home-feature-dot"></span><div><b>Integrated shop + network flow</b><br/><span class="subtle">The website, applications, reviews, delivery process, and shop identity now feel like one connected operation.</span></div></div>
+            </div>
+          </article>
+          <aside class="home-side-card">
+            <div class="page-kicker">Current Focus</div>
+            <h2>LB6, infrastructure, and controlled expansion.</h2>
+            <p class="home-copy">The next phase is centered around stronger operations, cleaner access control, and making the network feel consistent from first visit to final delivery. If you want in, stay active and build trust.</p>
+            <div class="panel-actions">
+              <a class="btn" href="/bases">Check Base Status</a>
+              <a class="btn" href="/shop">Open Shop</a>
+            </div>
+          </aside>
+        </section>
+
+        <section class="gallery-strip">
+          <div class="gallery-strip-head">
+            <div>
+              <div class="page-kicker">Recent Archive</div>
+              <h2 style="margin:0; font-size:34px; letter-spacing:-0.05em;">Gallery preview</h2>
+            </div>
+            <a class="btn" href="/gallery">Open full gallery</a>
+          </div>
+          <div class="gallery-strip-grid">
+            ${newestGallery.length ? newestGallery.map((item) => `<article class="gallery-mini"><img src="${esc(item.image)}" alt="${esc(item.title)}" /><div class="gallery-mini-copy"><b>${esc(item.title)}</b><span>${esc(item.description)}</span></div></article>`).join('') : '<div class="page-card"><p class="subtle">No gallery images yet.</p></div>'}
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 </body>
 </html>`;
 }
 
-function basesPageHtml
-(bases, session = {}) {
+function galleryPageHtml(session = {}) {
   const authLabel = String(session && session.userId ? "Account" : "Sign Up");
-  const openCount = bases.filter((b) => b.state === "open").length;
-  const closedCount = bases.filter((b) => b.state === "closed").length;
+  const gallery = loadWebsiteGallery();
+  const lead = gallery[0] || null;
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>State of Bases</title>
+  <title>Gallery</title>
   ${faviconLinks()}
   ${sharedHomeStyles()}
+  <style>
+    .gallery-shell { display:grid; gap:24px; }
+    .gallery-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; }
+    .gallery-card {
+      border-radius: 24px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background: linear-gradient(180deg, rgba(8,11,22,0.94), rgba(5,8,16,0.98));
+      box-shadow: 0 14px 36px rgba(0,0,0,0.24);
+    }
+    .gallery-card img { width:100%; height:240px; object-fit:cover; display:block; }
+    .gallery-copy { padding:18px 18px 20px; display:grid; gap:8px; }
+    .gallery-copy h3 { margin:0; font-size:24px; letter-spacing:-0.03em; }
+    .gallery-copy p { margin:0; color:var(--muted); line-height:1.65; }
+    .gallery-lead { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:24px; align-items:stretch; }
+    .gallery-lead-card, .gallery-note {
+      border-radius: 26px; border:1px solid rgba(255,255,255,0.1); background: linear-gradient(180deg, rgba(8,11,22,0.94), rgba(5,8,16,0.98));
+      box-shadow: 0 14px 36px rgba(0,0,0,0.24);
+    }
+    .gallery-lead-card img { width:100%; height:100%; min-height:320px; object-fit:cover; display:block; border-radius:26px; }
+    .gallery-note { padding:26px; display:grid; gap:12px; }
+    @media (max-width: 1080px) { .gallery-lead { grid-template-columns: 1fr; } }
+  </style>
 </head>
 <body>
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="page-topbar">
-        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
-        <nav>
-          <a class="active" href="/bases">State of Bases</a>
-          <a href="/shop">Shop</a>
-          <a href="/apply">Apply</a>
-        </nav>
-        <div class="top-actions">
-          <a class="pill" href="/">Back Home</a>
-          <a class="pill primary" href="/auth">${authLabel}</a>
-        </div>
-      </section>
-      <section class="hero">
-        <div class="page-kicker">Operations</div>
-        <h1 class="page-title">State of <em>Bases</em></h1>
-        <p class="page-sub">Track which bases are open, restricted, or currently less active.</p>
-        <div class="page-stats">
-          <div class="page-stat"><b>${bases.length}</b><span>Total Bases</span></div>
-          <div class="page-stat"><b>${openCount}</b><span>Open</span></div>
-          <div class="page-stat"><b>${closedCount}</b><span>Closed</span></div>
-        </div>
-      </section>
-      <section class="page-grid">
-        <article class="page-panel">
-          <h2>Current base access</h2>
-          <div class="panel-copy">This is the public-safe view of which bases are operational, quieter, or restricted.</div>
-          <div style="margin-top:14px;">${baseStateListHtml(bases)}</div>
-        </article>
-        <aside class="page-card">
-          <h3>Status meaning</h3>
-          <div class="subtle">
-            <p><b>Open</b> means normal access.</p>
-            <p><b>Open but less likely to be used</b> means the base exists but is not the current focus.</p>
-            <p><b>Closed</b> means access is restricted for safety or operational reasons.</p>
+      <div class="gallery-shell">
+        <section class="page-topbar">
+          <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+          <nav>
+            <a href="/">Home</a>
+            <a href="/about">About Us</a>
+            <a class="active" href="/gallery">Gallery</a>
+          </nav>
+          <div class="top-actions">
+            <a class="pill" href="/shop">Shop</a>
+            <a class="pill primary" href="/auth">${authLabel}</a>
           </div>
-        </aside>
-      </section>
+        </section>
+        <section class="hero">
+          <div class="page-kicker">Archive</div>
+          <h1 class="page-title">Base <em>Gallery</em></h1>
+          <p class="page-sub">Snapshots from the project, preserved in one place so members and applicants can see the scale of what has already been built.</p>
+        </section>
+        ${lead ? `<section class="gallery-lead"><div class="gallery-lead-card"><img src="${esc(lead.image)}" alt="${esc(lead.title)}" /></div><aside class="gallery-note"><div class="page-kicker">Featured</div><h2 style="margin:0; font-size:34px; letter-spacing:-0.04em;">${esc(lead.title)}</h2><p class="subtle" style="line-height:1.75;">${esc(lead.description)}</p></aside></section>` : ''}
+        <section class="gallery-grid">
+          ${gallery.length ? gallery.map((item) => `<article class="gallery-card"><img src="${esc(item.image)}" alt="${esc(item.title)}" /><div class="gallery-copy"><h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div></article>`).join('') : '<div class="page-panel"><h2>No gallery images yet</h2><p class="subtle">Staff can add pictures from the gallery tab in the panel.</p></div>'}
+        </section>
+      </div>
     </main>
   </div>
 </body>
 </html>`;
 }
-
 
 function aboutPageHtml(session = {}) {
   return `<!doctype html>
@@ -2150,6 +2141,14 @@ function aboutPageHtml(session = {}) {
 
 
 function howToOrderHtml(session = {}) {
+  const authLabel = String(session && session.userId ? "Account" : "Sign Up");
+  const infoLines = String(HOW_TO_ORDER_TEXT || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const extraItems = infoLines.length
+    ? infoLines.map((line) => `<li>${esc(line)}</li>`).join("")
+    : '<li>Use the website cart, checkout carefully, and keep your order ID if support is needed.</li>';
   return `<!doctype html>
 <html>
 <head>
@@ -2157,769 +2156,107 @@ function howToOrderHtml(session = {}) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>How to Order</title>
   ${faviconLinks()}
+  ${sharedHomeStyles()}
   <style>
-    :root {
-      --txt: #f6f7fb;
-      --muted: #9ba8c7;
-      --line: rgba(133, 157, 255, 0.18);
-      --panel: rgba(11, 16, 36, 0.88);
-      --panel-2: rgba(16, 24, 52, 0.82);
-      --blue: #6ca8ff;
-      --blue-2: #8ad0ff;
-      --green: #3cff8f;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--txt);
-      font-family: "Segoe UI", Inter, system-ui, sans-serif;
-      background:
-        radial-gradient(circle at 20% 18%, rgba(104, 125, 255, 0.12), transparent 26%),
-        radial-gradient(circle at 78% 24%, rgba(90, 151, 255, 0.11), transparent 22%),
-        radial-gradient(circle at 50% 54%, rgba(88, 76, 168, 0.18), transparent 34%),
-        linear-gradient(180deg, #02040a 0%, #070b18 48%, #050814 100%);
-      overflow-x: hidden;
-    }
-    body::before { content: none; }
-    .shell {
+    .how-shell { display:grid; gap:24px; }
+    .how-hero {
       position: relative;
-      z-index: 1;
-      width: min(1480px, calc(100% - 40px));
-      margin: 26px auto;
-      display: grid;
-      grid-template-columns: 290px minmax(0, 1fr);
-      gap: 22px;
-    }
-    .side {
-      align-self: start;
-      position: relative;
-      padding: 18px;
-      border-radius: 28px;
-      background: linear-gradient(180deg, rgba(20,27,47,0.94), rgba(11,16,31,0.92));
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.24);
-      backdrop-filter: none;
-    }
-    .content {
-      display: grid;
-      gap: 22px;
-    }
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 14px;
-      padding: 14px 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 999px;
-      background: rgba(9, 14, 28, 0.84);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-      backdrop-filter: none;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .brand img {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.14);
-      object-fit: cover;
-      background: rgba(255,255,255,0.04);
-    }
-    .brand span { color: var(--txt); }
-    .nav-links, .top-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 44px;
-      padding: 0 18px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.03);
-      color: var(--txt);
-      text-decoration: none;
-      font-weight: 700;
-      transition: 160ms ease;
-    }
-    .pill:hover { border-color: rgba(108,168,255,0.45); transform: translateY(-1px); }
-    .pill.primary {
-      background: linear-gradient(135deg, rgba(69,128,255,0.26), rgba(42,78,181,0.3));
-      border-color: rgba(108,168,255,0.4);
-    }
-    .hero {
-      padding: 54px 52px 42px;
-      border-radius: 34px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background:
-        radial-gradient(circle at 50% 18%, rgba(117,122,255,0.18), transparent 24%),
-        linear-gradient(180deg, rgba(10,14,28,0.88), rgba(8,11,24,0.94));
-      box-shadow: 0 14px 36px rgba(0,0,0,0.24);
-      text-align: center;
-      overflow: hidden;
-    }
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 34px;
-      padding: 0 14px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.1);
-      color: var(--blue-2);
-      background: rgba(255,255,255,0.03);
-      text-transform: uppercase;
-      letter-spacing: 0.22em;
-      font-size: 0.78rem;
-      font-weight: 800;
-    }
-    .hero h1 {
-      margin: 18px 0 10px;
-      font-size: clamp(3.5rem, 8vw, 6.4rem);
-      line-height: 0.92;
-      font-weight: 950;
-      letter-spacing: -0.05em;
-    }
-    .hero h1 em { font-style: italic; }
-    .hero-sub {
-      margin: 0 auto;
-      max-width: 760px;
-      color: var(--muted);
-      font-size: 1.08rem;
-      line-height: 1.75;
-    }
-    .hero-stats {
-      margin-top: 28px;
-      display: inline-grid;
-      grid-template-columns: repeat(3, minmax(120px, 1fr));
-      gap: 0;
-      border-radius: 24px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.03);
-      overflow: hidden;
-    }
-    .hero-stat {
-      padding: 18px 26px;
-      border-right: 1px solid rgba(255,255,255,0.08);
-    }
-    .hero-stat:last-child { border-right: 0; }
-    .hero-stat strong {
-      display: block;
-      font-size: 2rem;
-      line-height: 1;
-      margin-bottom: 6px;
-    }
-    .hero-stat span {
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      font-size: 0.78rem;
-      font-weight: 700;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
-      gap: 22px;
-    }
-    .panel {
+      overflow:hidden;
       border-radius: 30px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: linear-gradient(180deg, rgba(10,14,29,0.9), rgba(10,15,31,0.82));
-      box-shadow: 0 18px 48px rgba(0,0,0,0.3);
-      padding: 28px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(102,125,255,0.16), transparent 26%),
+        linear-gradient(180deg, rgba(8,13,30,0.97), rgba(6,10,22,0.98));
+      box-shadow: 0 18px 42px rgba(0,0,0,0.24);
+      padding: 34px 30px 30px;
     }
-    .panel h2, .panel h3 {
-      margin: 0 0 12px;
-      font-size: 1.55rem;
-      letter-spacing: -0.03em;
-    }
-    .panel p, .panel li { color: var(--muted); line-height: 1.72; }
-    .how-copy {
-      white-space: pre-wrap;
-      color: var(--txt);
-      font-size: 1rem;
-      line-height: 1.85;
-    }
-    .how-copy b, .how-copy strong { color: #fff; }
-    .checklist {
-      display: grid;
-      gap: 12px;
-      margin-top: 8px;
-    }
-    .check-item {
-      padding: 14px 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
+    .how-hero-grid { display:grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; align-items:end; }
+    .how-summary {
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.1);
       background: rgba(255,255,255,0.03);
-      color: var(--txt);
-      font-weight: 700;
+      padding: 22px;
     }
-    .check-item small {
-      display: block;
-      margin-top: 6px;
-      color: var(--muted);
-      font-weight: 500;
-      line-height: 1.5;
+    .how-summary ul { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.8; }
+    .how-grid { display:grid; grid-template-columns: 1.2fr 0.8fr; gap:24px; }
+    .step-card, .info-card {
+      border-radius: 26px; border:1px solid rgba(255,255,255,0.1); background: linear-gradient(180deg, rgba(8,11,22,0.94), rgba(5,8,16,0.98));
+      padding: 26px; box-shadow: 0 14px 36px rgba(0,0,0,0.24);
     }
-    @media (max-width: 1120px) {
-      .shell { grid-template-columns: 1fr; }
-      .side { position: static; }
-      .grid { grid-template-columns: 1fr; }
-      .topbar { border-radius: 28px; }
+    .step-list { display:grid; gap:18px; margin-top:18px; }
+    .step-row { display:grid; grid-template-columns: 60px 1fr; gap:16px; align-items:start; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08); }
+    .step-row:first-child { border-top:0; padding-top:0; }
+    .step-no {
+      width: 60px; height: 60px; border-radius: 18px; display:flex; align-items:center; justify-content:center;
+      background: linear-gradient(135deg, #79b2ff, #8ed9ff); color:#071321; font-weight:1000; font-size:24px;
+      box-shadow: 0 10px 24px rgba(107,159,255,0.25);
     }
-    @media (max-width: 760px) {
-      .shell { width: min(100% - 20px, 1480px); margin: 14px auto 24px; gap: 14px; }
-      .hero { padding: 30px 18px 24px; border-radius: 24px; }
-      .hero-stats { grid-template-columns: 1fr; width: 100%; }
-      .hero-stat { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
-      .hero-stat:last-child { border-bottom: 0; }
-      .panel { padding: 20px; border-radius: 24px; }
-      .topbar { padding: 14px; }
-    }
+    .info-card ul { margin: 14px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.85; }
+    .quick-links { display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
+    @media (max-width: 1080px) { .how-hero-grid, .how-grid { grid-template-columns: 1fr; } }
   </style>
-</head>
-<body>
-  <div class="shell">
-    <aside class="side">${sideMenuHtml(session)}</aside>
-    <main class="content">
-      <section class="topbar">
-        <div class="brand">
-          <img src="${SHOP_LOGO_URL}" alt="Shop logo" />
-          <span>LooooootyShop 2b2t</span>
-        </div>
-        <div class="top-actions">
-          <a class="pill" href="/shop">Shop Options</a>
-          <a class="pill primary" href="/shop/web">Website Shop</a>
-          <a class="pill" href="/shop/reviews">Reviews</a>
-          <a class="pill" href="/">Back Home</a>
-        </div>
-      </section>
-      <section class="hero">
-        <div class="hero-badge">Ordering Guide</div>
-        <h1><em>How to</em> Order</h1>
-        <p class="hero-sub">Everything you need to know before placing an order, from adding items to delivery.</p>
-        <div class="hero-stats">
-          <div class="hero-stat"><strong>1</strong><span>Browse</span></div>
-          <div class="hero-stat"><strong>2</strong><span>Checkout</span></div>
-          <div class="hero-stat"><strong>3</strong><span>Delivery</span></div>
-        </div>
-      </section>
-      <section class="grid">
-        <article class="panel">
-          <h2>Full Ordering Flow</h2>
-          <div class="how-copy">${esc(HOW_TO_ORDER_TEXT)}</div>
-        </article>
-        <aside class="panel">
-          <h3>Quick Checklist</h3>
-          <div class="checklist">
-            <div class="check-item">Pick your products<small>Add the items you want to the cart and confirm quantities before paying.</small></div>
-            <div class="check-item">Choose your payment<small>Use store credit if you have it, or finish the remaining balance with PayPal.</small></div>
-            <div class="check-item">Send IGN and coords<small>After payment, provide delivery information exactly so staff can fulfill the order fast.</small></div>
-            <div class="check-item">Confirm you are ready<small>When staff ask if you are ready, click the ready button so the delivery queue moves.</small></div>
-          </div>
-        </aside>
-      </section>
-    </main>
-  </div>
-</body>
-</html>`;
-}
-
-
-function authPageHtml({ session = {}, msg = "", err = "", next = "/", localAccount = null }) {
-  const userId = String(session && session.userId ? session.userId : "");
-  const userTag = String(session && session.userTag ? session.userTag : "");
-  const provider = String(session && session.provider ? session.provider : "");
-  const nextPath = next && String(next).startsWith("/") ? String(next) : "/";
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${userId ? "Account" : "Sign Up / Login"}</title>
-  ${faviconLinks()}
-  ${sharedHomeStyles()}
 </head>
 <body>
   <div class="layout">
     <aside class="side">${sideMenuHtml(session)}</aside>
     <main class="main">
-      <section class="page-topbar">
-        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
-        <nav>
-          <a href="/shop">Shop</a>
-          <a href="/shop/reviews">Reviews</a>
-          <a class="active" href="/auth">Account</a>
-        </nav>
-        <div class="top-actions">
-          <a class="pill" href="/">Back Home</a>
-          <a class="pill primary" href="/shop/web">Website Shop</a>
-        </div>
-      </section>
-      <section class="hero">
-        <div class="page-kicker">Identity & Access</div>
-        <h1 class="page-title">${userId ? "Your" : "Access the"} <em>Account</em></h1>
-        <p class="page-sub">Sign in, manage your account, and access account-linked shop features.</p>
-      </section>
-      <section class="page-grid">
-        <article class="page-panel">
-          <h2>${userId ? "Current session" : "Choose a sign-in method"}</h2>
-          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-          ${userId
-            ? `<div class="account-meta">
-                Logged in as: <b>${esc(userTag || "User")}</b><br/>
-                Provider: <b>${esc(provider || "unknown")}</b><br/>
-                Account ID: <b>${esc(userId)}</b>${provider === "looooooty" ? `<br/>Email: <b>${esc(localAccount && localAccount.email ? localAccount.email : "-")}</b>` : ""}
+      <div class="how-shell">
+        <section class="page-topbar">
+          <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+          <nav>
+            <a href="/shop">Shop</a>
+            <a href="/gallery">Gallery</a>
+            <a class="active" href="/how-to-order">How to Order</a>
+          </nav>
+          <div class="top-actions">
+            <a class="pill" href="/shop/web">Website Shop</a>
+            <a class="pill primary" href="/auth">${authLabel}</a>
+          </div>
+        </section>
+        <section class="how-hero">
+          <div class="how-hero-grid">
+            <div>
+              <div class="page-kicker">Store Guide</div>
+              <h1 class="page-title">How to <em>Order</em></h1>
+              <p class="page-sub">Everything you need before opening the cart, applying delivery pricing, checking out, and waiting for staff to finish the order.</p>
+              <div class="quick-links">
+                <a class="btn" href="/shop/web">Open Website Shop</a>
+                <a class="btn" href="/shop/reviews">Read Reviews</a>
               </div>
-              <div class="panel-actions">
-                <form method="post" action="/auth/logout?next=${encodeURIComponent(nextPath)}" style="margin:0;">
-                  <button class="submit" type="submit">Logout</button>
-                </form>
-                <a class="btn" href="${provider === "looooooty" ? "/account" : esc(nextPath)}">${provider === "looooooty" ? "Account Settings" : "Back"}</a>
-              </div>`
-            : `<div class="auth-grid">
-                <a class="auth-btn" href="/auth/looooooty?mode=login&next=${encodeURIComponent(nextPath)}">Log in with Looooooty Accounts</a>
-                <a class="auth-btn" href="/auth/google/start?next=%2Fauth">Log in with Google</a>
-                <a class="auth-btn" href="/auth/looooooty?mode=signup&next=${encodeURIComponent(nextPath)}">Create a Looooooty Account</a>
-                <a class="auth-btn" href="/auth/discord/start?next=%2Fauth">Log in with Discord</a>
-              </div>`}
-        </article>
-        <aside class="page-card">
-          <h3>Why accounts matter</h3>
-          <div class="subtle">
-            <p>Accounts connect reviews, giveaway identity, store credit, and future order history.</p>
-            <p>Discord and Google are external providers. Looooooty Accounts are local and support password reset.</p>
-            <p>You can browse without logging in, but account-linked features depend on it.</p>
+            </div>
+            <aside class="how-summary">
+              <div class="page-kicker">Quick Summary</div>
+              <ul>
+                <li>Add the exact products you want and set the quantity before checkout.</li>
+                <li>Use delivery pricing if your coordinates are far from spawn.</li>
+                <li>After paying, submit IGN and coordinates so delivery can actually happen.</li>
+                <li>Keep your order ID if support is needed later.</li>
+              </ul>
+            </aside>
           </div>
-        </aside>
-      </section>
-    </main>
-  </div>
-</body>
-</html>`;
-}
-
-
-function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth", session = {} }) {
-  const safeMode = mode === "signup" ? "signup" : mode === "forgot" ? "forgot" : "login";
-  const nextPath = next && String(next).startsWith("/") ? String(next) : "/auth";
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${safeMode === "signup" ? "Create Looooooty Account" : safeMode === "forgot" ? "Reset Password" : "Login Looooooty Account"}</title>
-  ${faviconLinks()}
-  ${sharedHomeStyles()}
-</head>
-<body>
-  <div class="layout">
-    <aside class="side">${sideMenuHtml(session)}</aside>
-    <main class="main">
-      <section class="page-topbar">
-        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
-        <nav>
-          <a href="/auth">Account</a>
-          <a href="/shop/web">Store</a>
-          <a href="/shop/reviews">Reviews</a>
-        </nav>
-        <div class="top-actions">
-          <a class="pill" href="/auth">Back</a>
-          <a class="pill primary" href="/shop/web">Website Shop</a>
-        </div>
-      </section>
-      <section class="hero">
-        <div class="page-kicker">Local Accounts</div>
-        <h1 class="page-title">${safeMode === "signup" ? "Create" : safeMode === "forgot" ? "Reset" : "Login to"} <em>Looooooty</em></h1>
-        <p class="page-sub">Create a local account, sign in, or reset access to your account.</p>
-      </section>
-      <section class="page-grid">
-        <article class="page-panel">
-          <h2>${safeMode === "signup" ? "Create account" : safeMode === "forgot" ? "Forgot password" : "Login"}</h2>
-          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-          ${safeMode === "signup"
-            ? `<form class="form-grid" method="post" action="/auth/looooooty/signup?next=${encodeURIComponent(nextPath)}">
-                <input type="text" name="username" required maxlength="32" placeholder="Username (3-32 letters/numbers/._-)" />
-                <input type="email" name="email" required maxlength="120" placeholder="Email" />
-                <input type="password" name="password" required minlength="8" maxlength="120" placeholder="Password (min 8 chars)" />
-                <input type="password" name="password_confirm" required minlength="8" maxlength="120" placeholder="Confirm password" />
-                <button class="submit" type="submit">Create Account</button>
-              </form>`
-            : safeMode === "forgot"
-              ? `<form class="form-grid" method="post" action="/auth/looooooty/forgot?next=${encodeURIComponent(nextPath)}">
-                  <input type="email" name="email" required maxlength="120" placeholder="Email" />
-                  <button class="submit" type="submit">Send reset email</button>
-                </form>`
-              : `<form class="form-grid" method="post" action="/auth/looooooty/login?next=${encodeURIComponent(nextPath)}">
-                  <input type="text" name="login" required maxlength="120" placeholder="Username or email" />
-                  <input type="password" name="password" required maxlength="120" placeholder="Password" />
-                  <button class="submit" type="submit">Login</button>
-                </form>
-                <div class="panel-actions">
-                  <a class="btn" href="/auth/looooooty?mode=signup&next=${encodeURIComponent(nextPath)}">Create account</a>
-                  <a class="btn" href="/auth/looooooty?mode=forgot&next=${encodeURIComponent(nextPath)}">Forgot password?</a>
-                </div>`}
-        </article>
-        <aside class="page-card">
-          <h3>Local account notes</h3>
-          <div class="subtle">
-            <p>Local accounts are the base for email verification and password resets.</p>
-            <p>They stay separate from Discord and Google logins, but still connect into the same storefront account system.</p>
-            <p>If SMTP is configured, forgot-password sends a real reset link.</p>
-          </div>
-        </aside>
-      </section>
-    </main>
-  </div>
-</body>
-</html>`;
-}
-
-
-function localResetPasswordPageHtml({ msg = "", err = "", uid = "", token = "", next = "/auth" }) {
-  const nextPath = next && String(next).startsWith("/") ? String(next) : "/auth";
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Reset Password</title>
-  ${faviconLinks()}
-  ${sharedHomeStyles()}
-</head>
-<body>
-  <div class="layout">
-    <aside class="side">${sideMenuHtml()}</aside>
-    <main class="main">
-      <section class="page-topbar">
-        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
-        <nav>
-          <a class="active" href="/auth">Account</a>
-          <a href="/shop/web">Store</a>
-          <a href="/shop/reviews">Reviews</a>
-        </nav>
-        <div class="top-actions">
-          <a class="pill" href="/auth">Back</a>
-          <a class="pill primary" href="/shop/web">Website Shop</a>
-        </div>
-      </section>
-      <section class="hero">
-        <div class="page-kicker">Recovery</div>
-        <h1 class="page-title">Reset <em>Password</em></h1>
-        <p class="page-sub">Reset your password securely using the email linked to your account.</p>
-      </section>
-      <section class="page-grid">
-        <article class="page-panel">
-          <h2>Choose a new password</h2>
-          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-          <form class="form-grid" method="post" action="/auth/looooooty/reset?next=${encodeURIComponent(nextPath)}">
-            <input type="hidden" name="uid" value="${esc(uid)}" />
-            <input type="hidden" name="token" value="${esc(token)}" />
-            <input type="password" name="password" required minlength="8" maxlength="120" placeholder="New password (min 8 chars)" />
-            <input type="password" name="password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
-            <button class="submit" type="submit">Update Password</button>
-          </form>
-        </article>
-        <aside class="page-card">
-          <h3>Reset notes</h3>
-          <div class="subtle">
-            <p>Use a password you have not already used for this account.</p>
-            <p>The reset token is time-limited, so expired links need a new reset request.</p>
-          </div>
-        </aside>
-      </section>
-    </main>
-  </div>
-</body>
-</html>`;
-}
-
-
-function accountSettingsPageHtml({ session, account, msg = "", err = "" }) {
-  const userTag = String(session && session.userTag ? session.userTag : "");
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Account Settings</title>
-  ${faviconLinks()}
-  ${sharedHomeStyles()}
-</head>
-<body>
-  <div class="layout">
-    <aside class="side">${sideMenuHtml(session)}</aside>
-    <main class="main">
-      <section class="page-topbar">
-        <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
-        <nav>
-          <a class="active" href="/account">Account</a>
-          <a href="/shop/web">Store</a>
-          <a href="/shop/reviews">Reviews</a>
-        </nav>
-        <div class="top-actions">
-          <a class="pill" href="/auth">Back to Access</a>
-          <a class="pill primary" href="/shop/web">Website Shop</a>
-        </div>
-      </section>
-      <section class="hero">
-        <div class="page-kicker">Account Management</div>
-        <h1 class="page-title">Account <em>Settings</em></h1>
-        <p class="page-sub">Manage your profile details and update your password from one place.</p>
-      </section>
-      <section class="page-grid">
-        <article class="page-panel">
-          <h2>Your account</h2>
-          ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-          ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-          <div class="account-meta">
-            Username: <b>${esc(userTag || account.username || "-")}</b><br/>
-            Email: <b>${esc(account.email || "-")}</b><br/>
-            Verified: <b>${account.emailVerified ? "Yes" : "No"}</b>
-          </div>
-          <form class="form-grid" method="post" action="/account/profile" style="margin-top:14px;">
-            <h3 style="margin:4px 0;">Profile</h3>
-            <input type="text" name="username" required maxlength="32" value="${esc(account.username || "")}" />
-            <input type="email" name="email" required maxlength="120" value="${esc(account.email || "")}" />
-            <button class="submit" type="submit">Save Profile</button>
-          </form>
-          ${account.emailVerified ? "" : `<div class="note" style="margin-top:12px;">Email verification is temporarily disabled.</div>`}
-          <form class="form-grid" method="post" action="/account/password" style="margin-top:14px;">
-            <h3 style="margin:4px 0;">Change Password</h3>
-            <input type="password" name="current_password" required maxlength="120" placeholder="Current password" />
-            <input type="password" name="new_password" required minlength="8" maxlength="120" placeholder="New password" />
-            <input type="password" name="new_password_confirm" required minlength="8" maxlength="120" placeholder="Confirm new password" />
-            <button class="submit" type="submit">Update Password</button>
-          </form>
-        </article>
-        <aside class="page-card">
-          <h3>Security notes</h3>
-          <div class="subtle">
-            <p>Changing email or password affects the local Looooooty account only.</p>
-            <p>Provider logins like Discord or Google remain external authentication methods.</p>
-          </div>
-        </aside>
-      </section>
-    </main>
-  </div>
-</body>
-</html>`;
-}
-
-
-function giveawaysPageHtml({ giveaways, msg = "", err = "", session }) {
-  const userId = String(session && session.userId ? session.userId : "");
-  const userTag = String(session && session.userTag ? session.userTag : "");
-  const list = Array.isArray(giveaways) ? giveaways : [];
-  const sorted = list.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-  const cards = sorted
-    .map((g) => {
-      const ended = isGiveawayEnded(g);
-      const entries = giveawayEntriesCount(g);
-      const userEntered = userId ? Array.isArray(g.participants) && g.participants.includes(userId) : false;
-      const endsText = g.endsAt
-        ? new Date(g.endsAt).toLocaleString("en-US", { hour12: false, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-        : "-";
-      const winners = Array.isArray(g.winnerIds) ? g.winnerIds : [];
-      const winnersText = winners.length ? winners.map((id) => `@${esc(id)}`).join(", ") : "None yet";
-      const participantsText = Array.isArray(g.participants) && g.participants.length
-        ? g.participants.slice(0, 100).map((id) => `@${esc(id)}`).join(", ")
-        : "No participants yet.";
-      return `<article class="gw-card">
-        <div class="gw-head">
-          <h3>${esc(g.prize || "Giveaway")}</h3>
-          <span class="gw-pill ${ended ? "ended" : "active"}">${ended ? "ENDED" : "ACTIVE"}</span>
-        </div>
-        <div class="gw-desc">${esc(g.description || "")}</div>
-        <div class="gw-meta-grid">
-          <div><span class="k">ID</span><b>${esc(g.id || "-")}</b></div>
-          <div><span class="k">${ended ? "Ended" : "Ends"}</span><b>${endsText}</b></div>
-          <div><span class="k">Entries</span><b>${entries}</b></div>
-          <div><span class="k">Winners</span><b>${Number(g.winners || 1)}</b></div>
-        </div>
-        <div class="gw-winners"><span class="k">Selected Winner(s)</span><b>${winnersText}</b></div>
-        <details class="gw-participants">
-          <summary>See Participants</summary>
-          <div>${participantsText}</div>
-        </details>
-        <div class="gw-actions">
-          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}">
-            <button class="gw-btn gw-enter" type="submit" formaction="/giveaways/${encodeURIComponent(g.id || "")}/enter"${ended || !userId || userEntered ? " disabled" : ""}>Enter Giveaway</button>
-          </form>
-          <form method="post" action="/giveaways/${encodeURIComponent(g.id || "")}">
-            <button class="gw-btn gw-leave" type="submit" formaction="/giveaways/${encodeURIComponent(g.id || "")}/leave"${ended || !userId || !userEntered ? " disabled" : ""}>Leave Giveaway</button>
-          </form>
-        </div>
-      </article>`;
-    })
-    .join("");
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Giveaways</title>
-  ${faviconLinks()}
-  ${sharedHomeStyles()}
-  <style>
-    .gw-shell {
-      width: min(1100px, 98%);
-      display: grid;
-      gap: 14px;
-    }
-    .gw-top, .gw-identity {
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(9,13,20,0.72);
-      border-radius: 16px;
-      padding: 16px;
-      backdrop-filter: none;
-    }
-    .gw-title-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .gw-title {
-      margin: 0;
-      font-size: clamp(24px, 3.2vw, 38px);
-      font-style: italic;
-    }
-    .gw-sub { color: var(--muted); margin-top: 6px; }
-    .gw-identity .form-grid { margin-top: 8px; }
-    .gw-id {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .gw-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 12px;
-    }
-    .gw-card {
-      border: 1px solid rgba(255,255,255,0.14);
-      background: linear-gradient(180deg, rgba(12,18,44,0.88), rgba(8,12,30,0.88));
-      border-radius: 14px;
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-    }
-    .gw-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    .gw-head h3 { margin: 0; font-size: 24px; }
-    .gw-pill {
-      border-radius: 999px;
-      padding: 5px 10px;
-      font-size: 12px;
-      font-weight: 800;
-      border: 1px solid transparent;
-    }
-    .gw-pill.active { color: #0f172a; background: #3fb950; border-color: #3fb950; }
-    .gw-pill.ended { color: #fee2e2; background: #7f1d1d; border-color: #b91c1c; }
-    .gw-desc { color: #d7e0f5; line-height: 1.45; }
-    .gw-meta-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      padding: 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(4,8,25,0.55);
-    }
-    .gw-meta-grid .k, .gw-winners .k { display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
-    .gw-winners {
-      padding: 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(4,8,25,0.55);
-    }
-    .gw-participants {
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      padding: 8px 10px;
-      background: rgba(4,8,25,0.4);
-    }
-    .gw-participants summary { cursor: pointer; font-weight: 700; }
-    .gw-participants div {
-      margin-top: 8px;
-      color: var(--muted);
-      white-space: pre-wrap;
-      max-height: 120px;
-      overflow: auto;
-    }
-    .gw-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .gw-actions form { margin: 0; }
-    .gw-btn {
-      width: 100%;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-weight: 800;
-      border: 1px solid transparent;
-      cursor: pointer;
-      color: #fff;
-    }
-    .gw-enter { background: #1f8f4e; border-color: #1f8f4e; }
-    .gw-leave { background: #b03a43; border-color: #b03a43; }
-    .gw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  </style>
-</head>
-<body>
-  <div class="layout">
-    <aside class="side">${sideMenuHtml(session)}</aside>
-    <main class="main">
-      <section class="gw-shell">
-        <div class="gw-top">
-          <div class="gw-title-row">
-            <h2 class="gw-title">Looooooty Giveaways</h2>
-            <a class="btn" href="/">Back Home</a>
-          </div>
-          <div class="gw-sub">Join active giveaways, track entries, and check winners.</div>
-        </div>
-        <div class="gw-identity">
-        ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
-        ${err ? `<div class="warn">${esc(err)}</div>` : ""}
-        <div class="form-grid" style="max-width:560px;">
-          ${
-            userId
-              ? `<form method="post" action="/auth/logout?next=%2Fgiveaways" style="margin:0;">
-                  <button class="submit" type="submit">Logout Discord</button>
-                </form>`
-              : `<a class="submit" href="/auth" style="text-decoration:none; text-align:center; display:inline-block;">Sign Up / Login</a>`
-          }
-        </div>
-        <div class="gw-id">Current giveaway identity: <b>${userId ? `${esc(userTag || "User")} (${esc(userId)})` : "Not logged in"}</b></div>
-        </div>
-        <div class="gw-grid">
-          ${cards || '<div class="note">No giveaways yet.</div>'}
-        </div>
-      </section>
+        </section>
+        <section class="how-grid">
+          <article class="step-card">
+            <h2 style="margin:0; font-size:36px; letter-spacing:-0.04em;">Website shop flow</h2>
+            <div class="step-list">
+              <div class="step-row"><div class="step-no">1</div><div><b>Browse the catalog</b><br/><span class="subtle">Use categories, product cards, and hover details to decide exactly what you need before opening checkout.</span></div></div>
+              <div class="step-row"><div class="step-no">2</div><div><b>Add products and set quantity</b><br/><span class="subtle">Every product can be added with the amount you need, and the cart stays available in the header at all times.</span></div></div>
+              <div class="step-row"><div class="step-no">3</div><div><b>Apply delivery and discounts</b><br/><span class="subtle">Before paying, calculate delivery pricing and add any valid coupon or store credit you want to use.</span></div></div>
+              <div class="step-row"><div class="step-no">4</div><div><b>Finish the delivery flow</b><br/><span class="subtle">After payment, submit your IGN and coordinates, mark yourself ready, and wait for staff to complete delivery.</span></div></div>
+            </div>
+          </article>
+          <aside class="info-card">
+            <div class="page-kicker">Important</div>
+            <h3 style="margin:0; font-size:30px; letter-spacing:-0.04em;">Before you buy</h3>
+            <ul>
+              <li>Use the correct Discord account or linked account so store credit and reviews stay tied to you.</li>
+              <li>Check delivery pricing before paying if your coords are far from spawn.</li>
+              <li>If a delivery or payment issue appears, contact support with your order ID.</li>
+              ${extraItems}
+            </ul>
+          </aside>
+        </section>
+      </div>
     </main>
   </div>
 </body>
@@ -5805,6 +5142,7 @@ function staffHeaderHtml(staff, s, activeTab) {
   const shopBtnLabel = activeTab === "shop" ? "Shop (Active)" : "Shop";
   const basesBtnLabel = activeTab === "bases" ? "Bases (Active)" : "Bases";
   const appsBtnLabel = activeTab === "applications" ? "Applications (Active)" : "Applications";
+  const galleryBtnLabel = activeTab === "gallery" ? "Gallery (Active)" : "Gallery";
   const accountsBtnLabel = activeTab === "accounts" ? "Accounts (Active)" : "Accounts";
   return `<div class="head">
     <div class="head-left">
@@ -5821,6 +5159,7 @@ function staffHeaderHtml(staff, s, activeTab) {
         <a class="btn" href="/panel/shop">${shopBtnLabel}</a>
         <a class="btn" href="/panel/bases">${basesBtnLabel}</a>
         <a class="btn" href="/panel/applications">${appsBtnLabel}</a>
+        <a class="btn" href="/panel/gallery">${galleryBtnLabel}</a>
         <a class="btn" href="/panel/accounts">${accountsBtnLabel}</a>
         <a class="btn" href="/">Back Home</a>
         <form method="post" action="/staff/logout" style="margin:0"><button class="btn" type="submit">Logout</button></form>
@@ -6315,12 +5654,48 @@ function applicationsPanelHtml(applications, forms) {
   </div>`;
 }
 
-function staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, msg = "", warn = "", staff, activeTab }) {
+function staffGalleryPanelHtml(gallery) {
+  const items = Array.isArray(gallery) ? gallery : [];
+  return `<div class="card base-panel">
+    <h3 style="margin:0 0 8px;">Gallery Management</h3>
+    <div class="note">The first gallery image is used as the home page background. Reorder by deleting and re-adding if you want a different image featured first.</div>
+
+    <h4 style="margin:18px 0 8px;">Add Gallery Image</h4>
+    <form method="post" action="/staff/gallery/add" style="display:grid; gap:10px; max-width:760px;">
+      <input type="text" name="title" maxlength="120" required placeholder="Image title" />
+      <input type="text" name="image" maxlength="500" required placeholder="Image URL (https://...)" />
+      <textarea name="description" maxlength="500" placeholder="Description"></textarea>
+      <button class="save-btn" type="submit">Add to Gallery</button>
+    </form>
+
+    <h4 style="margin:18px 0 8px;">Gallery Images (${items.length})</h4>
+    <div class="ws-compact-grid">
+      ${items.length ? items.map((item, idx) => `<div class="ws-compact-card">
+        <div class="ws-compact-top">
+          <div class="ws-compact-name">${idx === 0 ? 'Featured Home Image' : esc(item.title)}</div>
+          <div class="ws-compact-meta">#${idx + 1}</div>
+        </div>
+        <div class="ws-compact-img"><img src="${esc(item.image)}" alt="${esc(item.title)}" /></div>
+        <div class="ws-compact-meta"><b>${esc(item.title)}</b></div>
+        <div class="app-meta" style="margin-top:8px;">${esc(item.description || '')}</div>
+        <div class="ws-compact-actions" style="opacity:1; pointer-events:auto;">
+          <form method="post" action="/staff/gallery/${encodeURIComponent(item.id)}/delete" style="margin:0;" onsubmit="return confirm('Delete this gallery image?');">
+            <button class="danger-btn" type="submit">Remove</button>
+          </form>
+        </div>
+      </div>`).join('') : '<div class="note">No gallery images yet.</div>'}
+    </div>
+  </div>`;
+}
+
+function staffPageHtml({ s, bases, applications, forms, websiteShop, websiteGallery, webAccounts, msg = "", warn = "", staff, activeTab }) {
   let tabContent = staffShopTabHtml(s, websiteShop);
   if (activeTab === "bases") {
     tabContent = basesEditorPanelHtml(bases);
   } else if (activeTab === "applications") {
     tabContent = applicationsPanelHtml(applications, forms);
+  } else if (activeTab === "gallery") {
+    tabContent = staffGalleryPanelHtml(websiteGallery);
   } else if (activeTab === "accounts") {
     tabContent = staffAccountsPanelHtml(webAccounts);
   }
@@ -6329,9 +5704,11 @@ function staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts
       ? "Staff Bases"
       : activeTab === "applications"
         ? "Staff Applications"
-        : activeTab === "accounts"
-          ? "Staff Accounts"
-          : "Staff Shop";
+        : activeTab === "gallery"
+          ? "Staff Gallery"
+          : activeTab === "accounts"
+            ? "Staff Accounts"
+            : "Staff Shop";
 
   return `<!doctype html>
 <html>
@@ -7203,6 +6580,11 @@ app.post("/giveaways/:id/leave", async (req, res) => {
 app.get("/about", (_req, res) => {
   const session = getWebSession(_req) || { userId: "", userTag: "" };
   res.send(aboutPageHtml(session));
+});
+
+app.get("/gallery", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  res.send(galleryPageHtml(session));
 });
 
 app.get("/how-to-order", (_req, res) => {
@@ -8431,11 +7813,12 @@ app.get("/panel/shop", requireStaff, (req, res) => {
   const applications = loadApplications();
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
+  const websiteGallery = loadWebsiteGallery();
   const webAccounts = loadWebAccounts();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, msg, warn, staff, activeTab: "shop" }));
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, websiteGallery, webAccounts, msg, warn, staff, activeTab: "shop" }));
 });
 
 app.get("/panel/bases", requireStaff, (req, res) => {
@@ -8444,11 +7827,12 @@ app.get("/panel/bases", requireStaff, (req, res) => {
   const applications = loadApplications();
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
+  const websiteGallery = loadWebsiteGallery();
   const webAccounts = loadWebAccounts();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
   const staff = getStaffSession(req);
-  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, webAccounts, shopView: "discord", msg, warn, staff, activeTab: "bases" }));
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, websiteGallery, webAccounts, shopView: "discord", msg, warn, staff, activeTab: "bases" }));
 });
 
 app.get("/panel/applications", requireStaff, (req, res) => {
@@ -8458,6 +7842,7 @@ app.get("/panel/applications", requireStaff, (req, res) => {
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
+  const websiteGallery = loadWebsiteGallery();
   const webAccounts = loadWebAccounts();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
@@ -8469,6 +7854,7 @@ app.get("/panel/applications", requireStaff, (req, res) => {
       applications,
       forms,
       websiteShop,
+      websiteGallery,
       webAccounts,
       shopView: "discord",
       msg,
@@ -8479,12 +7865,27 @@ app.get("/panel/applications", requireStaff, (req, res) => {
   );
 });
 
+app.get("/panel/gallery", requireStaff, (req, res) => {
+  const s = stats();
+  const bases = loadBaseStates();
+  const applications = loadApplications();
+  const forms = loadApplicationForms();
+  const websiteShop = loadWebsiteShopData();
+  const websiteGallery = loadWebsiteGallery();
+  const webAccounts = loadWebAccounts();
+  const msg = typeof req.query.msg === "string" ? req.query.msg : "";
+  const warn = typeof req.query.warn === "string" ? req.query.warn : "";
+  const staff = getStaffSession(req);
+  res.send(staffPageHtml({ s, bases, applications, forms, websiteShop, websiteGallery, webAccounts, msg, warn, staff, activeTab: "gallery" }));
+});
+
 app.get("/panel/accounts", requireStaff, (req, res) => {
   const s = stats();
   const bases = loadBaseStates();
   const applications = loadApplications();
   const forms = loadApplicationForms();
   const websiteShop = loadWebsiteShopData();
+  const websiteGallery = loadWebsiteGallery();
   const webAccounts = loadWebAccounts();
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const warn = typeof req.query.warn === "string" ? req.query.warn : "";
@@ -8496,6 +7897,7 @@ app.get("/panel/accounts", requireStaff, (req, res) => {
       applications,
       forms,
       websiteShop,
+      websiteGallery,
       webAccounts,
       shopView: "discord",
       msg,
@@ -8504,6 +7906,36 @@ app.get("/panel/accounts", requireStaff, (req, res) => {
       activeTab: "accounts"
     })
   );
+});
+
+app.post("/staff/gallery/add", requireStaff, (req, res) => {
+  const title = String(req.body.title || "").trim().slice(0, 120);
+  const image = String(req.body.image || "").trim().slice(0, 500);
+  const description = String(req.body.description || "").trim().slice(0, 500);
+  if (!title) {
+    res.redirect("/panel/gallery?warn=Gallery%20title%20is%20required");
+    return;
+  }
+  if (!image) {
+    res.redirect("/panel/gallery?warn=Gallery%20image%20URL%20is%20required");
+    return;
+  }
+  const gallery = loadWebsiteGallery();
+  gallery.push({ id: `gallery-${Date.now()}`, title, image, description, createdAt: new Date().toISOString() });
+  saveWebsiteGallery(gallery);
+  res.redirect("/panel/gallery?msg=Gallery%20image%20added");
+});
+
+app.post("/staff/gallery/:id/delete", requireStaff, (req, res) => {
+  const id = String(req.params.id || "").trim();
+  const gallery = loadWebsiteGallery();
+  const next = gallery.filter((item) => String(item.id) !== id);
+  if (next.length === gallery.length) {
+    res.redirect("/panel/gallery?warn=Gallery%20image%20not%20found");
+    return;
+  }
+  saveWebsiteGallery(next.length ? next : defaultWebsiteGallery());
+  res.redirect("/panel/gallery?msg=Gallery%20image%20deleted");
 });
 
 app.listen(PORT, HOST, () => {
