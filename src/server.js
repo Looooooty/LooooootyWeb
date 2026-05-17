@@ -1305,6 +1305,26 @@ function sideMenuHtml(session = {}) {
   </div>`;
 }
 
+function pageTopbarHtml(session = {}) {
+  const userId = String(session?.userId || '').trim();
+  const userTag = String(session?.userTag || '').trim();
+  const isLoggedIn = Boolean(userId);
+  const badgeText = isLoggedIn ? userTag || 'Signed in' : 'Guest Access';
+  const actionHref = isLoggedIn ? '/auth' : '/auth';
+  const actionLabel = isLoggedIn ? 'Account' : 'Sign In';
+  return `<header class="page-topbar">
+    <div class="page-topbar-copy">
+      <span class="page-topbar-kicker">Looooooty Network</span>
+      <span class="page-topbar-text">${esc(badgeText)}</span>
+    </div>
+    <div class="page-topbar-actions">
+      <a class="topbar-pill" href="/shop/web">Website Shop</a>
+      <a class="topbar-pill" href="/reviews">Reviews</a>
+      <a class="topbar-pill topbar-pill-primary" href="${actionHref}">${actionLabel}</a>
+    </div>
+  </header>`;
+}
+
 function baseStateListHtml(bases) {
   return bases
     .map((b) => {
@@ -2343,6 +2363,339 @@ function giveawaysPageHtml({ giveaways, msg = "", err = "", session = {} }) {
           </div>
         </div>
         <div class="giveaway-grid">${cards}</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+
+function authPageHtml({ session = {}, localAccount = null, msg = "", err = "", next = "/" }) {
+  const isLoggedIn = Boolean(session && session.userId);
+  const provider = String(session?.provider || "");
+  const userTag = String(session?.userTag || "Guest");
+  const statusCard = isLoggedIn
+    ? `
+      <article class="auth-status-card">
+        <div class="store-card-kicker">Signed In</div>
+        <h3>${esc(userTag)}</h3>
+        <p>You are currently signed in with <b>${esc(provider || "unknown")}</b>${localAccount ? ` as <b>${esc(localAccount.username || userTag)}</b>` : ""}.</p>
+        <div class="auth-status-actions">
+          ${provider === 'looooooty' ? `<a class="btn btn-secondary" href="/account">Manage Account</a>` : ''}
+          <form method="post" action="/auth/logout?next=${encodeURIComponent(next || '/')}" style="margin:0;"><button class="btn btn-danger" type="submit">Log Out</button></form>
+        </div>
+      </article>`
+    : `
+      <article class="auth-status-card">
+        <div class="store-card-kicker">Choose Access</div>
+        <h3>Sign in or create an account</h3>
+        <p>Use Discord, Google, or a Looooooty Account to enter giveaways, apply to bases, leave reviews, and manage your profile.</p>
+      </article>`;
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${SITE_NAME} | Account</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .auth-grid{display:grid;grid-template-columns:1.12fr .88fr;gap:24px;margin-top:24px;}
+    .auth-stack{display:grid;gap:18px;}
+    .auth-card,.auth-status-card,.auth-note-card{padding:24px;border-radius:26px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(8,12,24,.94),rgba(5,8,18,.98));box-shadow:0 16px 38px rgba(0,0,0,.22);}
+    .auth-card h3,.auth-status-card h3,.auth-note-card h3{margin:8px 0 10px;font-size:30px;line-height:1.02;}
+    .auth-card p,.auth-status-card p,.auth-note-card p{margin:0;color:#b7c0dd;line-height:1.68;}
+    .auth-actions{display:grid;gap:12px;margin-top:18px;}
+    .auth-actions .btn{width:100%;justify-content:center;}
+    .auth-status-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px;}
+    .alert-stack{display:grid;gap:12px;margin-top:18px;}
+    .alert-card{padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);}
+    .alert-card.ok{background:rgba(76,255,157,.08);border-color:rgba(76,255,157,.22);color:#c9ffe0;}
+    .alert-card.err{background:rgba(255,127,150,.08);border-color:rgba(255,127,150,.22);color:#ffd3dc;}
+    @media (max-width: 980px){.auth-grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    ${sideMenuHtml(session)}
+    <main class="site-main">
+      ${pageTopbarHtml(session)}
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <div class="hero-kicker">Identity & Access</div>
+          <h1>Account <em>Center</em></h1>
+          <p>Sign in, recover your password, and keep one identity connected across the shop, giveaways, applications, and reviews.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="/shop/web">Open Website Shop</a>
+            <a class="btn btn-secondary" href="/apply">Apply to Bases</a>
+          </div>
+        </div>
+      </section>
+      ${msg || err ? `<section class="alert-stack">${msg ? `<div class="alert-card ok">${esc(msg)}</div>` : ""}${err ? `<div class="alert-card err">${esc(err)}</div>` : ""}</section>` : ""}
+      <section class="auth-grid">
+        <div class="auth-stack">
+          <article class="auth-card">
+            <div class="store-card-kicker">Quick Sign In</div>
+            <h3>Continue with a provider</h3>
+            <p>Pick the login method you want to use on the website. Applications and reviews work from any logged-in account.</p>
+            <div class="auth-actions">
+              <a class="btn btn-primary" href="/auth/google/start?next=${encodeURIComponent(next || '/')}">Sign in with Google</a>
+              <a class="btn btn-secondary" href="/auth/discord/start?next=${encodeURIComponent(next || '/')}">Sign in with Discord</a>
+              <a class="btn btn-secondary" href="/auth/looooooty?mode=login&next=${encodeURIComponent(next || '/')}">Use a Looooooty Account</a>
+            </div>
+          </article>
+          <article class="auth-note-card">
+            <div class="store-card-kicker">Local Accounts</div>
+            <h3>Looooooty Accounts</h3>
+            <p>Create a local website account if you want an email/password login for the site itself.</p>
+            <div class="auth-actions">
+              <a class="btn btn-secondary" href="/auth/looooooty?mode=signup&next=${encodeURIComponent(next || '/')}">Create Looooooty Account</a>
+              <a class="btn btn-secondary" href="/auth/looooooty?mode=forgot&next=${encodeURIComponent(next || '/')}">Forgot Password</a>
+            </div>
+          </article>
+        </div>
+        ${statusCard}
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function localAuthPageHtml({ mode = "login", msg = "", err = "", next = "/auth", session = {} }) {
+  const title = mode === 'signup' ? 'Create <em>Looooooty Account</em>' : mode === 'forgot' ? 'Reset <em>Password</em>' : 'Looooooty <em>Login</em>';
+  const sub = mode === 'signup'
+    ? 'Create a local website account for shop access, reviews, and applications.'
+    : mode === 'forgot'
+      ? 'Enter your account email and we will send a reset link if the account exists.'
+      : 'Use your local Looooooty account email and password to sign in.';
+  const formHtml = mode === 'signup'
+    ? `<form class="auth-form" method="post" action="/auth/looooooty/signup?next=${encodeURIComponent(next || '/auth')}">
+        <input type="text" name="username" placeholder="Username" required maxlength="32" />
+        <input type="email" name="email" placeholder="Email" required maxlength="120" />
+        <input type="password" name="password" placeholder="Password" required minlength="8" />
+        <input type="password" name="password_confirm" placeholder="Confirm password" required minlength="8" />
+        <button class="btn btn-primary" type="submit">Create Account</button>
+      </form>`
+    : mode === 'forgot'
+      ? `<form class="auth-form" method="post" action="/auth/looooooty/forgot?next=${encodeURIComponent(next || '/auth')}">
+          <input type="email" name="email" placeholder="Email" required maxlength="120" />
+          <button class="btn btn-primary" type="submit">Send Reset Email</button>
+        </form>`
+      : `<form class="auth-form" method="post" action="/auth/looooooty/login?next=${encodeURIComponent(next || '/auth')}">
+          <input type="email" name="email" placeholder="Email" required maxlength="120" />
+          <input type="password" name="password" placeholder="Password" required minlength="8" />
+          <button class="btn btn-primary" type="submit">Log In</button>
+        </form>`;
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${SITE_NAME} | Looooooty Account</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .auth-single{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;margin-top:24px;}
+    .auth-panel,.auth-side-card{padding:26px;border-radius:26px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(8,12,24,.94),rgba(5,8,18,.98));box-shadow:0 16px 38px rgba(0,0,0,.22);}
+    .auth-form{display:grid;gap:14px;margin-top:18px;}
+    .auth-form input{width:100%;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:#fff;font:inherit;}
+    .auth-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px;}
+    .alert-stack{display:grid;gap:12px;margin-top:18px;}
+    .alert-card{padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);}
+    .alert-card.ok{background:rgba(76,255,157,.08);border-color:rgba(76,255,157,.22);color:#c9ffe0;}
+    .alert-card.err{background:rgba(255,127,150,.08);border-color:rgba(255,127,150,.22);color:#ffd3dc;}
+    @media (max-width: 980px){.auth-single{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    ${sideMenuHtml(session)}
+    <main class="site-main">
+      ${pageTopbarHtml(session)}
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <div class="hero-kicker">Looooooty Account</div>
+          <h1>${title}</h1>
+          <p>${sub}</p>
+        </div>
+      </section>
+      ${msg || err ? `<section class="alert-stack">${msg ? `<div class="alert-card ok">${esc(msg)}</div>` : ""}${err ? `<div class="alert-card err">${esc(err)}</div>` : ""}</section>` : ""}
+      <section class="auth-single">
+        <article class="auth-panel">
+          ${formHtml}
+          <div class="auth-links">
+            ${mode !== 'login' ? `<a class="btn btn-secondary" href="/auth/looooooty?mode=login&next=${encodeURIComponent(next || '/auth')}">Back to Login</a>` : ''}
+            ${mode !== 'signup' ? `<a class="btn btn-secondary" href="/auth/looooooty?mode=signup&next=${encodeURIComponent(next || '/auth')}">Create Account</a>` : ''}
+            ${mode !== 'forgot' ? `<a class="btn btn-secondary" href="/auth/looooooty?mode=forgot&next=${encodeURIComponent(next || '/auth')}">Forgot Password</a>` : ''}
+          </div>
+        </article>
+        <aside class="auth-side-card">
+          <div class="store-card-kicker">Need another option?</div>
+          <h3>Use another login</h3>
+          <p>If local login is not what you want, you can still use Google or Discord from the main account page.</p>
+          <div class="auth-links">
+            <a class="btn btn-secondary" href="/auth?next=${encodeURIComponent(next || '/auth')}">Back to Account Center</a>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function localResetPasswordPageHtml({ uid = "", token = "", next = "/auth", err = "", msg = "" }) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${SITE_NAME} | Reset Password</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .reset-wrap{display:grid;gap:24px;margin-top:24px;}
+    .reset-panel{padding:26px;border-radius:26px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(8,12,24,.94),rgba(5,8,18,.98));box-shadow:0 16px 38px rgba(0,0,0,.22);}
+    .reset-form{display:grid;gap:14px;margin-top:18px;max-width:620px;}
+    .reset-form input{width:100%;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:#fff;font:inherit;}
+    .alert-stack{display:grid;gap:12px;margin-top:18px;}
+    .alert-card{padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);}
+    .alert-card.ok{background:rgba(76,255,157,.08);border-color:rgba(76,255,157,.22);color:#c9ffe0;}
+    .alert-card.err{background:rgba(255,127,150,.08);border-color:rgba(255,127,150,.22);color:#ffd3dc;}
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    ${sideMenuHtml({})}
+    <main class="site-main">
+      ${pageTopbarHtml({})}
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <div class="hero-kicker">Recovery</div>
+          <h1>Reset <em>Password</em></h1>
+          <p>Set a new password for your Looooooty account using the secure reset link.</p>
+        </div>
+      </section>
+      ${msg || err ? `<section class="alert-stack">${msg ? `<div class="alert-card ok">${esc(msg)}</div>` : ""}${err ? `<div class="alert-card err">${esc(err)}</div>` : ""}</section>` : ""}
+      <section class="reset-wrap">
+        <article class="reset-panel">
+          <form class="reset-form" method="post" action="/auth/looooooty/reset?next=${encodeURIComponent(next || '/auth')}">
+            <input type="hidden" name="uid" value="${esc(uid)}" />
+            <input type="hidden" name="token" value="${esc(token)}" />
+            <input type="password" name="password" placeholder="New password" required minlength="8" />
+            <input type="password" name="password_confirm" placeholder="Confirm new password" required minlength="8" />
+            <button class="btn btn-primary" type="submit">Update Password</button>
+          </form>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function accountSettingsPageHtml({ session = {}, account = null, msg = "", err = "" }) {
+  const username = String(account?.username || session?.userTag || "");
+  const email = String(account?.email || "");
+  const verified = Boolean(account?.emailVerified);
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${SITE_NAME} | Account Settings</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .account-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px;}
+    .account-card{padding:26px;border-radius:26px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(8,12,24,.94),rgba(5,8,18,.98));box-shadow:0 16px 38px rgba(0,0,0,.22);}
+    .account-form{display:grid;gap:14px;margin-top:16px;}
+    .account-form input{width:100%;padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:#fff;font:inherit;}
+    .alert-stack{display:grid;gap:12px;margin-top:18px;}
+    .alert-card{padding:16px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.08);}
+    .alert-card.ok{background:rgba(76,255,157,.08);border-color:rgba(76,255,157,.22);color:#c9ffe0;}
+    .alert-card.err{background:rgba(255,127,150,.08);border-color:rgba(255,127,150,.22);color:#ffd3dc;}
+    @media (max-width: 980px){.account-grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    ${sideMenuHtml(session)}
+    <main class="site-main">
+      ${pageTopbarHtml(session)}
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <div class="hero-kicker">Account Settings</div>
+          <h1>Manage <em>Profile</em></h1>
+          <p>Update your local website account details and keep your login secure.</p>
+        </div>
+      </section>
+      ${msg || err ? `<section class="alert-stack">${msg ? `<div class="alert-card ok">${esc(msg)}</div>` : ""}${err ? `<div class="alert-card err">${esc(err)}</div>` : ""}</section>` : ""}
+      <section class="account-grid">
+        <article class="account-card">
+          <div class="store-card-kicker">Profile</div>
+          <h3>${esc(username)}</h3>
+          <p>Email: <b>${esc(email || 'Not set')}</b><br/>Verification: <b>${verified ? 'Verified' : 'Not verified'}</b></p>
+          <form class="account-form" method="post" action="/account/profile">
+            <input type="text" name="username" value="${esc(username)}" required maxlength="32" />
+            <input type="email" name="email" value="${esc(email)}" required maxlength="120" />
+            <button class="btn btn-primary" type="submit">Save Profile</button>
+          </form>
+          ${verified ? '' : `<form method="post" action="/account/resend-verification" style="margin-top:12px;"><button class="btn btn-secondary" type="submit">Resend Verification Email</button></form>`}
+        </article>
+        <article class="account-card">
+          <div class="store-card-kicker">Security</div>
+          <h3>Change Password</h3>
+          <p>Use a strong password that you do not reuse on other services.</p>
+          <form class="account-form" method="post" action="/account/password">
+            <input type="password" name="current_password" placeholder="Current password" required />
+            <input type="password" name="new_password" placeholder="New password" required minlength="8" />
+            <input type="password" name="new_password_confirm" placeholder="Confirm new password" required minlength="8" />
+            <button class="btn btn-primary" type="submit">Update Password</button>
+          </form>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function notFoundPageHtml(session = {}) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${SITE_NAME} | 404</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .notfound-wrap{display:grid;gap:24px;margin-top:24px;}
+    .notfound-card{padding:34px;border-radius:30px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(8,12,24,.94),rgba(5,8,18,.98));box-shadow:0 18px 42px rgba(0,0,0,.24);}
+    .notfound-code{font-size:96px;font-weight:1000;line-height:1;letter-spacing:-.06em;margin:0 0 10px;}
+    .notfound-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px;}
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    ${sideMenuHtml(session)}
+    <main class="site-main">
+      ${pageTopbarHtml(session)}
+      <section class="notfound-wrap">
+        <article class="notfound-card">
+          <div class="page-kicker">Navigation Error</div>
+          <h1 class="notfound-code">404</h1>
+          <h2 style="margin:0 0 12px;font-size:42px;letter-spacing:-.04em;">Page not found</h2>
+          <p class="page-sub" style="max-width:760px;">That page does not exist, or the link is outdated. Use the buttons below to get back to the live parts of the site.</p>
+          <div class="notfound-actions">
+            <a class="btn btn-primary" href="/">Back Home</a>
+            <a class="btn btn-secondary" href="/shop/web">Open Website Shop</a>
+            <a class="btn btn-secondary" href="/bases">State of Bases</a>
+          </div>
+        </article>
       </section>
     </main>
   </div>
@@ -8198,6 +8551,11 @@ app.post("/staff/gallery/:id/delete", requireStaff, (req, res) => {
   }
   saveWebsiteGallery(next.length ? next : defaultWebsiteGallery());
   res.redirect("/panel/gallery?msg=Gallery%20image%20deleted");
+});
+
+app.use((req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  res.status(404).send(notFoundPageHtml(session));
 });
 
 app.listen(PORT, HOST, () => {
