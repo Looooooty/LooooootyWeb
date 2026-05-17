@@ -37,6 +37,7 @@ const BOT_NOTIFY_URL =
 const BOT_INTERNAL_API_SECRET = process.env.BOT_INTERNAL_API_SECRET || "";
 const BASE_MEMBER_ROLE_ID = process.env.BASE_MEMBER_ROLE_ID || "";
 const SITE_ICON_URL = process.env.SITE_ICON_URL || "/logo.png";
+const SITE_NAME = process.env.SITE_NAME || "Looooooty";
 const ABOUT_US_TEXT = process.env.ABOUT_US_TEXT || "About us content coming soon.";
 const HOW_TO_ORDER_TEXT = process.env.HOW_TO_ORDER_TEXT || "How to order content coming soon.";
 const DISCORD_OAUTH_CLIENT_ID = process.env.DISCORD_OAUTH_CLIENT_ID || BOT_CLIENT_ID || "";
