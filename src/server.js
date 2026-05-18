@@ -1307,23 +1307,20 @@ function sideMenuHtml(session = {}) {
 }
 
 function pageTopbarHtml(session = {}) {
-  const userId = String(session?.userId || '').trim();
-  const userTag = String(session?.userTag || '').trim();
-  const isLoggedIn = Boolean(userId);
-  const badgeText = isLoggedIn ? userTag || 'Signed in' : 'Guest Access';
-  const actionHref = isLoggedIn ? '/auth' : '/auth';
+  const isLoggedIn = Boolean(String(session?.userId || '').trim());
   const actionLabel = isLoggedIn ? 'Account' : 'Sign In';
-  return `<header class="page-topbar">
-    <div class="page-topbar-copy">
-      <span class="page-topbar-kicker">Looooooty Network</span>
-      <span class="page-topbar-text">${esc(badgeText)}</span>
+  return `<section class="page-topbar">
+    <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
+    <nav>
+      <a href="/shop/web">Store</a>
+      <a href="/reviews">Reviews</a>
+      <a href="/how-to-order">How to Buy</a>
+    </nav>
+    <div class="top-actions">
+      <a class="pill" href="/">Back Home</a>
+      <a class="pill primary" href="/auth">${actionLabel}</a>
     </div>
-    <div class="page-topbar-actions">
-      <a class="topbar-pill" href="/shop/web">Website Shop</a>
-      <a class="topbar-pill" href="/reviews">Reviews</a>
-      <a class="topbar-pill topbar-pill-primary" href="${actionHref}">${actionLabel}</a>
-    </div>
-  </header>`;
+  </section>`;
 }
 
 function baseStateListHtml(bases) {
@@ -1456,6 +1453,22 @@ function sharedHomeStyles() {
       align-content: start;
       gap: 18px;
     }
+    .site-shell {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+      gap: 24px;
+      width: min(1540px, calc(100% - 40px));
+      margin: 24px auto;
+      align-items: start;
+    }
+    .site-main {
+      display: grid;
+      align-content: start;
+      gap: 18px;
+    }
     .page-topbar,
     .hero,
     .page-panel,
@@ -1560,6 +1573,117 @@ function sharedHomeStyles() {
       background:
         radial-gradient(circle at 50% 0%, rgba(102,125,255,0.13), transparent 26%),
         linear-gradient(180deg, rgba(8,13,30,0.97), rgba(6,10,22,0.98));
+    }
+    .hero-panel,
+    .section-block,
+    .state-stat,
+    .giveaway-stat,
+    .auth-card,
+    .auth-status-card,
+    .auth-note-card,
+    .auth-panel,
+    .auth-side-card,
+    .reset-panel,
+    .account-card,
+    .notfound-card,
+    .alert-card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(10,15,27,0.95), rgba(7,10,18,0.92));
+      box-shadow: 0 12px 32px rgba(0,0,0,0.24);
+    }
+    .hero-panel {
+      padding: 34px 30px 28px;
+      border-radius: 30px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(102,125,255,0.13), transparent 26%),
+        linear-gradient(180deg, rgba(8,13,30,0.97), rgba(6,10,22,0.98));
+    }
+    .hero-copy h1 {
+      margin: 0;
+      font-size: clamp(44px, 7vw, 86px);
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      font-weight: 1000;
+    }
+    .hero-copy h1 em { font-style: italic; }
+    .hero-copy p {
+      margin: 16px 0 0;
+      max-width: 820px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.68;
+    }
+    .hero-kicker,
+    .section-kicker,
+    .store-card-kicker {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+    .section-block,
+    .state-stat,
+    .giveaway-stat,
+    .auth-card,
+    .auth-status-card,
+    .auth-note-card,
+    .auth-panel,
+    .auth-side-card,
+    .reset-panel,
+    .account-card,
+    .notfound-card {
+      border-radius: 26px;
+      padding: 22px;
+    }
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+    .section-header-row h2,
+    .hero-copy h2,
+    .auth-card h3,
+    .auth-status-card h3,
+    .auth-note-card h3,
+    .auth-panel h3,
+    .auth-side-card h3,
+    .account-card h3,
+    .notfound-card h2,
+    .section-block h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.04em;
+    }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
     }
     .page-kicker, .state-head {
       display: inline-flex;
@@ -1768,6 +1892,12 @@ function sharedHomeStyles() {
       pointer-events: none;
     }
     @media (max-width: 1120px) {
+      .site-shell {
+        grid-template-columns: 1fr;
+        width: min(100% - 24px, 1540px);
+      }
+    }
+@media (max-width: 1120px) {
       .layout {
         grid-template-columns: 1fr;
         width: min(100% - 24px, 1540px);
@@ -1785,6 +1915,12 @@ function sharedHomeStyles() {
       .page-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 760px) {
+      .site-shell {
+        margin: 12px auto 22px;
+        gap: 14px;
+      }
+    }
+@media (max-width: 760px) {
       .layout {
         margin: 12px auto 22px;
         gap: 14px;
