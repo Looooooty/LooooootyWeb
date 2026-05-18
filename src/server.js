@@ -3762,8 +3762,7 @@ function websiteShopHtml(websiteShop, session = {}) {
     .cart-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(2,5,16,0.82);
-      backdrop-filter: none;
+      background: rgba(2,5,16,0.86);
       display: none;
       z-index: 50;
       padding: 20px;
@@ -3771,24 +3770,35 @@ function websiteShopHtml(websiteShop, session = {}) {
     .cart-overlay.open { display: block; }
     .cart-panel {
       border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 30px;
+      border-radius: 34px;
       background:
-        radial-gradient(circle at 50% 0%, rgba(102, 125, 255, 0.13), transparent 26%),
-        linear-gradient(180deg, rgba(8,13,30,0.97), rgba(6,10,22,0.98));
-      padding: 26px;
-      max-width: 980px;
+        radial-gradient(circle at 18% 0%, rgba(92,120,255,0.12), transparent 24%),
+        linear-gradient(180deg, rgba(8,13,30,0.98), rgba(6,10,22,0.99));
+      padding: 28px;
+      max-width: 1180px;
       width: 100%;
       max-height: 92vh;
       overflow: auto;
       margin: 0 auto;
-      box-shadow: 0 16px 42px rgba(0,0,0,0.30);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.34);
     }
     .cart-head {
       display:flex;
       justify-content:space-between;
-      align-items:center;
-      gap:14px;
-      margin-bottom: 18px;
+      align-items:flex-start;
+      gap:16px;
+      margin-bottom: 20px;
+    }
+    .cart-head-main {
+      display:grid;
+      gap:8px;
+    }
+    .cart-kicker {
+      color: rgba(201,216,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 12px;
+      font-weight: 900;
     }
     .cart-head h3 {
       margin: 0;
@@ -3797,21 +3807,89 @@ function websiteShopHtml(websiteShop, session = {}) {
       letter-spacing: -0.04em;
       font-weight: 950;
     }
+    .cart-copy {
+      margin: 0;
+      color: rgba(201,216,255,0.68);
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 680px;
+    }
+    .cart-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .cart-items-shell,
+    .cart-summary-shell {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(10,14,30,0.94), rgba(7,10,20,0.92));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .cart-items-shell {
+      padding: 18px;
+    }
+    .cart-section-head {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom: 14px;
+    }
+    .cart-section-head h4 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+    .cart-section-meta {
+      color: rgba(201,216,255,0.56);
+      font-size: 13px;
+      font-weight: 700;
+    }
     .cart-items {
-      min-height: 96px;
-      margin: 0 0 18px;
+      min-height: 160px;
+      margin: 0;
       color: var(--muted);
       white-space: pre-wrap;
       display: grid;
-      gap: 10px;
+      gap: 12px;
+    }
+    .cart-empty {
+      min-height: 160px;
+      border: 1px dashed rgba(255,255,255,0.12);
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 26px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    }
+    .cart-empty b {
+      display: block;
+      font-size: 22px;
+      color: #f2f6ff;
+      margin-bottom: 8px;
+    }
+    .cart-empty span {
+      color: rgba(201,216,255,0.62);
+      line-height: 1.6;
+      max-width: 360px;
     }
     .cart-item {
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 18px;
-      padding: 14px 16px;
-      background: linear-gradient(180deg, rgba(11,17,37,0.9), rgba(7,12,27,0.88));
+      padding: 15px 16px;
+      background: linear-gradient(180deg, rgba(11,17,37,0.92), rgba(7,12,27,0.9));
       position: relative;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+    }
+    .cart-item:hover,
+    .cart-item:focus-within {
+      border-color: rgba(120,160,255,0.18);
+      transform: translateY(-1px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 14px 34px rgba(0,0,0,0.16);
     }
     .cart-item-row {
       display:flex;
@@ -3820,9 +3898,30 @@ function websiteShopHtml(websiteShop, session = {}) {
       font-size: 15px;
       align-items: center;
     }
-    .cart-item-row b { font-size: 16px; }
+    .cart-item-name {
+      display:grid;
+      gap:4px;
+    }
+    .cart-item-row b { font-size: 17px; }
+    .cart-item-note {
+      color: rgba(201,216,255,0.52);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .cart-item-price {
+      text-align: right;
+      display:grid;
+      gap:4px;
+      justify-items: end;
+    }
+    .cart-item-price span {
+      color: rgba(201,216,255,0.52);
+      font-size: 12px;
+      font-weight: 700;
+    }
     .cart-remove {
-      margin-top: 10px;
+      margin-top: 12px;
       border-radius: 10px;
       border: 1px solid rgba(234, 71, 71, 0.8);
       background: linear-gradient(180deg, rgba(205,61,61,0.96), rgba(157,37,37,0.96));
@@ -3838,6 +3937,23 @@ function websiteShopHtml(websiteShop, session = {}) {
     .cart-item:focus-within .cart-remove {
       opacity: 1;
       pointer-events: auto;
+    }
+    .cart-summary-shell {
+      padding: 18px;
+      position: sticky;
+      top: 16px;
+      display: grid;
+      gap: 14px;
+    }
+    .cart-summary-shell h4 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+    .cart-summary-copy {
+      color: rgba(201,216,255,0.6);
+      font-size: 14px;
+      line-height: 1.55;
     }
     .cart-totals {
       border: 1px solid rgba(255,255,255,0.08);
@@ -3863,10 +3979,26 @@ function websiteShopHtml(websiteShop, session = {}) {
       font-size: 18px;
       font-weight: 800;
     }
-    .row.total b { font-size: 22px; }
-    .cart-actions { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 14px; }
+    .row.total b { font-size: 24px; }
+    .cart-badges {
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .cart-badge {
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: rgba(236,242,255,0.74);
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .cart-actions { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 4px; }
     .cart-actions.single { grid-template-columns: 1fr; }
-    .cart-actions.tertiary { margin-top: 16px; }
+    .cart-actions.tertiary { margin-top: 0; }
     .cart-actions.tertiary .secondary {
       background: rgba(255,255,255,0.04);
       border-color: rgba(255,255,255,0.1);
@@ -4283,6 +4415,12 @@ function websiteShopHtml(websiteShop, session = {}) {
       .cart-panel {
         max-height: 96vh;
       }
+      .cart-grid {
+        grid-template-columns: 1fr;
+      }
+      .cart-summary-shell {
+        position: static;
+      }
       .search {
         width: 100%;
       }
@@ -4474,27 +4612,49 @@ function websiteShopHtml(websiteShop, session = {}) {
   <div id="cart-overlay" class="cart-overlay">
     <div class="cart-panel">
       <div class="cart-head">
-        <h3>Cart</h3>
+        <div class="cart-head-main">
+          <div class="cart-kicker">Secure Checkout</div>
+          <h3>Your Cart</h3>
+          <p class="cart-copy">Review your items, apply discounts, add delivery coordinates, and move through the order flow in one place.</p>
+        </div>
         <button id="cart-hide" class="close" type="button">Close</button>
       </div>
-      <div id="cart-items" class="cart-items">Your cart is empty.</div>
-      <div class="cart-totals">
-        <div class="row"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
-        <div class="row"><span>Discount</span><b id="cart-discount">$0.00</b></div>
-        <div class="row"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
-        <div class="row"><span>Delivery Fee</span><b id="cart-delivery">$0.00</b></div>
-        <div class="row total"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
-        <div class="row"><span>Total Kits</span><b id="cart-count">0</b></div>
+      <div class="cart-grid">
+        <section class="cart-items-shell">
+          <div class="cart-section-head">
+            <h4>Items</h4>
+            <div class="cart-section-meta" id="cart-items-meta">0 items</div>
+          </div>
+          <div id="cart-items" class="cart-items">Your cart is empty.</div>
+          <div id="cart-flow" class="cart-flow"></div>
+        </section>
+        <aside class="cart-summary-shell">
+          <div>
+            <h4>Order Summary</h4>
+            <div class="cart-summary-copy">Taxes, discounts, delivery pricing, and checkout status update here automatically.</div>
+          </div>
+          <div class="cart-badges">
+            <span class="cart-badge">Protected Flow</span>
+            <span class="cart-badge">Website Checkout</span>
+          </div>
+          <div class="cart-totals">
+            <div class="row"><span>Subtotal</span><b id="cart-subtotal">$0.00</b></div>
+            <div class="row"><span>Discount</span><b id="cart-discount">$0.00</b></div>
+            <div class="row"><span>Tax & Fees</span><b id="cart-tax">$0.00</b></div>
+            <div class="row"><span>Delivery Fee</span><b id="cart-delivery">$0.00</b></div>
+            <div class="row total"><span>Total Cost</span><b id="cart-total">$0.00</b></div>
+            <div class="row"><span>Total Items</span><b id="cart-count">0</b></div>
+          </div>
+          <div class="cart-actions tertiary">
+            <button id="cart-discount-btn" class="secondary" type="button">Discount</button>
+            <button id="cart-delivery-btn" class="secondary" type="button">Delivery Price</button>
+          </div>
+          <div class="cart-actions">
+            <button id="cart-checkout" class="checkout" type="button">Checkout</button>
+            <button id="cart-clear" class="close" type="button">Clear Cart</button>
+          </div>
+        </aside>
       </div>
-      <div class="cart-actions tertiary">
-        <button id="cart-discount-btn" class="secondary" type="button">Discount</button>
-        <button id="cart-delivery-btn" class="secondary" type="button">Delivery Price</button>
-      </div>
-      <div class="cart-actions">
-        <button id="cart-checkout" class="checkout" type="button">Checkout</button>
-        <button id="cart-clear" class="close" type="button">Clear Cart</button>
-      </div>
-      <div id="cart-flow" class="cart-flow"></div>
     </div>
   </div>
 
@@ -4575,6 +4735,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       const cats = Array.from(document.querySelectorAll(".cat"));
       const cards = Array.from(document.querySelectorAll(".card"));
       const cartItemsEl = document.getElementById("cart-items");
+      const cartItemsMetaEl = document.getElementById("cart-items-meta");
       const cartSubtotalEl = document.getElementById("cart-subtotal");
       const cartDiscountEl = document.getElementById("cart-discount");
       const cartTaxEl = document.getElementById("cart-tax");
@@ -4845,7 +5006,7 @@ function websiteShopHtml(websiteShop, session = {}) {
         const delivery = count > 0 ? Number(deliveryFee || 0) : 0;
         const total = discountedSubtotal + tax + delivery;
         if (!rows.length) {
-          cartItemsEl.textContent = "Your cart is empty.";
+          cartItemsEl.innerHTML = '<div class="cart-empty"><div><b>Your cart is empty.</b><span>Add products from the storefront, then come back here to review everything before checkout.</span></div></div>';
         } else {
           cartItemsEl.innerHTML = rows
             .map(
@@ -4853,13 +5014,13 @@ function websiteShopHtml(websiteShop, session = {}) {
                 '<div class="cart-item" data-cart-id="' +
                 r.id +
                 '">' +
-                '<div class="cart-item-row"><b>' +
+                '<div class="cart-item-row"><div class="cart-item-name"><b>' +
                 r.qty +
                 "x " +
                 r.name +
-                "</b><span>" +
+                '</b><span class="cart-item-note">Website storefront item</span></div><div class="cart-item-price"><b>' +
                 fmt(r.lineTotal) +
-                '</span></div><button class="cart-remove" type="button" data-remove-id="' +
+                '</b><span>Line total</span></div></div><button class="cart-remove" type="button" data-remove-id="' +
                 r.id +
                 '">Remove from Cart</button></div>'
             )
@@ -4870,7 +5031,9 @@ function websiteShopHtml(websiteShop, session = {}) {
         cartTaxEl.textContent = fmt(tax);
         if (cartDeliveryEl) cartDeliveryEl.textContent = fmt(delivery);
         cartTotalEl.textContent = fmt(total);
-        cartCountEl.textContent = String(count);      if (topCartBtn) {
+        cartCountEl.textContent = String(count);
+        if (cartItemsMetaEl) cartItemsMetaEl.textContent = count === 1 ? "1 item" : count + " items";
+        if (topCartBtn) {
         topCartBtn.style.display = "inline-flex";
         topCartBtn.textContent = count > 0 ? "Cart (" + count + ")" : "Cart (0)";
       }
