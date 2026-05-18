@@ -3969,6 +3969,206 @@ function websiteShopHtml(websiteShop, session = {}) {
       cursor: pointer;
     }
     .flow-btn.ok { background: var(--green); border-color: var(--green); }
+    .faq-section {
+      width: min(1360px, calc(100% - 40px));
+      margin: 18px auto 0;
+      display: grid;
+      gap: 26px;
+      padding-bottom: 60px;
+    }
+    .faq-head {
+      text-align: center;
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+      padding-top: 14px;
+    }
+    .faq-kicker {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      color: rgba(201,216,255,0.76);
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .faq-title {
+      margin: 0;
+      font-size: clamp(52px, 8vw, 90px);
+      line-height: 0.94;
+      letter-spacing: -0.06em;
+      font-weight: 1000;
+      color: #dcedff;
+    }
+    .faq-sub {
+      max-width: 760px;
+      margin: 0;
+      color: rgba(201,216,255,0.68);
+      line-height: 1.72;
+      font-size: 17px;
+    }
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+    }
+    .faq-card {
+      border-radius: 28px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(10,14,30,0.96), rgba(7,10,22,0.94));
+      box-shadow: 0 18px 44px rgba(0,0,0,0.24);
+      overflow: hidden;
+    }
+    .faq-card-top {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(90deg, rgba(19,22,43,0.95), rgba(9,18,32,0.92));
+    }
+    .faq-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: #cfe1ff;
+      font-size: 24px;
+      flex: 0 0 auto;
+    }
+    .faq-card-top h3 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+    .faq-card-top p {
+      margin: 0;
+      color: rgba(201,216,255,0.62);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .faq-list {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+    }
+    .faq-item {
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.36);
+      overflow: hidden;
+    }
+    .faq-item summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 18px;
+      font-weight: 900;
+      font-size: 16px;
+      color: #f3f7ff;
+    }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #5da8ff, #7a3cff);
+      box-shadow: 0 0 18px rgba(105,135,255,0.45);
+      flex: 0 0 auto;
+    }
+    .faq-chevron {
+      margin-left: auto;
+      color: rgba(201,216,255,0.6);
+      transition: transform .18s ease;
+      font-size: 18px;
+    }
+    .faq-item[open] .faq-chevron { transform: rotate(180deg); }
+    .faq-answer {
+      padding: 0 18px 18px 44px;
+      color: rgba(201,216,255,0.72);
+      line-height: 1.72;
+      font-size: 15px;
+    }
+    .faq-answer b { color: #fff; }
+    .faq-support {
+      position: relative;
+      overflow: hidden;
+      border-radius: 34px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background:
+        radial-gradient(circle at 15% 40%, rgba(79,149,234,0.25), transparent 30%),
+        radial-gradient(circle at 82% 55%, rgba(122,60,255,0.18), transparent 24%),
+        linear-gradient(180deg, rgba(8,11,24,0.98), rgba(6,8,18,0.96));
+      box-shadow: 0 20px 50px rgba(0,0,0,0.28);
+      padding: 54px 28px 58px;
+      text-align: center;
+      display: grid;
+      gap: 16px;
+      justify-items: center;
+    }
+    .faq-support::before,
+    .faq-support::after {
+      content: "";
+      position: absolute;
+      inset: auto;
+      width: 72%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, rgba(110,168,255,0.94), rgba(168,110,255,0.9), transparent);
+      filter: blur(1px);
+      opacity: 0.78;
+      pointer-events: none;
+    }
+    .faq-support::before {
+      left: -6%;
+      top: 28%;
+      transform: rotate(-14deg);
+      box-shadow: 0 0 22px rgba(110,168,255,0.45);
+    }
+    .faq-support::after {
+      right: -4%;
+      bottom: 22%;
+      transform: rotate(12deg);
+      box-shadow: 0 0 22px rgba(168,110,255,0.42);
+    }
+    .faq-support-icon {
+      width: 78px;
+      height: 78px;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(94,131,255,0.26), rgba(117,42,255,0.22));
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #d7e6ff;
+      font-size: 34px;
+    }
+    .faq-support h3 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 68px);
+      letter-spacing: -0.05em;
+      line-height: 0.98;
+    }
+    .faq-support p {
+      margin: 0;
+      color: rgba(201,216,255,0.7);
+      font-size: 18px;
+    }
+    .faq-support .shop-btn.primary {
+      min-width: 210px;
+      justify-content: center;
+    }
     .modal-actions { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px; }
     @media (max-width: 1120px) {
       .shop-topbar {
@@ -4113,6 +4313,85 @@ function websiteShopHtml(websiteShop, session = {}) {
           })
           .join("")}
       </div>
+    </section>
+
+    <section id="faq" class="faq-section">
+      <div class="faq-head">
+        <div class="faq-kicker">Store Help</div>
+        <h2 class="faq-title">FAQ</h2>
+        <p class="faq-sub">Everything buyers usually need to know before checkout, after payment, and while waiting for delivery.</p>
+      </div>
+
+      <div class="faq-grid">
+        <article class="faq-card">
+          <div class="faq-card-top">
+            <div class="faq-icon">◎</div>
+            <div>
+              <h3>Getting Started</h3>
+              <p>Purchasing, payments, and required order info.</p>
+            </div>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item"><summary><span class="faq-dot"></span>How does ordering work?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Browse the catalog, add the items you want, set the right quantity, then open the cart and check out from there.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What happens after I pay?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">After payment, the order flow unlocks and asks for your <b>IGN</b> and <b>delivery coordinates</b>. Once you confirm you are ready, staff gets the delivery alert.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Which payment methods do you accept?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">The website is built around <b>PayPal</b> and <b>store credit</b>. If store credit fully covers the order, you can complete checkout without paying the rest in cash.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What info do I need to provide?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">For normal checkout, we need your order details, email for receipt flow, your IGN, and the coordinates where you want the delivery handled.</div></details>
+          </div>
+        </article>
+
+        <article class="faq-card">
+          <div class="faq-card-top">
+            <div class="faq-icon">⇄</div>
+            <div>
+              <h3>Delivery Methods</h3>
+              <p>Face-to-face, coordinates, and delivery pricing.</p>
+            </div>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item"><summary><span class="faq-dot"></span>How is delivery priced?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Delivery is free within <b>1,000,000</b> blocks from spawn. After that, every extra <b>100k</b> blocks adds <b>$0.99</b>.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What coordinate format should I use?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Use the format <b>X Z</b> with two numbers, for example <b>-1500000 200000</b>.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know when staff is ready?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">When your order is paid and you mark yourself ready, the staff-side delivery panel gets notified so someone can pick up your order.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Can I change delivery info later?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Yes, but do it before the order is actively being delivered. If something changed, contact support quickly and include the order ID.</div></details>
+          </div>
+        </article>
+
+        <article class="faq-card">
+          <div class="faq-card-top">
+            <div class="faq-icon">▣</div>
+            <div>
+              <h3>Products & Stock</h3>
+              <p>Catalog details, stock status, and custom orders.</p>
+            </div>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know if something is in stock?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Each product shows stock information in the hover panel. If a product is out of stock, its add-to-cart flow will be disabled.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Can staff sell custom items too?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Yes. Staff can create special carts and add custom items manually when needed for one-off deals or special orders.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What if a listed item goes out of stock after I order?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Support will either update you, replace the unavailable part if agreed, or refund the affected part of the order.</div></details>
+          </div>
+        </article>
+
+        <article class="faq-card">
+          <div class="faq-card-top">
+            <div class="faq-icon">⚠</div>
+            <div>
+              <h3>Support & Issues</h3>
+              <p>Wrong info, order issues, and getting help fast.</p>
+            </div>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item"><summary><span class="faq-dot"></span>What if I entered the wrong IGN or coordinates?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Contact support as soon as possible and include your <b>order ID</b>. The earlier you do it, the easier it is to correct before delivery starts.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What should I include when contacting support?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Include your <b>order ID</b>, what went wrong, and any updated IGN/coordinates if the problem is related to delivery.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know the shop is legit?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Check reviews, previous delivery history, and the public storefront flow. The site is tied directly to the same staff and systems used by the network.</div></details>
+          </div>
+        </article>
+      </div>
+
+      <section class="faq-support">
+        <div class="faq-support-icon">✦</div>
+        <h3>More Questions?</h3>
+        <p>Need help with an order, delivery issue, or custom request? Join the Discord and open support there.</p>
+        <a class="shop-btn primary" href="${SHOP_INVITE_URL}" target="_blank" rel="noreferrer">Join Discord</a>
+      </section>
     </section>
   </div>
 
