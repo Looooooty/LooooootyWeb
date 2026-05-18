@@ -4408,7 +4408,22 @@ function websiteShopHtml(websiteShop, session = {}) {
           <div class="faq-list">
             <details class="faq-item"><summary><span class="faq-dot"></span>What if I entered the wrong IGN or coordinates?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Contact support as soon as possible and include your <b>order ID</b>. The earlier you do it, the easier it is to correct before delivery starts.</div></div></div></details>
             <details class="faq-item"><summary><span class="faq-dot"></span>What should I include when contacting support?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Include your <b>order ID</b>, what went wrong, and any updated IGN/coordinates if the problem is related to delivery.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What if I do not get a reply right away?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Support is handled manually. If you already sent the order ID and the issue clearly, give staff a little time and avoid spamming multiple tickets for the same problem.</div></div></div></details>
+          </div>
+        </article>
+
+        <article class="faq-card">
+          <div class="faq-card-top">
+            <div class="faq-icon">✦</div>
+            <div>
+              <h3>Trust & Legitimacy</h3>
+              <p>How to verify the shop and where to go if you need reassurance.</p>
+            </div>
+          </div>
+          <div class="faq-list">
             <details class="faq-item"><summary><span class="faq-dot"></span>How do I know the shop is legit?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Check reviews, previous delivery history, and the public storefront flow. The site is tied directly to the same staff and systems used by the network.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Can I ask staff to confirm an order before delivery?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Yes. If you need reassurance, contact support with your <b>order ID</b> and staff can confirm the order status before the delivery starts.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Where should I go if something feels suspicious?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Use the official Discord linked on this site and include the relevant <b>order ID</b>. Avoid trusting DMs or off-site payment requests that are not tied to your order flow.</div></div></div></details>
           </div>
         </article>
       </div>
