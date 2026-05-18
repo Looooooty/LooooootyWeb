@@ -4067,6 +4067,12 @@ function websiteShopHtml(websiteShop, session = {}) {
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(0,0,0,0.36);
       overflow: hidden;
+      transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease;
+    }
+    .faq-item:hover {
+      border-color: rgba(120,160,255,0.18);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+      transform: translateY(-1px);
     }
     .faq-item summary {
       list-style: none;
@@ -4078,6 +4084,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       font-weight: 900;
       font-size: 16px;
       color: #f3f7ff;
+      user-select: none;
     }
     .faq-item summary::-webkit-details-marker { display: none; }
     .faq-dot {
@@ -4087,15 +4094,35 @@ function websiteShopHtml(websiteShop, session = {}) {
       background: linear-gradient(135deg, #5da8ff, #7a3cff);
       box-shadow: 0 0 18px rgba(105,135,255,0.45);
       flex: 0 0 auto;
+      transition: transform .22s ease, box-shadow .22s ease;
+    }
+    .faq-item[open] .faq-dot {
+      transform: scale(1.08);
+      box-shadow: 0 0 0 5px rgba(94,131,255,0.16), 0 0 18px rgba(122,60,255,0.18);
     }
     .faq-chevron {
       margin-left: auto;
       color: rgba(201,216,255,0.6);
-      transition: transform .18s ease;
+      transition: transform .22s ease, color .22s ease;
       font-size: 18px;
     }
-    .faq-item[open] .faq-chevron { transform: rotate(180deg); }
+    .faq-item[open] .faq-chevron {
+      transform: rotate(180deg);
+      color: #e7efff;
+    }
+    .faq-answer-wrap {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows .28s ease;
+    }
+    .faq-item[open] .faq-answer-wrap {
+      grid-template-rows: 1fr;
+    }
     .faq-answer {
+      min-height: 0;
+      overflow: hidden;
+    }
+    .faq-answer-inner {
       padding: 0 18px 18px 44px;
       color: rgba(201,216,255,0.72);
       line-height: 1.72;
@@ -4332,10 +4359,10 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
           </div>
           <div class="faq-list">
-            <details class="faq-item"><summary><span class="faq-dot"></span>How does ordering work?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Browse the catalog, add the items you want, set the right quantity, then open the cart and check out from there.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>What happens after I pay?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">After payment, the order flow unlocks and asks for your <b>IGN</b> and <b>delivery coordinates</b>. Once you confirm you are ready, staff gets the delivery alert.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>Which payment methods do you accept?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">The website is built around <b>PayPal</b> and <b>store credit</b>. If store credit fully covers the order, you can complete checkout without paying the rest in cash.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>What info do I need to provide?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">For normal checkout, we need your order details, email for receipt flow, your IGN, and the coordinates where you want the delivery handled.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>How does ordering work?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Browse the catalog, add the items you want, set the right quantity, then open the cart and check out from there.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What happens after I pay?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">After payment, the order flow unlocks and asks for your <b>IGN</b> and <b>delivery coordinates</b>. Once you confirm you are ready, staff gets the delivery alert.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Which payment methods do you accept?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">The website is built around <b>PayPal</b> and <b>store credit</b>. If store credit fully covers the order, you can complete checkout without paying the rest in cash.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What info do I need to provide?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">For normal checkout, we need your order details, email for receipt flow, your IGN, and the coordinates where you want the delivery handled.</div></div></div></details>
           </div>
         </article>
 
@@ -4348,10 +4375,10 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
           </div>
           <div class="faq-list">
-            <details class="faq-item"><summary><span class="faq-dot"></span>How is delivery priced?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Delivery is free within <b>1,000,000</b> blocks from spawn. After that, every extra <b>100k</b> blocks adds <b>$0.99</b>.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>What coordinate format should I use?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Use the format <b>X Z</b> with two numbers, for example <b>-1500000 200000</b>.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know when staff is ready?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">When your order is paid and you mark yourself ready, the staff-side delivery panel gets notified so someone can pick up your order.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>Can I change delivery info later?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Yes, but do it before the order is actively being delivered. If something changed, contact support quickly and include the order ID.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>How is delivery priced?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Delivery is free within <b>1,000,000</b> blocks from spawn. After that, every extra <b>100k</b> blocks adds <b>$0.99</b>.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What coordinate format should I use?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Use the format <b>X Z</b> with two numbers, for example <b>-1500000 200000</b>.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know when staff is ready?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">When your order is paid and you mark yourself ready, the staff-side delivery panel gets notified so someone can pick up your order.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Can I change delivery info later?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Yes, but do it before the order is actively being delivered. If something changed, contact support quickly and include the order ID.</div></div></div></details>
           </div>
         </article>
 
@@ -4364,9 +4391,9 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
           </div>
           <div class="faq-list">
-            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know if something is in stock?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Each product shows stock information in the hover panel. If a product is out of stock, its add-to-cart flow will be disabled.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>Can staff sell custom items too?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Yes. Staff can create special carts and add custom items manually when needed for one-off deals or special orders.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>What if a listed item goes out of stock after I order?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Support will either update you, replace the unavailable part if agreed, or refund the affected part of the order.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know if something is in stock?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Each product shows stock information in the hover panel. If a product is out of stock, its add-to-cart flow will be disabled.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>Can staff sell custom items too?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Yes. Staff can create special carts and add custom items manually when needed for one-off deals or special orders.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What if a listed item goes out of stock after I order?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Support will either update you, replace the unavailable part if agreed, or refund the affected part of the order.</div></div></div></details>
           </div>
         </article>
 
@@ -4379,9 +4406,9 @@ function websiteShopHtml(websiteShop, session = {}) {
             </div>
           </div>
           <div class="faq-list">
-            <details class="faq-item"><summary><span class="faq-dot"></span>What if I entered the wrong IGN or coordinates?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Contact support as soon as possible and include your <b>order ID</b>. The earlier you do it, the easier it is to correct before delivery starts.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>What should I include when contacting support?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Include your <b>order ID</b>, what went wrong, and any updated IGN/coordinates if the problem is related to delivery.</div></details>
-            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know the shop is legit?<span class="faq-chevron">⌄</span></summary><div class="faq-answer">Check reviews, previous delivery history, and the public storefront flow. The site is tied directly to the same staff and systems used by the network.</div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What if I entered the wrong IGN or coordinates?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Contact support as soon as possible and include your <b>order ID</b>. The earlier you do it, the easier it is to correct before delivery starts.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>What should I include when contacting support?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Include your <b>order ID</b>, what went wrong, and any updated IGN/coordinates if the problem is related to delivery.</div></div></div></details>
+            <details class="faq-item"><summary><span class="faq-dot"></span>How do I know the shop is legit?<span class="faq-chevron">⌄</span></summary><div class="faq-answer-wrap"><div class="faq-answer"><div class="faq-answer-inner">Check reviews, previous delivery history, and the public storefront flow. The site is tied directly to the same staff and systems used by the network.</div></div></div></details>
           </div>
         </article>
       </div>
@@ -5136,6 +5163,20 @@ function websiteShopHtml(websiteShop, session = {}) {
         });
       });
       search.addEventListener("input", applyFilter);
+
+      const faqItems = Array.from(document.querySelectorAll(".faq-item"));
+      faqItems.forEach((item) => {
+        const summary = item.querySelector("summary");
+        if (!summary) return;
+        summary.addEventListener("click", (e) => {
+          e.preventDefault();
+          const willOpen = !item.open;
+          faqItems.forEach((other) => {
+            if (other !== item) other.open = false;
+          });
+          item.open = willOpen;
+        });
+      });
       document.addEventListener("click", (e) => {
         const addBtn = e.target && e.target.closest ? e.target.closest(".add[data-add-id]") : null;
         if (addBtn) {
