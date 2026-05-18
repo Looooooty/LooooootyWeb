@@ -86,6 +86,19 @@ const APPLICATIONS_FILE = path.join(BOT_DATA_DIR, "base_member_applications.json
 const APPLICATION_FORMS_FILE = path.join(BOT_DATA_DIR, "application_forms.json");
 const WEBSITE_SHOP_FILE = path.join(BOT_DATA_DIR, "website_shop.json");
 const WEBSITE_SHOP_DEFAULTS_FILE = path.join(process.cwd(), "data", "website_shop_defaults.json");
+const WEBSITE_SHOP_CATEGORY_DEFAULTS = [
+  "Kits",
+  "Netherite Kits",
+  "PvP Kits",
+  "Materials",
+  "Necessities",
+  "Griefing",
+  "Misc",
+  "Fun",
+  "Trims",
+  "Redstone",
+  "Dubs"
+];
 const BASE_STATES_DEFAULTS_FILE = path.join(process.cwd(), "data", "base_states_defaults.json");
 const CREDITS_FILE = path.join(BOT_DATA_DIR, "credits.json");
 const GIVEAWAYS_FILE = path.join(BOT_DATA_DIR, "giveaways.json");
@@ -1080,14 +1093,14 @@ function loadWebsiteShopData() {
   const fallback = defaults;
   const state = raw && raw.state === "closed" ? "closed" : "open";
   const categories = Array.isArray(raw && raw.categories)
-    ? raw.categories.map((c) => String(c || "").trim()).filter(Boolean)
+    ? raw.categories.map((c) => canonicalShopCategory(c)).filter(Boolean)
     : fallback.categories;
   const products = Array.isArray(raw && raw.products)
     ? raw.products.map((p, i) => ({
         id: String(p && p.id ? p.id : `web-${Date.now()}-${i}`).trim(),
         name: String(p && p.name ? p.name : "Unnamed").trim().slice(0, 80),
         price: Number.isFinite(Number(p && p.price)) ? Number(p.price) : 0,
-        category: String(p && p.category ? p.category : "kits").trim().slice(0, 40),
+        category: canonicalShopCategory(String(p && p.category ? p.category : "Kits")).slice(0, 40),
         image: String(p && p.image ? p.image : "").trim(),
         description: String(p && p.description ? p.description : "").trim().slice(0, 400),
         inStock: p && p.inStock === false ? false : true,
@@ -1099,11 +1112,18 @@ function loadWebsiteShopData() {
   return data;
 }
 
+function canonicalShopCategory(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const mapped = WEBSITE_SHOP_CATEGORY_DEFAULTS.find((c) => c.toLowerCase() === raw.toLowerCase());
+  return mapped || raw;
+}
+
 function saveWebsiteShopData(data) {
   writeJson(WEBSITE_SHOP_FILE, {
     state: data && data.state === "closed" ? "closed" : "open",
     categories: Array.isArray(data && data.categories)
-      ? data.categories.map((c) => String(c || "").trim()).filter(Boolean)
+      ? data.categories.map((c) => canonicalShopCategory(c)).filter(Boolean)
       : [],
     products: Array.isArray(data && data.products) ? data.products : []
   });
@@ -1113,7 +1133,7 @@ function loadWebsiteShopDefaults() {
   const raw = readJson(WEBSITE_SHOP_DEFAULTS_FILE, null);
   const fallback = {
     state: "open",
-    categories: ["kits", "materials"],
+    categories: [...WEBSITE_SHOP_CATEGORY_DEFAULTS],
     products: []
   };
   if (!raw || typeof raw !== "object") {
@@ -1129,7 +1149,7 @@ function loadWebsiteShopDefaults() {
         id: String(p && p.id ? p.id : "").trim(),
         name: String(p && p.name ? p.name : "Unnamed").trim().slice(0, 80),
         price: Number.isFinite(Number(p && p.price)) ? Number(p.price) : 0,
-        category: String(p && p.category ? p.category : "kits").trim().slice(0, 40),
+        category: canonicalShopCategory(String(p && p.category ? p.category : "Kits")).slice(0, 40),
         image: String(p && p.image ? p.image : "").trim(),
         description: String(p && p.description ? p.description : "").trim().slice(0, 400),
         inStock: p && p.inStock === false ? false : true,
@@ -3323,17 +3343,14 @@ function websiteShopHtml(websiteShop, session = {}) {
   const reviews = loadWebsiteReviews();
   const orders = loadWebsiteOrders();
   const buyerCount = new Set(orders.map((o) => String(o && o.userId ? o.userId : "")).filter(Boolean)).size;
-  const categories = Array.from(
-    new Set(
-      [
-        ...(Array.isArray(websiteShop && websiteShop.categories) ? websiteShop.categories : []),
-        ...(products || []).map((p) => String(p && p.category ? p.category : "").trim())
-      ]
-        .map((c) => String(c || "").trim())
-        .filter(Boolean)
-    )
-  );
-  const orderedCategories = ["Recommended", ...categories];
+  const categorySet = new Set();
+  WEBSITE_SHOP_CATEGORY_DEFAULTS.forEach((c) => categorySet.add(c));
+  [...(Array.isArray(websiteShop && websiteShop.categories) ? websiteShop.categories : []), ...(products || []).map((p) => String(p && p.category ? p.category : "").trim())]
+    .map((c) => canonicalShopCategory(c))
+    .filter(Boolean)
+    .forEach((c) => categorySet.add(c));
+  const categories = Array.from(categorySet);
+  const orderedCategories = ["All", ...categories];
   return `<!doctype html>
 <html>
 <head>
@@ -3594,27 +3611,29 @@ function websiteShopHtml(websiteShop, session = {}) {
       display: flex;
       gap: 12px;
       overflow-x: auto;
-      padding-bottom: 8px;
-      margin-bottom: 20px;
+      padding: 6px 2px 14px;
+      margin-bottom: 24px;
       scrollbar-width: none;
     }
     .cat-row::-webkit-scrollbar { display: none; }
     .cat {
       flex: 0 0 auto;
       border-radius: 999px;
-      border: 1px solid var(--line);
-      background: var(--chip);
+      border: 1px solid rgba(255,255,255,0.1);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025));
       color: var(--txt);
       padding: 12px 18px;
       font-weight: 800;
       white-space: nowrap;
       cursor: pointer;
       font-size: 15px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
     }
     .cat.active {
-      background: var(--chip-active);
-      color: var(--chip-active-text);
-      border-color: var(--chip-active);
+      background: linear-gradient(180deg, #ffffff, #dde8ff);
+      color: #05070d;
+      border-color: rgba(255,255,255,0.96);
+      box-shadow: 0 10px 28px rgba(125,154,255,0.22);
     }
     .status-banner {
       margin: 0 0 18px;
@@ -3631,15 +3650,23 @@ function websiteShopHtml(websiteShop, session = {}) {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     .card {
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      background: linear-gradient(180deg, rgba(10,15,27,0.95), rgba(7,10,18,0.92));
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(13,18,33,0.98), rgba(7,10,18,0.94));
       padding: 16px;
       display: grid;
       gap: 12px;
       position: relative;
       overflow: visible;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.24);
+      box-shadow: 0 18px 44px rgba(0,0,0,0.28);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .card:hover,
+    .card:focus-within {
+      transform: translateY(-2px);
+      border-color: rgba(120,160,255,0.18);
+      box-shadow: 0 24px 56px rgba(0,0,0,0.34);
     }
     .card-info {
       position: absolute;
@@ -3695,10 +3722,11 @@ function websiteShopHtml(websiteShop, session = {}) {
       border-radius: 16px;
       overflow: hidden;
       border: 1px solid rgba(255,255,255,0.12);
-      background: radial-gradient(circle at 50% 30%, rgba(96,120,190,0.2), rgba(7,10,20,0.96));
+      background: radial-gradient(circle at 50% 30%, rgba(96,120,190,0.24), rgba(7,10,20,0.96));
       display: grid;
       place-items: center;
       min-height: 196px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
     }
     .img-wrap img {
       width: 100%;
@@ -3706,18 +3734,24 @@ function websiteShopHtml(websiteShop, session = {}) {
       object-fit: contain;
       display: block;
       background: transparent;
+      transition: transform .22s ease;
+    }
+    .card:hover .img-wrap img,
+    .card:focus-within .img-wrap img {
+      transform: scale(1.02);
     }
     .add {
       justify-self: center;
       border-radius: 12px;
       border: 1px solid rgba(115,177,255,0.45);
-      background: linear-gradient(180deg, #5da8ff, #4388df);
+      background: linear-gradient(180deg, #67b1ff, #4589e0);
       color: white;
       font-weight: 900;
       padding: 11px 22px;
       cursor: pointer;
       min-width: 180px;
       font-size: 16px;
+      box-shadow: 0 12px 28px rgba(63,122,214,0.24);
     }
     .add:disabled {
       cursor: not-allowed;
@@ -4322,7 +4356,7 @@ function websiteShopHtml(websiteShop, session = {}) {
             return `<article class="card" data-id="${esc(String(p.id || ""))}" data-name="${esc(
               String(p.name || "").toLowerCase()
             )}" data-title="${esc(String(p.name || "Unnamed Product"))}" data-price="${Number(p.price || 0)}" data-cat="${esc(
-              String(p.category || "Recommended")
+              canonicalShopCategory(String(p.category || "Kits"))
             )}">
               <div class="card-top">
                 <h3>${esc(p.name || "Unnamed Product")}</h3>
@@ -4592,7 +4626,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       const activeOrderStorageKey = "looooooty_web_active_order_v1";
       const couponStorageKey = "looooooty_web_coupon_v1";
       const deliveryStorageKey = "looooooty_web_delivery_v1";
-      let currentCat = "Recommended";
+      let currentCat = "All";
       let cart = {};
       let pendingAddProductId = "";
       let pendingAddProductTitle = "";
@@ -5163,15 +5197,15 @@ function websiteShopHtml(websiteShop, session = {}) {
         const q = String(search.value || "").toLowerCase().trim();
         cards.forEach((card) => {
           const name = card.dataset.name || "";
-          const cat = card.dataset.cat || "Recommended";
-          const catOk = currentCat === "Recommended" ? true : cat === currentCat;
+          const cat = card.dataset.cat || "All";
+          const catOk = currentCat === "All" ? true : cat === currentCat;
           const nameOk = !q || name.includes(q);
           card.style.display = catOk && nameOk ? "grid" : "none";
         });
       }
       cats.forEach((btn) => {
         btn.addEventListener("click", () => {
-          currentCat = btn.dataset.cat || "Recommended";
+          currentCat = btn.dataset.cat || "All";
           cats.forEach((x) => x.classList.remove("active"));
           btn.classList.add("active");
           applyFilter();

@@ -1,5 +1,17 @@
 {
   "state": "open",
-  "categories": [],
+  "categories": [
+    "Kits",
+    "Netherite Kits",
+    "PvP Kits",
+    "Materials",
+    "Necessities",
+    "Griefing",
+    "Misc",
+    "Fun",
+    "Trims",
+    "Redstone",
+    "Dubs"
+  ],
   "products": []
 }
