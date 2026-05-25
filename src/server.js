@@ -464,7 +464,10 @@ async function sendLocalEmail({ to, subject, text, html }) {
       auth: {
         user: SMTP_USER,
         pass: SMTP_PASS
-      }
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
     await transport.sendMail({
       from: SMTP_FROM,
@@ -8164,10 +8167,7 @@ app.post("/shop/web/checkout", async (req, res) => {
   saveWebsiteOrders(websiteOrders);
 
   const createdOrder = websiteOrders[websiteOrders.length - 1];
-  let receiptSent = false;
-  if (createdOrder && createdOrder.email) {
-    receiptSent = await sendWebsiteOrderReceipt(createdOrder);
-  }
+  const receiptQueued = Boolean(createdOrder && createdOrder.email);
 
   res.json({
     ok: true,
@@ -8184,8 +8184,18 @@ app.post("/shop/web/checkout", async (req, res) => {
     paidWithCreditOnly: totalDue <= 0,
     paypalUrl,
     itemCount,
-    receiptSent
+    receiptQueued
   });
+
+  if (createdOrder && createdOrder.email) {
+    setImmediate(async () => {
+      try {
+        await sendWebsiteOrderReceipt(createdOrder);
+      } catch (error) {
+        console.error('[mail] Receipt background send failed:', error && error.message ? error.message : error);
+      }
+    });
+  }
 });
 
 app.post("/shop/web/refund", (req, res) => {
