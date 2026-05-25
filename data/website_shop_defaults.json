@@ -283,6 +283,206 @@
       "category": "Necessities",
       "inStock": true,
       "stockQty": 100
+    },
+    {
+      "id": "crystal-kit",
+      "name": "Crystal kit",
+      "price": 0.49,
+      "image": "",
+      "description": "End Crystals",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "xp-bottle-kit",
+      "name": "XP Bottle Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Bottles of Enchanting",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "fd3-rocket-kit",
+      "name": "FD3 Rocket Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Firework Rockets",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "ender-pearl-kit",
+      "name": "Ender Pearl Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Ender Pearls",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "echest-kit",
+      "name": "Echest Kit",
+      "price": 0.59,
+      "image": "",
+      "description": "Ender Chests",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "golden-carrot-kit",
+      "name": "Golden Carrot Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Golden Carrots",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "totem-kit",
+      "name": "Totem Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Totems of Undying",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "elytra-kit",
+      "name": "Elytra Kit",
+      "price": 0.99,
+      "image": "",
+      "description": "Elytras",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "wither-kit",
+      "name": "Wither Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Withers",
+      "category": "Griefing",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "griefing-kit",
+      "name": "Griefing Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Griefing Materials",
+      "category": "Griefing",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "skulls-kit",
+      "name": "Skulls Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Wither Skulls",
+      "category": "Griefing",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "tnt-kit",
+      "name": "TNT Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "A lot of TNT",
+      "category": "Griefing",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "sugercane-kit",
+      "name": "Sugercane Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Sugercane",
+      "category": "Misc",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "gunpowder-kit",
+      "name": "Gunpowder Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Gunpowder",
+      "category": "Misc",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "bamboo-kit",
+      "name": "Bamboo Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Bamboo",
+      "category": "Misc",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "fun-kit",
+      "name": "Fun Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Random Items",
+      "category": "Fun",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "all-armor-trims-kit",
+      "name": "All Armor Trims Kit",
+      "price": 0.69,
+      "image": "",
+      "description": "All Armor Trims",
+      "category": "Trims",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "redstone-kit",
+      "name": "Redstone Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Redstone Items",
+      "category": "Redstone",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "totem-dub",
+      "name": "Totem Dub",
+      "price": 5,
+      "image": "",
+      "description": "54 Kits Full Of Totems of Undying",
+      "category": "Dubs",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "fd3-dub",
+      "name": "FD3 Dub",
+      "price": 5,
+      "image": "",
+      "description": "54 Kits Full Of FD3 Rockets",
+      "category": "Dubs",
+      "inStock": true,
+      "stockQty": 100
     }
   ]
 }
