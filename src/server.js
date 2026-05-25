@@ -3741,6 +3741,8 @@ function websiteShopHtml(websiteShop, session = {}) {
       display: grid;
       gap: 16px;
       grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+      overflow: visible;
     }
     .card {
       border: 1px solid rgba(255,255,255,0.1);
@@ -3752,6 +3754,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       gap: 12px;
       position: relative;
       overflow: visible;
+      z-index: 1;
       box-shadow: 0 18px 44px rgba(0,0,0,0.28);
       transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
     }
@@ -3760,6 +3763,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       transform: translateY(-2px);
       border-color: rgba(120,160,255,0.18);
       box-shadow: 0 24px 56px rgba(0,0,0,0.34);
+      z-index: 20;
     }
     .card-info {
       position: absolute;
