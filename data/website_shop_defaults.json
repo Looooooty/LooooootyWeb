@@ -13,5 +13,276 @@
     "Redstone",
     "Dubs"
   ],
-  "products": []
+  "products": [
+    {
+      "id": "looooootykit",
+      "name": "LooooootyKit",
+      "price": 0.49,
+      "image": "",
+      "description": "A kit that would help you escape spawn easily.",
+      "category": "Kits",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "looooootygodkit",
+      "name": "LooooootyGodKit",
+      "price": 0.99,
+      "image": "",
+      "description": "A kit that would make you thrive on 2b2t.",
+      "category": "Netherite Kits",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "looooooty-pvp-kit",
+      "name": "Looooooty PvP Kit",
+      "price": 0.79,
+      "image": "",
+      "description": "A kit that would make PvP easy for you.",
+      "category": "PvP Kits",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "andesite-kit",
+      "name": "Andesite Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "stone-kit",
+      "name": "Stone Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "diorite-kit",
+      "name": "Diorite Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "granite-kit",
+      "name": "Granite Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "end-stone-kit",
+      "name": "End Stone Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "blackstone-kit",
+      "name": "Blackstone Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "cobblestone-kit",
+      "name": "Cobblestone Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "wood-kit-1",
+      "name": "Wood Kit 1",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "wood-kit-2",
+      "name": "Wood Kit 2",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "obsidian-kit",
+      "name": "Obsidian Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "build-kit-1",
+      "name": "Build Kit 1",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "build-kit-2",
+      "name": "Build Kit 2",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "build-kit-3",
+      "name": "Build Kit 3",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "build-kit-4",
+      "name": "Build Kit 4",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "glass-kit",
+      "name": "Glass Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "glass-pane-kit",
+      "name": "Glass Pane Kit",
+      "price": 0.29,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "wool-kit",
+      "name": "Wool Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "terracota-kit",
+      "name": "Terracota Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "concrete-powder-kit",
+      "name": "Concrete Powder Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "concrete-kit",
+      "name": "Concrete Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "packed-ice-kit",
+      "name": "Packed Ice Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Material",
+      "category": "Materials",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "ore-kit",
+      "name": "Ore Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Ores",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "arrow-kit",
+      "name": "Arrow Kit",
+      "price": 0.39,
+      "image": "",
+      "description": "Arrows",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    },
+    {
+      "id": "gapple-kit",
+      "name": "Gapple Kit",
+      "price": 0.49,
+      "image": "",
+      "description": "Golden Apples",
+      "category": "Necessities",
+      "inStock": true,
+      "stockQty": 100
+    }
+  ]
 }
