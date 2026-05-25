@@ -447,6 +447,13 @@ function localMailerReady() {
 
 async function sendLocalEmail({ to, subject, text, html }) {
   if (!localMailerReady()) {
+    console.error('[mail] Not ready:', {
+      nodemailer: Boolean(nodemailer),
+      host: Boolean(SMTP_HOST),
+      port: Boolean(SMTP_PORT),
+      user: Boolean(SMTP_USER),
+      pass: Boolean(SMTP_PASS)
+    });
     return false;
   }
   try {
@@ -466,10 +473,90 @@ async function sendLocalEmail({ to, subject, text, html }) {
       text,
       html
     });
+    console.log('[mail] Sent:', { to, subject });
     return true;
-  } catch {
+  } catch (error) {
+    console.error('[mail] Send failed:', error && error.message ? error.message : error);
     return false;
   }
+}
+
+function websiteOrderItemsText(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const qty = Number(item && item.quantity ? item.quantity : 0);
+      const name = String(item && item.name ? item.name : 'Item');
+      const price = money(Number(item && item.price ? item.price : 0));
+      return '- ' + qty + 'x ' + name + ' (' + money(price * qty) + ')';
+    })
+    .join('\n');
+}
+
+function websiteOrderItemsHtml(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const qty = Number(item && item.quantity ? item.quantity : 0);
+      const name = esc(String(item && item.name ? item.name : 'Item'));
+      const price = money(Number(item && item.price ? item.price : 0));
+      return '<li style="margin:0 0 8px 0;"><b>' + qty + 'x ' + name + '</b> <span style="color:#9ca4bb;">(' + money(price * qty) + ')</span></li>';
+    })
+    .join('');
+}
+
+async function sendWebsiteOrderReceipt(order) {
+  if (!order || !order.email) return false;
+  const subject = 'LooooootyShop Order ' + String(order.id || '');
+  const totalDueLine = Number(order.totalDue || 0) > 0
+    ? 'Remaining to pay: ' + money(order.totalDue)
+    : 'This order is fully covered.';
+  const text = [
+    'Thanks for your order from LooooootyShop.',
+    '',
+    'Order ID: ' + String(order.id || ''),
+    'Subtotal: ' + money(order.subtotal),
+    'Discount: ' + money(order.couponDiscount || 0),
+    'Tax & Fees: ' + money(order.taxFees || 0),
+    'Delivery Fee: ' + money(order.deliveryFee || 0),
+    'Total: ' + money(order.total),
+    'Store Credit Used: ' + money(order.creditUsed || 0),
+    'Total Due: ' + money(order.totalDue || 0),
+    totalDueLine,
+    '',
+    'Items:',
+    websiteOrderItemsText(order.items),
+    '',
+    order.deliveryCoords ? ('Delivery Coordinates: ' + String(order.deliveryCoords)) : 'Delivery Coordinates: not provided yet',
+    '',
+    'You can continue the rest of the flow from the website cart after checkout.'
+  ].join('\n');
+  const html = `
+    <div style="font-family:Arial,sans-serif;background:#070b18;color:#edf3ff;padding:24px;line-height:1.6;">
+      <div style="max-width:720px;margin:0 auto;background:linear-gradient(180deg,#0d1223,#090d1a);border:1px solid rgba(255,255,255,0.08);border-radius:22px;padding:28px;">
+        <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#9ca4bb;font-weight:700;">LooooootyShop Receipt</div>
+        <h1 style="margin:10px 0 8px 0;font-size:34px;line-height:1;">Order ${esc(String(order.id || ""))}</h1>
+        <p style="margin:0 0 20px 0;color:#b8c6e6;">Thanks for your order. This email confirms the checkout details currently saved for your order.</p>
+        <div style="display:grid;gap:8px;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:18px;background:rgba(255,255,255,0.03);margin-bottom:18px;">
+          <div><b>Subtotal:</b> ${money(order.subtotal)}</div>
+          <div><b>Discount:</b> ${money(order.couponDiscount || 0)}</div>
+          <div><b>Tax & Fees:</b> ${money(order.taxFees || 0)}</div>
+          <div><b>Delivery Fee:</b> ${money(order.deliveryFee || 0)}</div>
+          <div><b>Total:</b> ${money(order.total)}</div>
+          <div><b>Store Credit Used:</b> ${money(order.creditUsed || 0)}</div>
+          <div><b>Total Due:</b> ${money(order.totalDue || 0)}</div>
+          <div style="color:#b8c6e6;">${Number(order.totalDue || 0) > 0 ? (`Remaining to pay: ${money(order.totalDue)}`) : "This order is fully covered."}</div>
+        </div>
+        <div style="margin-bottom:18px;">
+          <h2 style="margin:0 0 10px 0;font-size:20px;">Items</h2>
+          <ul style="padding-left:18px;margin:0;color:#edf3ff;">${websiteOrderItemsHtml(order.items)}</ul>
+        </div>
+        <div style="margin-bottom:18px;color:#b8c6e6;">
+          <b style="color:#edf3ff;">Delivery Coordinates:</b> ${esc(order.deliveryCoords || "not provided yet")}
+        </div>
+        <div style="color:#b8c6e6;">You can continue the rest of the order flow from the website cart after checkout.</div>
+      </div>
+    </div>
+  `;
+  return sendLocalEmail({ to: order.email, subject, text, html });
 }
 
 async function issueLocalVerification(account) {
@@ -8075,6 +8162,13 @@ app.post("/shop/web/checkout", async (req, res) => {
     readyForDelivery: false
   });
   saveWebsiteOrders(websiteOrders);
+
+  const createdOrder = websiteOrders[websiteOrders.length - 1];
+  let receiptSent = false;
+  if (createdOrder && createdOrder.email) {
+    receiptSent = await sendWebsiteOrderReceipt(createdOrder);
+  }
+
   res.json({
     ok: true,
     orderId,
@@ -8089,7 +8183,8 @@ app.post("/shop/web/checkout", async (req, res) => {
     totalDue: money(totalDue),
     paidWithCreditOnly: totalDue <= 0,
     paypalUrl,
-    itemCount
+    itemCount,
+    receiptSent
   });
 });
 
