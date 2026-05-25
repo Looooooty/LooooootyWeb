@@ -1180,12 +1180,7 @@ function findApplicationForm(forms, formId) {
 function loadWebsiteShopData() {
   const defaults = loadWebsiteShopDefaults();
   const raw = readJson(WEBSITE_SHOP_FILE, null);
-  const fallback = defaults;
-  const state = raw && raw.state === "closed" ? "closed" : "open";
-  const categories = Array.isArray(raw && raw.categories)
-    ? raw.categories.map((c) => canonicalShopCategory(c)).filter(Boolean)
-    : fallback.categories;
-  const products = Array.isArray(raw && raw.products)
+  const rawProducts = Array.isArray(raw && raw.products)
     ? raw.products.map((p, i) => ({
         id: String(p && p.id ? p.id : `web-${Date.now()}-${i}`).trim(),
         name: String(p && p.name ? p.name : "Unnamed").trim().slice(0, 80),
@@ -1197,6 +1192,14 @@ function loadWebsiteShopData() {
         stockQty: Number.isFinite(Number(p && p.stockQty)) ? Number(p.stockQty) : null
       }))
     : [];
+  const useDefaults = !raw || rawProducts.length === 0;
+  const state = useDefaults ? defaults.state : raw && raw.state === "closed" ? "closed" : "open";
+  const categories = useDefaults
+    ? defaults.categories
+    : Array.isArray(raw && raw.categories)
+      ? raw.categories.map((c) => canonicalShopCategory(c)).filter(Boolean)
+      : defaults.categories;
+  const products = useDefaults ? defaults.products : rawProducts;
   const data = { state, categories, products };
   writeJson(WEBSITE_SHOP_FILE, data);
   return data;
