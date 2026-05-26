@@ -1404,7 +1404,7 @@ function sideMenuHtml(session = {}) {
       </div>
     </div>
     <nav class="menu">
-      <a href="/bases">State of bases</a>
+      <a href="/state-of-bases">State of bases</a>
       <a href="/giveaways">Giveaways</a>
       <a href="/about">About Us</a>
       <a href="/gallery">Gallery</a>
@@ -2229,7 +2229,7 @@ function homeHtml(session = {}) {
         <section class="page-topbar">
           <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
           <nav>
-            <a class="active" href="/">Home</a>
+            <a class="active" href="/bases">Bases</a>
             <a href="/gallery">Gallery</a>
             <a href="/about">About Us</a>
             <a href="/shop">Shop</a>
@@ -2279,7 +2279,7 @@ function homeHtml(session = {}) {
             <h2>LB6, infrastructure, and controlled expansion.</h2>
             <p class="home-copy">The next phase is centered around stronger operations, cleaner access control, and making the network feel consistent from first visit to final delivery. If you want in, stay active and build trust.</p>
             <div class="panel-actions">
-              <a class="btn" href="/bases">Check Base Status</a>
+              <a class="btn" href="/state-of-bases">Check Base Status</a>
               <a class="btn" href="/shop">Open Shop</a>
             </div>
           </aside>
@@ -2345,7 +2345,7 @@ function galleryPageHtml(session = {}) {
         <section class="page-topbar">
           <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
           <nav>
-            <a href="/">Home</a>
+            <a href="/bases">Bases Home</a>
             <a href="/about">About Us</a>
             <a class="active" href="/gallery">Gallery</a>
           </nav>
@@ -2872,7 +2872,7 @@ function notFoundPageHtml(session = {}) {
           <div class="notfound-actions">
             <a class="btn btn-primary" href="/">Back Home</a>
             <a class="btn btn-secondary" href="/shop/web">Open Website Shop</a>
-            <a class="btn btn-secondary" href="/bases">State of Bases</a>
+            <a class="btn btn-secondary" href="/state-of-bases">State of Bases</a>
           </div>
         </article>
       </section>
@@ -2899,7 +2899,7 @@ function aboutPageHtml(session = {}) {
       <section class="page-topbar">
         <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
         <nav>
-          <a href="/bases">State of Bases</a>
+          <a href="/state-of-bases">State of Bases</a>
           <a href="/shop">Shop</a>
           <a class="active" href="/about">About</a>
         </nav>
@@ -3051,6 +3051,379 @@ function howToOrderHtml(session = {}) {
           </aside>
         </section>
       </div>
+    </main>
+  </div>
+</body>
+</html>`;
+}
+
+function rootLandingHtml(session = {}) {
+  const authLabel = String(session && session.userId ? "Account" : "Sign Up");
+  const statsData = stats();
+  const bases = loadBaseStates();
+  const openBases = bases.filter((b) => String(b && b.state || "open") !== "closed").length;
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${SITE_NAME}</title>
+  ${faviconLinks()}
+  ${sharedHomeStyles()}
+  <style>
+    .landing-shell {
+      width: min(1320px, 96%);
+      display: grid;
+      gap: 22px;
+    }
+    .landing-hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 34px;
+      padding: 28px 28px 34px;
+      border: 1px solid rgba(255,255,255,0.09);
+      background:
+        radial-gradient(circle at top center, rgba(109,140,255,0.20), transparent 34%),
+        radial-gradient(circle at 20% 85%, rgba(52,211,153,0.08), transparent 26%),
+        linear-gradient(180deg, rgba(5,8,18,0.95), rgba(6,10,24,0.98));
+      box-shadow: 0 28px 90px rgba(0,0,0,0.38);
+    }
+    .landing-hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 10% 20%, rgba(255,255,255,0.9) 0 1px, transparent 2px),
+        radial-gradient(circle at 24% 74%, rgba(255,255,255,0.55) 0 1px, transparent 2px),
+        radial-gradient(circle at 70% 24%, rgba(255,255,255,0.8) 0 1px, transparent 2px),
+        radial-gradient(circle at 88% 68%, rgba(255,255,255,0.55) 0 1px, transparent 2px),
+        radial-gradient(circle at 52% 84%, rgba(255,255,255,0.65) 0 1px, transparent 2px),
+        radial-gradient(circle at 64% 46%, rgba(255,255,255,0.4) 0 1px, transparent 2px),
+        radial-gradient(circle at 38% 34%, rgba(255,255,255,0.5) 0 1px, transparent 2px);
+      opacity: 0.45;
+      pointer-events: none;
+    }
+    .landing-topbar {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 38px;
+      flex-wrap: wrap;
+    }
+    .landing-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #f8fafc;
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+    .landing-brand img {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      object-fit: cover;
+      box-shadow: 0 12px 26px rgba(0,0,0,0.34);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+    }
+    .landing-brand .accent {
+      font-style: italic;
+      font-weight: 900;
+    }
+    .landing-nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .landing-nav a {
+      text-decoration: none;
+      color: #f4f7fb;
+      font-weight: 700;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 11px 18px;
+      background: rgba(255,255,255,0.05);
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .landing-nav a:hover {
+      transform: translateY(-1px);
+      border-color: rgba(125,211,252,0.52);
+      background: rgba(125,211,252,0.10);
+    }
+    .landing-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto 28px;
+      text-align: center;
+    }
+    .landing-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #dbe6ff;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    .landing-title {
+      margin: 0;
+      color: #ffffff;
+      font-size: clamp(52px, 10vw, 108px);
+      line-height: 0.94;
+      letter-spacing: -0.06em;
+      font-weight: 950;
+    }
+    .landing-title span {
+      display: block;
+      font-weight: 300;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(226,232,240,0.8);
+      font-size: 0.42em;
+      margin-top: 10px;
+    }
+    .landing-description {
+      margin: 22px auto 0;
+      max-width: 760px;
+      color: #bac6dc;
+      font-size: clamp(15px, 2vw, 19px);
+      line-height: 1.72;
+    }
+    .landing-cards {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .landing-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 14px;
+      text-decoration: none;
+      color: #f8fafc;
+      min-height: 280px;
+      padding: 24px;
+      border-radius: 26px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background:
+        radial-gradient(circle at top right, rgba(96,165,250,0.22), transparent 28%),
+        linear-gradient(180deg, rgba(9,13,28,0.94), rgba(7,10,22,0.98));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 38px rgba(0,0,0,0.28);
+      transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+    }
+    .landing-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -24% auto;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(96,165,250,0.18), transparent 60%);
+      pointer-events: none;
+    }
+    .landing-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(125,211,252,0.45);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 22px 60px rgba(0,0,0,0.34);
+    }
+    .landing-card.shop {
+      background:
+        radial-gradient(circle at top right, rgba(129,140,248,0.22), transparent 28%),
+        linear-gradient(180deg, rgba(11,16,33,0.94), rgba(8,12,25,0.98));
+    }
+    .landing-card .eyebrow {
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.10em;
+    }
+    .landing-card h3 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+    .landing-card p {
+      margin: 0;
+      color: #b4c0d5;
+      line-height: 1.7;
+      font-size: 15px;
+      max-width: 38ch;
+    }
+    .landing-points {
+      display: grid;
+      gap: 8px;
+      color: #e5edf9;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .landing-cta {
+      margin-top: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      min-width: 160px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.07);
+      color: #f8fafc;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+    .landing-bottom {
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr;
+      gap: 18px;
+    }
+    .landing-review-strip,
+    .landing-support {
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(6,10,24,0.92);
+      box-shadow: 0 16px 44px rgba(0,0,0,0.24);
+      padding: 22px;
+    }
+    .landing-review-strip h3,
+    .landing-support h3 {
+      margin: 0 0 10px;
+      color: #f8fafc;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+    .landing-review-strip p,
+    .landing-support p {
+      margin: 0;
+      color: #b3c0d8;
+      line-height: 1.7;
+    }
+    .landing-review-actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .landing-review-actions a {
+      text-decoration: none;
+      color: #f8fafc;
+      font-weight: 800;
+      padding: 11px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+    }
+    @media (max-width: 980px) {
+      .landing-cards,
+      .landing-bottom {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 700px) {
+      .landing-shell {
+        width: min(96%, 96%);
+      }
+      .landing-hero {
+        padding: 20px 18px 24px;
+        border-radius: 24px;
+      }
+      .landing-topbar {
+        margin-bottom: 28px;
+      }
+      .landing-brand {
+        font-size: 30px;
+      }
+      .landing-card {
+        min-height: 240px;
+        padding: 18px;
+        border-radius: 20px;
+      }
+      .landing-review-strip,
+      .landing-support {
+        border-radius: 20px;
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">${sideMenuHtml(session)}</aside>
+    <main class="main">
+      <section class="landing-shell">
+        <div class="landing-hero">
+          <div class="landing-topbar">
+            <div class="landing-brand">
+              <img src="${esc(SITE_ICON_URL)}" alt="Looooooty logo" />
+              <div><span class="accent">Looooooty</span> Network</div>
+            </div>
+            <nav class="landing-nav">
+              <a href="/bases">Bases</a>
+              <a href="/shop">Shop</a>
+              <a href="/about">About</a>
+              <a href="/auth">${authLabel}</a>
+            </nav>
+          </div>
+          <div class="landing-copy">
+            <div class="landing-kicker">Official 2b2t Network</div>
+            <h1 class="landing-title">Looooooty<span>Bases + Shop</span></h1>
+            <p class="landing-description">Choose where you want to go next. Enter the bases side for access, gallery, and state tracking, or jump into the shop side for products, reviews, checkout, and delivery flow.</p>
+          </div>
+          <div class="landing-cards">
+            <a class="landing-card" href="/bases">
+              <div class="eyebrow">Bases</div>
+              <h3>LooooootyBases</h3>
+              <p>Access the network side of the project, check gallery progress, apply for membership, and follow the long-term structure behind the bases.</p>
+              <div class="landing-points">
+                <div>${openBases} currently accessible bases</div>
+                <div>Gallery, applications, and network updates</div>
+                <div>Use this side for base-related access</div>
+              </div>
+              <div class="landing-cta">Enter Bases</div>
+            </a>
+            <a class="landing-card shop" href="/shop">
+              <div class="eyebrow">Shop</div>
+              <h3>LooooootyShop</h3>
+              <p>Browse the storefront, read reviews, choose Discord or website ordering, and manage delivery details through the modern shop flow.</p>
+              <div class="landing-points">
+                <div>${statsData.ordersPaid} completed website orders</div>
+                <div>${statsData.giveawaysActive} live giveaways and active support</div>
+                <div>Use this side for products and checkout</div>
+              </div>
+              <div class="landing-cta">Enter Shop</div>
+            </a>
+          </div>
+        </div>
+        <div class="landing-bottom">
+          <div class="landing-review-strip">
+            <h3>Everything stays connected</h3>
+            <p>The network, applications, gallery, reviews, giveaways, and storefront all now live under one cleaner structure so visitors can move around without getting lost.</p>
+            <div class="landing-review-actions">
+              <a href="/state-of-bases">State of Bases</a>
+              <a href="/shop/web">Open Website Shop</a>
+            </div>
+          </div>
+          <div class="landing-support">
+            <h3>Quick snapshot</h3>
+            <p>Shop state: <b>${esc(statsData.shopState)}</b><br/>Open bases: <b>${openBases}</b><br/>Paid orders: <b>${statsData.ordersPaid}</b></p>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 </body>
@@ -6257,7 +6630,7 @@ function applyPageHtml(forms, msg = "", err = "", session = {}) {
       <section class="page-topbar">
         <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
         <nav>
-          <a href="/bases">State of Bases</a>
+          <a href="/state-of-bases">State of Bases</a>
           <a class="active" href="/apply">Apply</a>
           <a href="/shop">Shop</a>
         </nav>
@@ -6354,7 +6727,7 @@ function staffLoginHtml(error = "") {
       <section class="page-topbar">
         <div class="mark"><img src="${SITE_ICON_URL}" alt="Looooooty logo" /><b>Looooooty</b></div>
         <nav>
-          <a href="/">Home</a>
+          <a href="/bases">Bases Home</a>
           <a href="/shop">Shop</a>
           <a class="active" href="/staff">Staff</a>
         </nav>
@@ -7315,12 +7688,17 @@ app.get("/api/stats", requireStaff, (_req, res) => {
   res.json(stats());
 });
 
-app.get("/", (_req, res) => {
-  const session = getWebSession(_req) || { userId: "", userTag: "" };
-  res.send(homeHtml(session));
+app.get("/", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  res.send(rootLandingHtml(session));
 });
 
 app.get("/bases", (req, res) => {
+  const session = getWebSession(req) || { userId: "", userTag: "" };
+  res.send(homeHtml(session));
+});
+
+app.get("/state-of-bases", (req, res) => {
   const bases = loadBaseStates();
   const session = getWebSession(req) || { userId: "", userTag: "" };
   res.send(basesPageHtml(bases, session));
