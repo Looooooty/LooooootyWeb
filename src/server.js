@@ -3837,6 +3837,37 @@ function websiteShopHtml(websiteShop, session = {}) {
     .card:focus-within .img-wrap img {
       transform: scale(1.02);
     }
+    .card-buy {
+      display: grid;
+      grid-template-columns: 108px 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+    .qty-inline {
+      display: flex;
+      align-items: stretch;
+    }
+    .inline-qty {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(8,12,24,0.92);
+      color: #eef4ff;
+      font-weight: 900;
+      text-align: center;
+      font-size: 16px;
+      padding: 0 12px;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .inline-qty:focus {
+      border-color: rgba(108,168,255,0.48);
+      box-shadow: 0 0 0 3px rgba(108,168,255,0.12);
+    }
+    .inline-qty:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
     .add {
       justify-self: center;
       border-radius: 12px;
@@ -3849,6 +3880,17 @@ function websiteShopHtml(websiteShop, session = {}) {
       min-width: 180px;
       font-size: 16px;
       box-shadow: 0 12px 28px rgba(63,122,214,0.24);
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
     }
     .add:disabled {
       cursor: not-allowed;
@@ -4232,6 +4274,36 @@ function websiteShopHtml(websiteShop, session = {}) {
       cursor: pointer;
     }
     .flow-btn.ok { background: var(--green); border-color: var(--green); }
+    .flow-form {
+      margin-top: 12px;
+      display: grid;
+      gap: 12px;
+    }
+    .flow-field {
+      display: grid;
+      gap: 6px;
+    }
+    .flow-field span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .flow-field input {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.03);
+      color: var(--txt);
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+    }
+    .flow-field input:focus {
+      border-color: rgba(108,168,255,0.48);
+      box-shadow: 0 0 0 3px rgba(108,168,255,0.12);
+    }
     .faq-section {
       width: min(1360px, calc(100% - 40px));
       margin: 18px auto 0;
@@ -4598,7 +4670,13 @@ function websiteShopHtml(websiteShop, session = {}) {
                 <span class="price">$${Number(p.price || 0).toFixed(2)}</span>
               </div>
               <div class="img-wrap"><img src="${esc(p.image || SHOP_LOGO_URL)}" alt="${esc(p.name || "Product")}" /></div>
-              <button class="add" data-add-id="${esc(String(p.id || ""))}" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
+              <div class="card-buy">
+                <div class="qty-inline">
+                  <label class="sr-only" for="qty-${esc(String(p.id || ""))}">Quantity</label>
+                  <input id="qty-${esc(String(p.id || ""))}" class="inline-qty" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" ${inStock ? "" : "disabled"} />
+                </div>
+                <button class="add" data-add-id="${esc(String(p.id || ""))}" ${inStock ? "" : "disabled"}>${inStock ? "Add to Cart" : "Unavailable"}</button>
+              </div>
               <div class="card-info">
                 <h4>${esc(p.name || "Product")}</h4>
                 <div>${esc(p.description || "No description provided.")}</div>
@@ -5304,14 +5382,17 @@ function websiteShopHtml(websiteShop, session = {}) {
           '<div class="flow-embed">' +
           "<h4>Paid Order " + escHtml(activeOrder.orderId) + "</h4>" +
           "<div>This order is now paid, please put your coordinates and IGN below. ETA will be shared soon by one of our admins when they are online.</div>" +
+          '<div class="flow-form">' +
+          '<label class="flow-field"><span>IGN</span><input id="flow-ign-input" type="text" maxlength="32" placeholder="Your Minecraft IGN" value="' + escAttr(ign || "") + '"></label>' +
+          '<label class="flow-field"><span>Coordinates</span><input id="flow-coords-input" type="text" maxlength="120" placeholder="Enter coordinates like X Y Z" value="' + escAttr(coords || "") + '"></label>' +
+          "</div>" +
+          '<div class="flow-actions">' +
+          '<button id="flow-save-details" class="flow-btn" type="button">Save Details</button>' +
+          "</div>" +
           '<div class="flow-meta">' +
           '<div class="flow-meta-row"><span class="flow-meta-label">IGN</span><span class="flow-meta-value">' + escHtml(ign || "-") + "</span></div>" +
           '<div class="flow-meta-row"><span class="flow-meta-label">Coordinates</span><span class="flow-meta-value">' + escHtml(coords || "-") + "</span></div>" +
           "</div>" +
-          "</div>" +
-          '<div class="flow-actions">' +
-          '<button id="flow-ign" class="flow-btn" type="button">IGN</button>' +
-          '<button id="flow-coords" class="flow-btn" type="button">Coordinates</button>' +
           "</div>" +
           (ign && coords
             ? '<div class="flow-embed">Are you ready for your delivery?</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
@@ -5319,37 +5400,16 @@ function websiteShopHtml(websiteShop, session = {}) {
               "</button></div>"
             : "");
 
-        const ignBtn = document.getElementById("flow-ign");
-        const coordsBtn = document.getElementById("flow-coords");
+        const saveDetailsBtn = document.getElementById("flow-save-details");
+        const flowIgnInput = document.getElementById("flow-ign-input");
+        const flowCoordsInput = document.getElementById("flow-coords-input");
         const readyBtn = document.getElementById("flow-ready");
-        if (ignBtn) {
-          ignBtn.addEventListener("click", () => {
-            openFlowInputModal({
-              title: "Enter IGN",
-              hint: "Enter your Minecraft IGN.",
-              value: activeOrder.ign || "",
-              maxLen: 32,
-              onSave: (next) => {
-                activeOrder.ign = next.trim().slice(0, 32);
-                saveActiveOrder();
-                renderWebsiteOnlyPaidFlow();
-              }
-            });
-          });
-        }
-        if (coordsBtn) {
-          coordsBtn.addEventListener("click", () => {
-            openFlowInputModal({
-              title: "Enter Coordinates",
-              hint: "Enter coordinates like X Y Z.",
-              value: activeOrder.coordinates || "",
-              maxLen: 120,
-              onSave: (next) => {
-                activeOrder.coordinates = next.trim().slice(0, 120);
-                saveActiveOrder();
-                renderWebsiteOnlyPaidFlow();
-              }
-            });
+        if (saveDetailsBtn) {
+          saveDetailsBtn.addEventListener("click", () => {
+            activeOrder.ign = String((flowIgnInput && flowIgnInput.value) || "").trim().slice(0, 32);
+            activeOrder.coordinates = String((flowCoordsInput && flowCoordsInput.value) || "").trim().slice(0, 120);
+            saveActiveOrder();
+            renderWebsiteOnlyPaidFlow();
           });
         }
         if (readyBtn) {
@@ -5492,8 +5552,30 @@ function websiteShopHtml(websiteShop, session = {}) {
           if (addBtn.disabled) return;
           const id = String(addBtn.dataset.addId || "");
           const card = addBtn.closest(".card");
-          const title = card ? String(card.dataset.title || "this item") : "this item";
-          openQtyModal(id, title);
+          const qtyInputInline = card ? card.querySelector(".inline-qty") : null;
+          const qty = Number.parseInt(String((qtyInputInline && qtyInputInline.value) || "1").trim(), 10);
+          if (!Number.isInteger(qty) || qty <= 0 || qty > 999) {
+            if (qtyInputInline) {
+              qtyInputInline.focus();
+              qtyInputInline.setCustomValidity("Quantity must be a whole number between 1 and 999.");
+              qtyInputInline.reportValidity();
+              setTimeout(() => qtyInputInline.setCustomValidity(""), 100);
+            }
+            return;
+          }
+          if (activeOrder && activeOrder.delivered) {
+            setActiveOrder(null);
+            stopOrderStatusPoll();
+            stopDeliveryAutoCloseTimer();
+            deliveryAutoCloseRemainingMs = 0;
+            deliveryAutoCloseStartedAt = 0;
+            renderWebsiteOnlyPaidFlow();
+            renderPostCheckoutState();
+          }
+          cart[id] = Number(cart[id] || 0) + qty;
+          saveCart();
+          renderCart();
+          if (qtyInputInline) qtyInputInline.value = "1";
           return;
         }
 
