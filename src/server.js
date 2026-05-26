@@ -5106,6 +5106,10 @@ function websiteShopHtml(websiteShop, session = {}) {
           .replace(/'/g, "&#39;");
       }
 
+      function escAttr(v) {
+        return escHtml(v).split(String.fromCharCode(96)).join("&#96;");
+      }
+
       function normalizeMinus(value) {
         return String(value || "")
           .normalize("NFKC")
