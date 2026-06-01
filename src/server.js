@@ -3245,6 +3245,10 @@ function rootLandingHtml(session = {}) {
         radial-gradient(circle at top right, rgba(129,140,248,0.22), transparent 28%),
         linear-gradient(180deg, rgba(11,16,33,0.94), rgba(8,12,25,0.98));
     }
+    .landing-card.bases {
+      background:
+        linear-gradient(180deg, rgba(8,13,26,0.96), rgba(5,9,18,0.98));
+    }
     .landing-card .eyebrow {
       color: #93c5fd;
       font-size: 12px;
@@ -3292,6 +3296,57 @@ function rootLandingHtml(session = {}) {
       grid-template-columns: 1.4fr 0.8fr;
       gap: 18px;
     }
+    .landing-proof {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 22px 0 0;
+    }
+    .landing-proof-item {
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.045);
+      border-radius: 18px;
+      padding: 16px;
+    }
+    .landing-proof-item b {
+      display: block;
+      color: #f8fafc;
+      font-size: 24px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .landing-proof-item span {
+      color: #aebbd2;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .landing-command-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .landing-command {
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: linear-gradient(180deg, rgba(8,12,24,0.94), rgba(4,7,14,0.98));
+      padding: 20px;
+    }
+    .landing-command strong {
+      display: block;
+      color: #f8fafc;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .landing-command span {
+      display: block;
+      color: #aebbd2;
+      line-height: 1.6;
+      font-size: 14px;
+    }
     .landing-review-strip,
     .landing-support {
       border-radius: 24px;
@@ -3330,7 +3385,9 @@ function rootLandingHtml(session = {}) {
     }
     @media (max-width: 980px) {
       .landing-cards,
-      .landing-bottom {
+      .landing-bottom,
+      .landing-proof,
+      .landing-command-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -3380,39 +3437,50 @@ function rootLandingHtml(session = {}) {
             </nav>
           </div>
           <div class="landing-copy">
-            <div class="landing-kicker">Official 2b2t Network</div>
+            <div class="landing-kicker">Established 2b2t Base Network</div>
             <h1 class="landing-title">Looooooty<span>Bases + Shop</span></h1>
-            <p class="landing-description">Choose where you want to go next. Enter the bases side for access, gallery, and state tracking, or jump into the shop side for products, reviews, checkout, and delivery flow.</p>
+            <p class="landing-description">A coordinated base group with applications, access tiers, base-state tracking, gallery archives, giveaways, and a connected shop for members who need supplies delivered safely.</p>
           </div>
           <div class="landing-cards">
-            <a class="landing-card" href="/bases">
+            <a class="landing-card bases" href="/bases">
               <div class="eyebrow">Bases</div>
               <h3>LooooootyBases</h3>
-              <p>Access the network side of the project, check gallery progress, apply for membership, and follow the long-term structure behind the bases.</p>
+              <p>Enter the base network side for applications, gallery history, current base states, and the trust path used to protect major builds.</p>
               <div class="landing-points">
-                <div>${openBases} currently accessible bases</div>
-                <div>Gallery, applications, and network updates</div>
-                <div>Use this side for base-related access</div>
+                <div>${openBases} bases currently open or limited</div>
+                <div>Applications, gallery, and base access tools</div>
+                <div>Member to trusted access progression</div>
               </div>
               <div class="landing-cta">Enter Bases</div>
             </a>
             <a class="landing-card shop" href="/shop">
               <div class="eyebrow">Shop</div>
               <h3>LooooootyShop</h3>
-              <p>Browse the storefront, read reviews, choose Discord or website ordering, and manage delivery details through the modern shop flow.</p>
+              <p>Open the supply side for kits, materials, reviews, giveaways, store credit, and the website checkout flow with delivery details.</p>
               <div class="landing-points">
-                <div>${statsData.ordersPaid} completed website orders</div>
-                <div>${statsData.giveawaysActive} live giveaways and active support</div>
-                <div>Use this side for products and checkout</div>
+                <div>${statsData.ordersPaid} completed orders tracked</div>
+                <div>${statsData.giveawaysActive} active giveaways</div>
+                <div>${statsData.productsTotal} products in the catalog</div>
               </div>
               <div class="landing-cta">Enter Shop</div>
             </a>
           </div>
+          <div class="landing-proof">
+            <div class="landing-proof-item"><b>${bases.length}</b><span>Tracked Bases</span></div>
+            <div class="landing-proof-item"><b>${statsData.productsTotal}</b><span>Shop Products</span></div>
+            <div class="landing-proof-item"><b>${statsData.ordersPaid}</b><span>Completed Orders</span></div>
+            <div class="landing-proof-item"><b>${statsData.giveawaysActive}</b><span>Live Giveaways</span></div>
+          </div>
+        </div>
+        <div class="landing-command-grid">
+          <div class="landing-command"><strong>Organized access</strong><span>Applications and role targets are managed through the web panel so new members can be reviewed without handing out access instantly.</span></div>
+          <div class="landing-command"><strong>Base status tracking</strong><span>State of Bases gives members a clear view of which bases are open, limited, or closed before they plan activity.</span></div>
+          <div class="landing-command"><strong>Connected operations</strong><span>The shop, reviews, delivery flow, gallery, giveaways, and accounts all sit under the same network instead of scattered links.</span></div>
         </div>
         <div class="landing-bottom">
           <div class="landing-review-strip">
-            <h3>Everything stays connected</h3>
-            <p>The network, applications, gallery, reviews, giveaways, and storefront all now live under one cleaner structure so visitors can move around without getting lost.</p>
+            <h3>Built like a real network</h3>
+            <p>LooooootyBases is structured around controlled access, staff review, member progression, and long-term infrastructure. The shop supports that network with supplies, delivery flow, and account history.</p>
             <div class="landing-review-actions">
               <a href="/state-of-bases">State of Bases</a>
               <a href="/shop/web">Open Website Shop</a>
@@ -6774,11 +6842,11 @@ function staffPanelStyles() {
       color: var(--txt);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
       background:
-        linear-gradient(120deg, rgba(5,10,20,0.72), rgba(5,10,20,0.56)),
+        linear-gradient(120deg, rgba(4,8,16,0.88), rgba(5,10,20,0.72)),
         url('${HOME_BG_URL}') center/cover no-repeat;
       min-height: 100vh;
     }
-    .layout { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 270px 1fr; min-height: 100vh; }
     .side { padding: 24px 16px; display: flex; align-items: stretch; }
     .menu-shell {
       border: 1px solid rgba(255,255,255,0.14);
@@ -6805,7 +6873,7 @@ function staffPanelStyles() {
     }
     .menu a:hover { border-color: var(--accent); }
     .main { padding: 24px 28px; }
-    .staff-shell { max-width: 1200px; margin: 0 auto; }
+    .staff-shell { max-width: 1280px; margin: 0 auto; }
     .head {
       display: flex;
       justify-content: space-between;
@@ -6813,12 +6881,13 @@ function staffPanelStyles() {
       gap: 14px;
       margin-bottom: 16px;
       border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(9,13,20,0.62);
+      background: linear-gradient(180deg, rgba(12,18,30,0.84), rgba(7,11,20,0.94));
       backdrop-filter: none;
       border-radius: 16px;
       padding: 16px;
+      box-shadow: 0 18px 46px rgba(0,0,0,0.24);
     }
-    .head-left h1 { margin: 0; }
+    .head-left h1 { margin: 0; letter-spacing: 0; }
     .staff-meta { margin-top: 8px; color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
     .head-right { display: grid; justify-items: end; gap: 8px; }
     .action-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -6833,14 +6902,20 @@ function staffPanelStyles() {
       cursor: pointer;
     }
     .btn:hover { border-color: var(--accent); }
+    .btn.active {
+      border-color: rgba(36,196,255,0.72);
+      background: rgba(36,196,255,0.14);
+      box-shadow: 0 0 0 1px rgba(36,196,255,0.10) inset;
+    }
     .pill { border: 1px solid rgba(255,255,255,0.18); border-radius: 999px; padding: 6px 10px; color: var(--txt); font-size: 12px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; }
     .card {
       border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(9,13,20,0.62);
+      background: linear-gradient(180deg, rgba(12,18,30,0.82), rgba(7,11,20,0.93));
       backdrop-filter: none;
       border-radius: 12px;
       padding: 14px;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.18);
     }
     .k { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
     .v { font-size: 28px; font-weight: 700; }
@@ -6855,6 +6930,69 @@ function staffPanelStyles() {
     .msg { margin: 0 0 12px 0; color: #7ee787; font-weight: 700; }
     .warn { margin: 0 0 12px 0; color: #ffb86b; font-weight: 700; }
     .foot { margin-top: 16px; color: var(--muted); font-size: 12px; }
+    .staff-command {
+      display: grid;
+      gap: 14px;
+      margin: 0 0 16px;
+    }
+    .staff-command-top {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 12px;
+    }
+    .staff-callout {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 14px;
+      padding: 18px;
+      background:
+        linear-gradient(135deg, rgba(36,196,255,0.12), transparent 42%),
+        linear-gradient(180deg, rgba(12,18,30,0.86), rgba(7,11,20,0.94));
+    }
+    .staff-callout h2 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
+    .staff-callout p { margin: 0; color: var(--muted); line-height: 1.65; }
+    .staff-quick-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .staff-quick {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(0,0,0,0.16);
+    }
+    .staff-quick b {
+      display:block;
+      font-size: 28px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .staff-quick span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .staff-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .staff-action-card {
+      display: grid;
+      gap: 8px;
+      min-height: 112px;
+      color: var(--txt);
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(0,0,0,0.16);
+    }
+    .staff-action-card:hover { border-color: var(--accent); }
+    .staff-action-card strong { font-size: 16px; }
+    .staff-action-card span { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .app-list { display: grid; gap: 10px; margin-top: 14px; }
     .app-row { border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px; background: rgba(0,0,0,0.12); }
     .ws-product { position: relative; }
@@ -6900,6 +7038,9 @@ function staffPanelStyles() {
       .head-right { justify-items: start; }
       .action-row { justify-content: flex-start; }
       .edit-row { grid-template-columns: 1fr; }
+      .staff-command-top,
+      .staff-quick-grid,
+      .staff-actions-grid { grid-template-columns: 1fr; }
     }
   </style>`;
 }
@@ -6908,11 +7049,7 @@ function staffHeaderHtml(staff, s, activeTab) {
   const sinceLabel = staff.since
     ? new Date(staff.since).toLocaleString("en-US", { hour12: false })
     : "Unknown";
-  const shopBtnLabel = activeTab === "shop" ? "Shop (Active)" : "Shop";
-  const basesBtnLabel = activeTab === "bases" ? "Bases (Active)" : "Bases";
-  const appsBtnLabel = activeTab === "applications" ? "Applications (Active)" : "Applications";
-  const galleryBtnLabel = activeTab === "gallery" ? "Gallery (Active)" : "Gallery";
-  const accountsBtnLabel = activeTab === "accounts" ? "Accounts (Active)" : "Accounts";
+  const tabClass = (tab) => `btn${activeTab === tab ? " active" : ""}`;
   return `<div class="head">
     <div class="head-left">
       <h1>Looooooty Staff Panel</h1>
@@ -6925,17 +7062,54 @@ function staffHeaderHtml(staff, s, activeTab) {
     </div>
     <div class="head-right">
       <div class="action-row">
-        <a class="btn" href="/panel/shop">${shopBtnLabel}</a>
-        <a class="btn" href="/panel/bases">${basesBtnLabel}</a>
-        <a class="btn" href="/panel/applications">${appsBtnLabel}</a>
-        <a class="btn" href="/panel/gallery">${galleryBtnLabel}</a>
-        <a class="btn" href="/panel/accounts">${accountsBtnLabel}</a>
+        <a class="${tabClass("shop")}" href="/panel/shop">Shop</a>
+        <a class="${tabClass("bases")}" href="/panel/bases">Bases</a>
+        <a class="${tabClass("applications")}" href="/panel/applications">Applications</a>
+        <a class="${tabClass("gallery")}" href="/panel/gallery">Gallery</a>
+        <a class="${tabClass("accounts")}" href="/panel/accounts">Accounts</a>
         <a class="btn" href="/">Back Home</a>
         <form method="post" action="/staff/logout" style="margin:0"><button class="btn" type="submit">Logout</button></form>
       </div>
       <div class="pill">Staff session active</div>
     </div>
   </div>`;
+}
+
+function staffOverviewHtml({ s, bases, applications, websiteShop, websiteGallery, webAccounts }) {
+  const baseRows = Array.isArray(bases) ? bases : [];
+  const appRows = Array.isArray(applications) ? applications : [];
+  const products = Array.isArray(websiteShop && websiteShop.products) ? websiteShop.products : [];
+  const pendingApps = appRows.filter((a) => String(a && a.status || "") === "PENDING").length;
+  const readyAlerts = loadWebsiteReadyAlerts().filter((a) => a && a.delivered !== true).length;
+  const openBases = baseRows.filter((b) => String(b && b.state || "open") !== "closed").length;
+  const outOfStock = products.filter((p) => p && p.inStock === false).length;
+  const galleryCount = Array.isArray(websiteGallery) ? websiteGallery.length : 0;
+  const accountCount = Array.isArray(webAccounts) ? webAccounts.length : 0;
+  return `<section class="staff-command">
+    <div class="staff-command-top">
+      <div class="staff-callout">
+        <h2>Operations dashboard</h2>
+        <p>Quick view for shop status, delivery work, applications, bases, and website content. Use the action cards below to jump directly into the part of the panel you need.</p>
+      </div>
+      <div class="staff-callout">
+        <h2>${esc(s.shopState)}</h2>
+        <p>Current shop state. Products: <b>${products.length}</b>. Out of stock: <b>${outOfStock}</b>. Open carts: <b>${s.openCarts}</b>.</p>
+      </div>
+    </div>
+    <div class="staff-quick-grid">
+      <div class="staff-quick"><b>${pendingApps}</b><span>Pending Applications</span></div>
+      <div class="staff-quick"><b>${readyAlerts}</b><span>Ready Deliveries</span></div>
+      <div class="staff-quick"><b>${openBases}</b><span>Open / Limited Bases</span></div>
+      <div class="staff-quick"><b>${accountCount}</b><span>Web Accounts</span></div>
+    </div>
+    <div class="staff-actions-grid">
+      <a class="staff-action-card" href="/panel/shop"><strong>Manage Shop</strong><span>Products, coupons, credit, giveaways, and delivery alerts.</span></a>
+      <a class="staff-action-card" href="/panel/applications"><strong>Review Applications</strong><span>${pendingApps} application${pendingApps === 1 ? "" : "s"} waiting for staff action.</span></a>
+      <a class="staff-action-card" href="/panel/bases"><strong>Update Bases</strong><span>Change base states and save defaults.</span></a>
+      <a class="staff-action-card" href="/panel/gallery"><strong>Gallery</strong><span>${galleryCount} image${galleryCount === 1 ? "" : "s"} on the public gallery.</span></a>
+      <a class="staff-action-card" href="/panel/accounts"><strong>Accounts</strong><span>View recent website logins and provider IDs.</span></a>
+    </div>
+  </section>`;
 }
 
 function shopStatsHtml(s) {
@@ -7496,6 +7670,7 @@ function staffPageHtml({ s, bases, applications, forms, websiteShop, websiteGall
         ${staffHeaderHtml(staff, s, activeTab)}
         ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
         ${warn ? `<div class="warn">${esc(warn)}</div>` : ""}
+        ${staffOverviewHtml({ s, bases, applications, websiteShop, websiteGallery, webAccounts })}
         ${tabContent}
         <div class="foot">Data source: ${esc(BOT_DATA_DIR)}</div>
       </div>
