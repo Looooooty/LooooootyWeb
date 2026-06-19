@@ -4715,6 +4715,7 @@ function websiteShopHtml(websiteShop, session = {}) {
       cursor: pointer;
     }
     .flow-btn.ok { background: var(--green); border-color: var(--green); }
+    .flow-btn.danger { background: #c2494b; border-color: #c2494b; }
     .flow-form {
       margin-top: 12px;
       display: grid;
@@ -5716,6 +5717,24 @@ function websiteShopHtml(websiteShop, session = {}) {
         }
       }
 
+      async function notifyOnlineAtCoords(order, online) {
+        try {
+          await fetch("/shop/web/online-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: order.orderId,
+              userId: order.userId,
+              online: Boolean(online),
+              ign: order.ign || "",
+              coordinates: order.coordinates || ""
+            })
+          });
+        } catch {
+          // best-effort only
+        }
+      }
+
       function stopOrderStatusPoll() {
         if (orderStatusPoll) {
           clearInterval(orderStatusPoll);
@@ -5815,6 +5834,7 @@ function websiteShopHtml(websiteShop, session = {}) {
         const ign = activeOrder.ign || "";
         const coords = activeOrder.coordinates || "";
         const ready = Boolean(activeOrder.ready);
+        const onlineAtCoords = Boolean(activeOrder.onlineAtCoords);
         const delivered = Boolean(activeOrder.delivered);
         if (delivered) {
           cartFlow.innerHTML =
@@ -5840,15 +5860,28 @@ function websiteShopHtml(websiteShop, session = {}) {
           "</div>" +
           "</div>" +
           (ign && coords
-            ? '<div class="flow-embed">Are you ready for your delivery?</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
+            ? '<div class="flow-embed">' +
+              (ready
+                ? "Ready confirmed. Tell staff when you are online at your coordinates."
+                : "Are you ready for your delivery?") +
+              '</div><div class="flow-actions"><button id="flow-ready" class="flow-btn ok" type="button">' +
               (ready ? "Ready Confirmed" : "Yes") +
-              "</button></div>"
+              "</button>" +
+              (ready
+                ? '<button id="flow-online-toggle" class="flow-btn ' +
+                  (onlineAtCoords ? "danger" : "ok") +
+                  '" type="button">' +
+                  (onlineAtCoords ? "Press when you log off" : "Press if online at your coords") +
+                  "</button>"
+                : "") +
+              "</div>"
             : "");
 
         const saveDetailsBtn = document.getElementById("flow-save-details");
         const flowIgnInput = document.getElementById("flow-ign-input");
         const flowCoordsInput = document.getElementById("flow-coords-input");
         const readyBtn = document.getElementById("flow-ready");
+        const onlineToggleBtn = document.getElementById("flow-online-toggle");
         if (saveDetailsBtn) {
           saveDetailsBtn.addEventListener("click", () => {
             activeOrder.ign = String((flowIgnInput && flowIgnInput.value) || "").trim().slice(0, 32);
@@ -5864,6 +5897,15 @@ function websiteShopHtml(websiteShop, session = {}) {
             renderWebsiteOnlyPaidFlow();
             await notifyReady(activeOrder);
             startOrderStatusPoll();
+          });
+        }
+        if (onlineToggleBtn) {
+          onlineToggleBtn.addEventListener("click", async () => {
+            const nextOnlineState = !Boolean(activeOrder.onlineAtCoords);
+            activeOrder.onlineAtCoords = nextOnlineState;
+            saveActiveOrder();
+            renderWebsiteOnlyPaidFlow();
+            await notifyOnlineAtCoords(activeOrder, nextOnlineState);
           });
         }
       }
@@ -7224,15 +7266,28 @@ function shopDeliveryAlertsPanelHtml() {
     <div class="note">Website shop delivery queue and fulfillment actions.</div>
     <div class="app-list">
       ${readyAlerts.length
-        ? readyAlerts.map((a) => `<div class="app-row">
+        ? readyAlerts.map((a) => {
+            const alertType = String(a.type || "READY").toUpperCase();
+            const statusLabel =
+              a.delivered === true
+                ? "DELIVERED"
+                : alertType === "ONLINE_AT_COORDS"
+                  ? "ONLINE AT COORDS"
+                  : alertType === "LOGGED_OFF"
+                    ? "LOGGED OFF"
+                    : "NEW";
+            const statusClass =
+              a.delivered === true ? "approved" : alertType === "LOGGED_OFF" ? "rejected" : "pending";
+            return `<div class="app-row">
             <div class="app-head">
               <div><b>${esc(a.orderId || "-")}</b></div>
-              <div><span class="tag ${a.delivered === true ? "approved" : "pending"}">${a.delivered === true ? "DELIVERED" : "NEW"}</span></div>
+              <div><span class="tag ${statusClass}">${statusLabel}</span></div>
             </div>
             <div class="app-meta">
               User ID: <b>${esc(a.userId || "-")}</b><br/>
               IGN: <b>${esc(a.ign || "-")}</b><br/>
               Coordinates: <b>${esc(a.coordinates || "-")}</b><br/>
+              Online At Coords: <b>${a.onlineAtCoords === true ? "Yes" : alertType === "LOGGED_OFF" ? "No" : "-"}</b><br/>
               Items: <b>${esc(
                 Array.isArray(a.items) && a.items.length
                   ? a.items.map((it) => `${Number(it && it.qty ? it.qty : 1)}x ${String(it && it.name ? it.name : "Item")}`).join(", ")
@@ -7241,7 +7296,8 @@ function shopDeliveryAlertsPanelHtml() {
               At: <b>${esc(new Date(a.createdAt || Date.now()).toLocaleString("en-US", { hour12: false }))}</b>
             </div>
             ${a.delivered === true ? "" : `<div class="app-actions"><form method="post" action="/staff/ready-alerts/${encodeURIComponent(a.id || "")}/deliver" style="margin:0;"><button class="save-btn" type="submit">Mark Delivered</button></form></div>`}
-          </div>`).join("")
+          </div>`;
+          }).join("")
         : '<div class="note">No delivery-ready alerts yet.</div>'}
     </div>
   </div>`;
@@ -8914,6 +8970,55 @@ app.post("/shop/web/ready", (req, res) => {
   });
   saveWebsiteReadyAlerts(alerts);
   res.json({ ok: true });
+});
+
+app.post("/shop/web/online-status", (req, res) => {
+  const orderId = String(req.body && req.body.orderId ? req.body.orderId : "").trim();
+  const userId = String(req.body && req.body.userId ? req.body.userId : "").trim();
+  const online = Boolean(req.body && req.body.online);
+  const ign = String(req.body && req.body.ign ? req.body.ign : "").trim().slice(0, 32);
+  const coordinates = String(req.body && req.body.coordinates ? req.body.coordinates : "").trim().slice(0, 120);
+  if (!orderId || !userId) {
+    res.status(400).json({ ok: false, error: "Invalid order/user." });
+    return;
+  }
+
+  const orders = loadWebsiteOrders();
+  const idx = orders.findIndex((o) => String(o.id) === orderId);
+  let items = [];
+  if (idx !== -1) {
+    orders[idx].ign = ign || orders[idx].ign || "";
+    orders[idx].coordinates = coordinates || orders[idx].coordinates || "";
+    orders[idx].onlineAtCoords = online;
+    if (online) {
+      orders[idx].onlineAtCoordsAt = new Date().toISOString();
+    } else {
+      orders[idx].loggedOffAt = new Date().toISOString();
+    }
+    items = Array.isArray(orders[idx].items)
+      ? orders[idx].items.map((it) => ({
+          name: String((it && (it.name || it.productName || it.id)) || "Item").slice(0, 100),
+          qty: Math.max(1, Number.parseInt(it && (it.qty || it.quantity) ? it.qty || it.quantity : 1, 10) || 1)
+        }))
+      : [];
+    saveWebsiteOrders(orders);
+  }
+
+  const alerts = loadWebsiteReadyAlerts();
+  alerts.push({
+    id: `ONL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    type: online ? "ONLINE_AT_COORDS" : "LOGGED_OFF",
+    orderId,
+    userId,
+    ign,
+    coordinates,
+    items,
+    createdAt: new Date().toISOString(),
+    delivered: false,
+    onlineAtCoords: online
+  });
+  saveWebsiteReadyAlerts(alerts);
+  res.json({ ok: true, online });
 });
 
 app.get("/shop/web/order-status", (req, res) => {
