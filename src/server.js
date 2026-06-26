@@ -6516,11 +6516,11 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
     }
     .reviews-grid {
       display: grid;
-      grid-template-columns: 420px minmax(0, 1fr);
-      gap: 20px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
       align-items: start;
     }
-    .review-panel,
+    .review-compose,
     .review-list-shell {
       border-radius: 28px;
       border: 1px solid rgba(255,255,255,0.10);
@@ -6528,14 +6528,57 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
       box-shadow: 0 20px 54px rgba(0,0,0,0.28);
       padding: 22px;
     }
-    .review-panel h2,
+    .review-compose {
+      overflow: hidden;
+    }
+    .review-compose summary {
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      color: #fff;
+      font-weight: 900;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+    .review-compose summary::-webkit-details-marker {
+      display: none;
+    }
+    .review-compose summary span {
+      color: #aebed8;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .review-compose summary::after {
+      content: "+";
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #fff;
+      flex: 0 0 auto;
+    }
+    .review-compose[open] summary::after {
+      content: "-";
+    }
+    .review-compose-body {
+      margin-top: 16px;
+      display: grid;
+      gap: 12px;
+    }
     .review-list-shell h2 {
       margin: 0 0 10px;
       color: #fff;
       font-size: 28px;
       letter-spacing: -0.04em;
     }
-    .review-panel .subtle,
+    .review-compose .subtle,
     .review-list-shell .subtle {
       color: #adbdd7;
       line-height: 1.7;
@@ -6587,11 +6630,6 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
       border: 1px solid rgba(255,255,255,0.12);
       background: rgba(255,255,255,0.06);
     }
-    .review-list {
-      display: grid;
-      gap: 14px;
-      margin-top: 12px;
-    }
     .review-row {
       border-radius: 22px;
       border: 1px solid rgba(255,255,255,0.10);
@@ -6600,6 +6638,9 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
         linear-gradient(180deg, rgba(10,14,30,0.96), rgba(7,11,22,0.98));
       padding: 18px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+      min-height: 190px;
+      display: flex;
+      flex-direction: column;
     }
     .review-head {
       display: flex;
@@ -6633,9 +6674,20 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
       white-space: pre-wrap;
       font-size: 15px;
     }
+    .review-list-shell {
+      display: grid;
+      gap: 14px;
+    }
+    .review-list-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
     @media (max-width: 1020px) {
       .reviews-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
     @media (max-width: 760px) {
@@ -6643,12 +6695,15 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
         width: min(96%, 96%);
       }
       .reviews-hero,
-      .review-panel,
+      .review-compose,
       .review-list-shell {
         border-radius: 22px;
         padding: 18px;
       }
       .reviews-stats {
+        grid-template-columns: 1fr;
+      }
+      .reviews-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -6679,10 +6734,9 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
           </div>
         </div>
 
-        <div class="reviews-grid">
-          <div class="review-panel">
-            <h2>Write a review</h2>
-            <div class="subtle">Post feedback that other buyers can actually use. Keep it specific, short, and relevant to the order, delivery, or communication quality.</div>
+        <details class="review-compose">
+          <summary>Submit Review <span>Open the form when you want to write one</span></summary>
+          <div class="review-compose-body">
             ${msg ? `<div class="msg">${esc(msg)}</div>` : ""}
             ${err ? `<div class="warn">${esc(err)}</div>` : ""}
             ${
@@ -6696,22 +6750,26 @@ function websiteReviewsHtml({ reviews, session = {}, msg = "", err = "" }) {
                    <a class="review-login-btn" href="/auth?next=%2Fshop%2Freviews">Sign Up / Login</a>`
             }
           </div>
+        </details>
 
-          <div class="review-list-shell">
-            <h2>Recent reviews</h2>
-            <div class="subtle">Newest reviews are shown first so the page reflects the current state of the shop.</div>
-            <div class="review-list">
-              ${ordered.length
-                ? ordered.map((r) => `<div class="review-row">
-                    <div class="review-head">
-                      <div class="review-user">${esc(r.userTag || "User")}</div>
-                      <div class="review-time">${esc(r.createdAt ? new Date(r.createdAt).toLocaleString("en-US", { hour12: false }) : "")}</div>
-                    </div>
-                    <div class="review-meta">Provider: ${esc(r.provider || "unknown")} • ID: ${esc(r.userId || "-")}</div>
-                    <div class="review-text">${esc(r.text || "")}</div>
-                  </div>`).join("")
-                : '<div class="note">No reviews yet.</div>'}
+        <div class="review-list-shell">
+          <div class="review-list-head">
+            <div>
+              <h2>Recent reviews</h2>
+              <div class="subtle">Newest reviews are shown first so the page reflects the current state of the shop.</div>
             </div>
+          </div>
+          <div class="reviews-grid">
+            ${ordered.length
+              ? ordered.map((r) => `<div class="review-row">
+                  <div class="review-head">
+                    <div class="review-user">${esc(r.userTag || "User")}</div>
+                    <div class="review-time">${esc(r.createdAt ? new Date(r.createdAt).toLocaleString("en-US", { hour12: false }) : "")}</div>
+                  </div>
+                  <div class="review-meta">Provider: ${esc(r.provider || "unknown")} • ID: ${esc(r.userId || "-")}</div>
+                  <div class="review-text">${esc(r.text || "")}</div>
+                </div>`).join("")
+              : '<div class="note">No reviews yet.</div>'}
           </div>
         </div>
       </section>
@@ -8623,6 +8681,11 @@ app.get("/shop/reviews", (req, res) => {
   const msg = typeof req.query.msg === "string" ? req.query.msg : "";
   const err = typeof req.query.err === "string" ? req.query.err : "";
   res.send(websiteReviewsHtml({ reviews, session, msg, err }));
+});
+
+app.get(["/reviews", "/Reviews"], (req, res) => {
+  const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+  res.redirect(`/shop/reviews${query}`);
 });
 
 app.post("/shop/reviews", async (req, res) => {
